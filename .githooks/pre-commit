@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
-# Runs the documentation check before every commit, so drift (a renamed file the docs still cite,
-# a broken link, a malformed ADR) is caught when it is introduced, not weeks later.
+# Runs the documentation check, then luacheck and busted when the local Lua toolchain is installed
+# (tools/setup-lua.sh), before every commit, so drift and lint or test failures are caught when they
+# are introduced, not weeks later.
 # Emergency bypass for one commit: SKIP_DOCS_CHECK=1 git commit ...
 set -euo pipefail
 
 script="tools/check-docs.mjs"
 
 [ "${SKIP_DOCS_CHECK:-}" = "1" ] && exit 0
-[ -f "$script" ] || exit 0
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "pre-commit: node not found, documentation check skipped." >&2
-  exit 0
+if [ -f "$script" ]; then
+  if command -v node >/dev/null 2>&1; then
+    node "$script"
+  else
+    echo "pre-commit: node not found, documentation check skipped." >&2
+  fi
 fi
 
-node "$script"
+if [ -x .lua/bin/luacheck ] && [ -x .lua/bin/busted ]; then
+  .lua/bin/luacheck . --quiet
+  .lua/bin/busted --output=TAP >/dev/null
+else
+  echo "pre-commit: .lua/ toolchain not installed (tools/setup-lua.sh), luacheck and busted skipped." >&2
+fi
