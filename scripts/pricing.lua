@@ -9,11 +9,9 @@ local pricing = {}
 
 --- on_init and on_configuration_changed: rebuilds storage.base_values.
 function pricing.init()
-  local result = valuation.compute(recipe_graph.build(raw_graph.extract()))
+  local graph = recipe_graph.build(raw_graph.extract())
+  local result = valuation.compute(graph, graph.keys)
   storage.base_values = result.values
-  if not result.converged then
-    log("[galactic-bazaar] base values did not converge after " .. result.iterations .. " iterations")
-  end
   if #result.unpriced > 0 then
     log("[galactic-bazaar] no base value (not tradeable): " .. table.concat(result.unpriced, ", "))
   end

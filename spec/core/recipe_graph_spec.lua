@@ -14,7 +14,7 @@ end
 
 local function build(fields)
   return recipe_graph.build({
-    recipes = fields.recipes or {}, mined = fields.mined or {}, tile_fluids = fields.tile_fluids or {},
+    recipes = fields.recipes or {}, mined = fields.mined or {}, tile_fluids = fields.tile_fluids or {}, keys = {},
   })
 end
 
@@ -73,7 +73,7 @@ describe("recipe_graph.build", function()
     assert.are.same({ ["item/u235"] = 1 }, built.outputs)
   end)
 
-  it("excludes recycling, parameter, hidden and unreachable recipes with their reason", function()
+  it("excludes generated recycling, parameter, hidden and unreachable recipes with their reason", function()
     local graph = build({ recipes = {
       recipe({ name = "gear-recycling", categories = { "recycling" }, products = { item("plate", 1) } }),
       recipe({ name = "parameter-0", parameter = true, products = { item("plate", 1) } }),
@@ -87,19 +87,14 @@ describe("recipe_graph.build", function()
     assert.are.equal("unlocked-later", graph.recipes[1].name)
   end)
 
-  it("excludes an unpacking recipe that exactly undoes a packing one, like emptying a barrel", function()
+  it("keeps a planet-bound recycling process as a fallback recipe, like scrap recycling", function()
     local graph = build({ recipes = {
-      recipe({ name = "water-barrel", energy = 0.2, ingredients = { item("barrel", 1), fluid("water", 50) },
-        products = { item("water-barrel", 1) } }),
-      recipe({ name = "empty-water-barrel", energy = 0.2, ingredients = { item("water-barrel", 1) },
-        products = { item("barrel", 1), fluid("water", 50) } }),
-      recipe({ name = "uranium-processing", ingredients = { item("uranium-ore", 10) },
-        products = { item("uranium-235", 1), item("uranium-238", 9) } }),
+      recipe({ name = "scrap-recycling", categories = { "recycling", "hand-crafting" },
+        ingredients = { item("scrap", 1) }, products = { item("gear", 1), item("holmium-ore", 1) } }),
     } })
-    assert.are.equal("inverse", graph.excluded["empty-water-barrel"])
-    assert.is_nil(graph.excluded["water-barrel"])
-    assert.is_nil(graph.excluded["uranium-processing"])
-    assert.are.equal(2, #graph.recipes)
+    assert.are.equal(0, #graph.recipes)
+    assert.are.equal("scrap-recycling", graph.fallback[1].name)
+    assert.is_nil(graph.excluded["scrap-recycling"])
   end)
 
   it("excludes a recipe that gives back everything it consumes", function()
@@ -121,16 +116,34 @@ describe("recipe_graph.build", function()
     assert.are.same({ ["fluid/crude-oil"] = 10 }, find(graph.recipes, "mine/crude-oil").outputs)
   end)
 
-  it("keeps natural sources as fallback and ignores buildings that return their item", function()
+  it("keeps natural sources apart and ignores buildings that return their item", function()
     local graph = build({ mined = {
       { name = "tree-01", kind = "tree", mining_time = 0.5, products = { item("wood", 4) } },
       { name = "big-rock", kind = "simple-entity", mining_time = 2, products = { item("stone", 20) } },
       { name = "iron-chest", kind = "container", mining_time = 0.1, products = { item("iron-chest", 1) } },
     } })
     assert.are.equal(0, #graph.recipes)
-    assert.are.equal(2, #graph.fallback)
-    assert.are.equal("mine/big-rock", graph.fallback[1].name)
-    assert.are.equal("mine/tree-01", graph.fallback[2].name)
+    assert.are.equal(0, #graph.fallback)
+    assert.are.equal("mine/big-rock", graph.natural[1].name)
+    assert.are.equal("mine/tree-01", graph.natural[2].name)
+  end)
+
+  it("drops mining outputs that are never given, and sources left with none", function()
+    local never = { type = "item", name = "gem", amount = 1, independent_probability = 0 }
+    local graph = build({ mined = {
+      { name = "ore-with-gem", kind = "resource", mining_time = 1, products = { item("ore", 1), never } },
+      { name = "gem-only", kind = "resource", mining_time = 1, products = { never } },
+    } })
+    assert.are.equal(1, #graph.recipes)
+    assert.are.same({ ["item/ore"] = 1 }, graph.recipes[1].outputs)
+  end)
+
+  it("turns a rocket launch into a recipe consuming the item and the rocket parts", function()
+    local graph = recipe_graph.build({ recipes = {}, mined = {}, tile_fluids = {}, keys = {}, launches = {
+      { item = "satellite", products = { item("space-science-pack", 1000) }, part = "rocket-part", parts = 100 },
+    } })
+    assert.are.same({ ["item/satellite"] = 1, ["item/rocket-part"] = 100 }, graph.recipes[1].inputs)
+    assert.are.same({ ["item/space-science-pack"] = 1000 }, graph.recipes[1].outputs)
   end)
 
   it("pumps primary tile fluids in the main graph and the others as fallback", function()
