@@ -17,3 +17,4 @@ Never rewrite history: if a choice is reversed, add a new line that says so.
 2026-10-29 — Repository tooling lives in `tools/`, never in `scripts/` — `scripts/` is the conventional folder for the mod's runtime code (adapters in `scripts/`, pure logic in `scripts/core/`), and `tools/` is never shipped in the mod zip.
 2026-10-29 — luacheck is the static-analysis gate (local and CI); LuaLS/FMTK type checking stays an optional editor aid — luacheck's exit code is reliable and verified, LuaLS's CLI check reporting is not.
 2026-10-29 — busted 2.3.0 on Lua 5.2 runs the unit tests of scripts/core/ (local and CI) — it matches Factorio's Lua version and needs no game.
+2026-10-29 — In-game tests use FactorioTest (factorio-test-cli 3.8.0, npm devDependency) on the headless server — it supports 2.1 and save/reload checks; its mod comes from the portal, so local runs and CI need a Factorio account token (FACTORIO_USERNAME / FACTORIO_TOKEN).

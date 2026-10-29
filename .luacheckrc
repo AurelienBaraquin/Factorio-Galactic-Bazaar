@@ -18,6 +18,12 @@ stds.factorio_data = {
     "table_size", "serpent", "localised_print" },
 }
 
+-- FactorioTest globals, from its Writing-Tests documentation.
+stds.factorio_test = {
+  read_globals = { "describe", "test", "it", "before_each", "after_each", "before_all", "after_all",
+    "after_test", "async", "done", "on_tick", "after_ticks", "ticks_between_tests", "tags", "assert" },
+}
+
 files["control.lua"] = { std = "lua52+factorio_runtime" }
 files["scripts/**/*.lua"] = { std = "lua52+factorio_runtime" }
 -- Pure logic: no game API at all, so it can be unit-tested outside the game.
@@ -25,4 +31,5 @@ files["scripts/core/**/*.lua"] = { std = "lua52" }
 files["data*.lua"] = { std = "lua52+factorio_data" }
 files["settings*.lua"] = { std = "lua52+factorio_data" }
 files["prototypes/**/*.lua"] = { std = "lua52+factorio_data" }
+files["tests/**/*.lua"] = { std = "lua52+factorio_runtime+factorio_test" }
 files["spec/**/*.lua"] = { std = "lua52+busted" }

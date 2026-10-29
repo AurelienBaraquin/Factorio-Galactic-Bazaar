@@ -42,4 +42,27 @@ Specs live in `spec/`, mirror the module path and end in `_spec.lua`
 Factorio does).
 
 What is deliberately not unit-tested: code outside `scripts/core/`, which calls the game API.
-It is covered by in-game tests once they exist (issue #4).
+It is covered by the in-game tests below.
+
+## In-game tests: FactorioTest
+
+```bash
+npm ci                                                    # once: installs factorio-test-cli
+PATH=~/.local/share/factorio-headless/factorio/bin/x64:$PATH npm run test:game
+PATH=~/.local/share/factorio-headless/factorio/bin/x64:$PATH npm run test:game -- --mods space-age
+```
+
+The tests in `tests/` run inside a headless Factorio 2.1.24 (install: [README](../README.md)),
+in an isolated `factorio-test-data-dir/` that never touches a real mods folder. They cover the
+adapters in `scripts/`: storage lifecycle, events, and that state survives a save and reload
+(`.after_reload_script`). `control.lua` registers them only when the `factorio-test` mod is
+active, so they are inert in a normal game. CLI configuration: the `factorio-test` key of
+`package.json`.
+
+**Prerequisite — a Factorio account.** The CLI downloads the `factorio-test` mod from the mod
+portal, which requires `FACTORIO_USERNAME` and `FACTORIO_TOKEN` (token shown on
+https://factorio.com/profile) in the environment, never in the repository. CI reads them from
+the repository secrets of the same names; without them the `game` job is skipped with a notice.
+
+Space Age is not owned by the owner, so the `--mods space-age` run is the only coverage of Space
+Age code paths: every such path needs a test here.

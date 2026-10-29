@@ -27,3 +27,34 @@ jobs:
       - uses: leafo/gh-actions-luarocks@v6
       - run: luarocks install busted 2.3.0
       - run: busted
+
+  # In-game tests on the headless server. The factorio-test mod comes from the mod portal, which
+  # needs a Factorio account: without the FACTORIO_USERNAME / FACTORIO_TOKEN secrets the job
+  # reports that it was skipped instead of failing.
+  game:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mods: ["", "space-age"]
+    env:
+      FACTORIO_VERSION: "2.1.24"
+      FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
+      FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
+    steps:
+      - if: env.FACTORIO_TOKEN == ''
+        run: echo "::notice::In-game tests skipped - FACTORIO_USERNAME / FACTORIO_TOKEN secrets are not set."
+      - if: env.FACTORIO_TOKEN != ''
+        uses: actions/checkout@v7
+      - if: env.FACTORIO_TOKEN != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - if: env.FACTORIO_TOKEN != ''
+        run: |
+          curl -fsSL "https://factorio.com/get-download/${FACTORIO_VERSION}/headless/linux64" | tar -xJ -C ~
+          echo ~/factorio/bin/x64 >> "$GITHUB_PATH"
+      - if: env.FACTORIO_TOKEN != ''
+        run: npm ci
+      - if: env.FACTORIO_TOKEN != ''
+        run: npx factorio-test run ${{ matrix.mods && format('--mods {0}', matrix.mods) || '' }}

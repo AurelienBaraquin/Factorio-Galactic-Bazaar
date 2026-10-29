@@ -1,0 +1,14 @@
+{
+  "name": "galactic-bazaar",
+  "private": true,
+  "description": "Development tooling for the Galactic Bazaar Factorio mod (not shipped in the mod).",
+  "scripts": {
+    "test:game": "factorio-test run"
+  },
+  "devDependencies": {
+    "factorio-test-cli": "3.8.0"
+  },
+  "factorio-test": {
+    "modPath": "."
+  }
+}

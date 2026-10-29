@@ -19,6 +19,6 @@ and a document whose covered paths keep changing without it is reported as possi
 | [lessons.md](../.assistant/lessons.md) | Mistakes made and what now prevents them | lessons | review, CI or the user catches a mistake |
 | [README.md](README.md) | This index and the documentation tooling | `tools/check-docs.mjs` | the docs check or its workflow changes |
 | [../README.md](../README.md) | Getting started: prerequisites, headless load check | `README.md` | a prerequisite or setup step changes |
-| [testing.md](testing.md) | How the code is checked and tested, and how to run each check | `.luacheckrc` `.busted` `spec/` `tools/setup-lua.sh` | a check, its configuration or the toolchain changes |
+| [testing.md](testing.md) | How the code is checked and tested, and how to run each check | `.luacheckrc` `.busted` `spec/` `tests/` `package.json` `tools/setup-lua.sh` | a check, its configuration or the toolchain changes |
 | [ci.md](ci.md) | What each CI pipeline runs and when | `.github/workflows/` | a workflow, trigger or step changes |
 | [data-model.md](data-model.md) | What the mod persists in `storage` and its invariants | `scripts/forces.lua` `scripts/core/force_registry.lua` | the shape of `storage` or its lifecycle changes |

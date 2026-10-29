@@ -20,6 +20,8 @@ locale/        in-game text, one folder per language (en, fr)
 scripts/       runtime adapters between the game API and the pure logic
 scripts/core/  pure Lua logic, no game API (checked by luacheck, unit-tested)
 spec/          busted unit tests of scripts/core/
+tests/         FactorioTest in-game tests of scripts/
+package.json   development tooling only (FactorioTest CLI), not part of the mod
 changelog.txt  release notes in the strict format the game parses
 docs/        brief, architecture, ADRs and the documentation index
 tools/       repository tooling, never shipped in the mod (documentation check)
