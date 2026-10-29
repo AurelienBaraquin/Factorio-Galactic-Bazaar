@@ -11,17 +11,24 @@ cargo.KINDS = { ["gb-export-chest"] = "export", ["gb-import-chest"] = "import" }
 cargo.HUB_RANGE = 10
 -- An export chest sells while each unit fetches at least this fraction of its base value.
 cargo.DEFAULT_MIN_PRICE_RATIO = 0.5
--- Ticks between two export batches, and export chests visited per batch.
-cargo.EXPORT_INTERVAL = 60
-cargo.EXPORT_BATCH = 20
+-- Ticks between two export batches, and export chests visited per batch: 20 chests a second,
+-- spread thinly so that no single tick pays for many.
+cargo.EXPORT_INTERVAL = 6
+cargo.EXPORT_BATCH = 2
 
-local function nearest_hub(entity)
+local function has_power(hub)
+  return hub.energy > 0
+end
+
+-- The nearest registered hub of the entity's force within range; with `powered_only`, the nearest
+-- one that has power.
+local function nearest_hub(entity, powered_only)
   local best, best_distance
   local candidates = entity.surface.find_entities_filtered({
     name = hubs.NAME, force = entity.force, position = entity.position, radius = cargo.HUB_RANGE,
   })
   for _, hub in ipairs(candidates) do
-    if hubs.get(hub.unit_number) then
+    if hubs.get(hub.unit_number) and (not powered_only or has_power(hub)) then
       local dx, dy = hub.position.x - entity.position.x, hub.position.y - entity.position.y
       local distance = dx * dx + dy * dy
       if not best or distance < best_distance or (distance == best_distance and hub.unit_number < best.unit_number) then
@@ -32,11 +39,18 @@ local function nearest_hub(entity)
   return best and best.unit_number or nil
 end
 
-local function attach(module)
-  module.hub = nearest_hub(module.entity)
+local function attach(module, powered_only)
+  module.hub = nearest_hub(module.entity, powered_only)
 end
 
---- on_init and on_configuration_changed: creates the state and drops modules that no longer exist.
+local function attach_all()
+  for _, module in pairs(storage.cargo.modules) do
+    if module.entity.valid then attach(module) end
+  end
+end
+
+--- on_init and on_configuration_changed: creates the state, drops modules that no longer exist and
+--- re-attaches the others (hubs may have been dropped, or the range changed).
 function cargo.init()
   storage.cargo = storage.cargo or { modules = {}, exports = {}, cursor = 1 }
   local gone = {}
@@ -44,7 +58,11 @@ function cargo.init()
     if not module.entity.valid then gone[#gone + 1] = unit_number end
   end
   for _, unit_number in ipairs(gone) do cargo.forget(unit_number) end
+  attach_all()
 end
+
+--- on_forces_merged: chests now belong to the merged force and may use its hubs.
+cargo.on_forces_merged = attach_all
 
 function cargo.on_built(entity)
   local kind = cargo.KINDS[entity.name]
@@ -52,22 +70,31 @@ function cargo.on_built(entity)
   local module = { entity = entity, kind = kind, min_price_ratio = cargo.DEFAULT_MIN_PRICE_RATIO }
   attach(module)
   storage.cargo.modules[entity.unit_number] = module
-  if kind == "export" then table.insert(storage.cargo.exports, entity.unit_number) end
+  if kind == "export" then
+    local exports = storage.cargo.exports
+    exports[#exports + 1] = entity.unit_number
+    module.export_index = #exports
+  end
   script.register_on_object_destroyed(entity)
 end
 
---- Drops a module from the state (destroyed, or invalid after a configuration change).
+--- Drops a module from the state (destroyed, or invalid after a configuration change). An export
+--- chest leaves the round-robin list in O(1): the last entry takes its place.
 function cargo.forget(unit_number)
   local state = storage.cargo
-  if not state.modules[unit_number] then return end
+  local module = state.modules[unit_number]
+  if not module then return end
   state.modules[unit_number] = nil
-  for i, exported in ipairs(state.exports) do
-    if exported == unit_number then
-      table.remove(state.exports, i)
-      if state.cursor > i then state.cursor = state.cursor - 1 end
-      break
-    end
+  local index = module.export_index
+  if not index then return end
+  local exports = state.exports
+  local last = #exports
+  if index ~= last then
+    exports[index] = exports[last]
+    state.modules[exports[index]].export_index = index
   end
+  exports[last] = nil
+  if state.cursor > last then state.cursor = 1 end
 end
 
 --- A hub appeared: modules in its range move to it if it is now their nearest hub.
@@ -90,27 +117,37 @@ function cargo.on_hub_removed(hub_unit_number)
   end
 end
 
---- The hub entity a module works for, when it exists and has power; nil otherwise.
+--- The hub entity a module works for: its hub if it is valid, of the module's force and powered;
+--- otherwise the nearest powered hub of its force in range, which it then attaches to; nil when
+--- there is none.
 function cargo.powered_hub(module)
   local hub = module.hub and hubs.get(module.hub)
-  return hub and hub.energy > 0 and hub or nil
+  if hub and hub.force == module.entity.force and has_power(hub) then return hub end
+  attach(module, true)
+  return module.hub and hubs.get(module.hub)
+end
+
+-- A stack worth exactly its base value: no extra data (equipment grid, inventory, blueprint, tags),
+-- undamaged, and for tools and ammunition unused. Normal quality only, until quality is priced.
+local function is_plain(stack)
+  if stack.item or stack.health < 1 or stack.quality.name ~= "normal" then return false end
+  if stack.is_tool and stack.durability < stack.prototype.get_durability(stack.quality) then return false end
+  if stack.is_ammo and stack.ammo < stack.prototype.magazine_size then return false end
+  return true
 end
 
 local function export_from(module)
   if not (module.entity.valid and cargo.powered_hub(module)) then return end
   local force_index = module.entity.force.index
   local inventory = module.entity.get_inventory(defines.inventory.chest)
-  for _, content in ipairs(inventory.get_contents()) do
-    if content.quality == "normal" then
-      local units = math.min(content.count,
-        math.floor(market.sellable(force_index, "item", content.name, module.min_price_ratio)))
-      if units > 0 then
-        local stack = { name = content.name, count = units, quality = content.quality }
-        local removed = inventory.remove(stack)
-        if removed > 0 and not market.sell(force_index, "item", content.name, removed) then
-          stack.count = removed
-          inventory.insert(stack)
-        end
+  for slot = 1, #inventory do
+    local stack = inventory[slot]
+    if stack.valid_for_read and is_plain(stack) then
+      local units = math.min(stack.count,
+        math.floor(market.sellable(force_index, "item", stack.name, module.min_price_ratio)))
+      -- The sale goes first: the stack only shrinks for units the market has paid for.
+      if units > 0 and market.sell(force_index, "item", stack.name, units) then
+        stack.count = stack.count - units
       end
     end
   end

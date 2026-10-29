@@ -3,7 +3,6 @@ local hubs = {}
 
 hubs.NAME = "gb-hub"
 
-
 local function register(entity)
   storage.hubs[entity.unit_number] = { entity = entity }
   script.register_on_object_destroyed(entity)

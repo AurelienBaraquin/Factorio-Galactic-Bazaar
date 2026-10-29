@@ -59,9 +59,11 @@ with `hubs.get(unit_number)`, which checks `valid`.
 ## `storage.cargo`
 
 `{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil,
-min_price_ratio}}, exports = {unit_number...}, cursor}` — every cargo chest and the round-robin
-order of export chests ([terminal.md](terminal.md)). Written by `scripts/cargo.lua`. Invariants:
-`exports` lists exactly the export modules; `hub` is the nearest registered hub within range or
-`nil`; invalid entries are dropped on `on_configuration_changed`.
+min_price_ratio, export_index}}, exports = {unit_number...}, cursor}` — every cargo chest and the
+round-robin order of export chests ([terminal.md](terminal.md)). Written by `scripts/cargo.lua`.
+Invariants: `exports` lists exactly the export modules and `modules[exports[i]].export_index == i`
+(removal swaps the last entry in); `hub` is a hint, re-checked before every use — a module only
+works through a valid, powered hub of its own force; invalid entries are dropped and every module
+re-attached on `on_configuration_changed`.
 
 Personal data: none. Backups: `storage` lives inside the save file.

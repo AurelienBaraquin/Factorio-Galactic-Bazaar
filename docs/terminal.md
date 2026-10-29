@@ -22,10 +22,11 @@ Its market interface comes with #19.
 |---|---|
 | Prototypes | `prototypes/cargo.lua`: two 48-slot containers derived from the steel chest, tinted orange (export) and green (import); icons add an up or down arrow |
 | Recipe | 1 steel chest + 5 electronic circuits, 2 s; unlocked by the technology below |
-| Attachment | the nearest registered hub of the same force within `cargo.HUB_RANGE` (10 tiles), resolved on build, again for nearby modules when a hub is built, and for a removed hub's modules ([ADR-0005](adr/0005-modules-attach-to-a-hub-in-range.md)) |
-| Export | every `cargo.EXPORT_INTERVAL` (60) ticks, the next `cargo.EXPORT_BATCH` (20) export chests sell their normal-quality items, if their hub has power (`energy > 0`), while each unit still fetches at least `min_price_ratio` (default 0.5) × its base value. Items leave the chest only for an accepted sale |
+| Attachment | the nearest registered hub of the same force within `cargo.HUB_RANGE` (10 tiles), resolved on build, for nearby modules when a hub is built, for a removed hub's modules, for every module on configuration change and force merge ([ADR-0005](adr/0005-modules-attach-to-a-hub-in-range.md)). When its hub has no power or belongs to another force, a module switches to the nearest powered hub of its force in range, if any |
+| Export | every `cargo.EXPORT_INTERVAL` (6) ticks, the next `cargo.EXPORT_BATCH` (2) export chests — 20 chests a second — sell their plain stacks while each unit still fetches at least `min_price_ratio` (default 0.5) × its base value. Plain: normal quality, no extra data (equipment grid, inventory, blueprint, tags), full health, unused tools and ammunition. The sale is made first; the stack only shrinks for what was paid |
 | Import | `cargo.deliver(hub_unit_number, name, count)` inserts purchased items into that hub's import chests and returns how many fit; the orbital capsule (#20) will call it |
-| Budget | 0.15 ms per export batch, measured with 500 export chests on 2.1.24 (about 0.0025 ms per tick on average) |
+| Budget | 0.09 ms per batch of 2 chests holding 4 item kinds each, measured on 2.1.24 with 164 chests in range (≈ 0.015 ms per tick on average); the in-game test logs it, since LuaProfiler cannot be compared from Lua |
+| Throughput | each chest is visited every `n / 20` seconds for `n` export chests: with 2000 chests, every 100 s — fewer, fuller chests sell faster than many small ones |
 
 Quality items are not sold yet (#11). The export price floor is per chest; its interface comes with #19.
 

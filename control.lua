@@ -16,6 +16,7 @@ script.on_init(init)
 script.on_configuration_changed(init)
 script.on_event(defines.events.on_force_created, forces.on_force_created)
 script.on_event(defines.events.on_forces_merging, forces.on_forces_merging)
+script.on_event(defines.events.on_forces_merged, cargo.on_forces_merged)
 
 -- Every way an entity can appear, filtered to the mod's buildings.
 local BUILT_EVENTS = {

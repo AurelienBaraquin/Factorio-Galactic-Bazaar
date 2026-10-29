@@ -3,8 +3,10 @@
 local cargo = require("scripts.cargo")
 
 local surface, created
-local function place(name, x, y)
-  local entity = surface.create_entity({ name = name, position = { x, y }, force = "player", raise_built = true })
+local function place(name, x, y, force)
+  local entity = surface.create_entity({
+    name = name, position = { x, y }, force = force or "player", raise_built = true,
+  })
   created[#created + 1] = entity
   return entity
 end
@@ -48,6 +50,53 @@ describe("cargo module", function()
     assert.is_true(far.valid)
   end)
 
+  test("attaches to a hub built after it", function()
+    local chest = place("gb-export-chest", 2, 0)
+    assert.is_nil(module_of(chest).hub)
+    local hub = place("gb-hub", 0, 0)
+    assert.are.equal(hub.unit_number, module_of(chest).hub)
+  end)
+
+  test("ignores the hubs of another force", function()
+    local enemy_hub = place("gb-hub", 0, 0, "enemy")
+    local chest = place("gb-export-chest", 2, 0)
+    assert.is_nil(module_of(chest).hub)
+    assert.is_true(enemy_hub.valid)
+  end)
+
+  test("is sold through a powered hub when the nearest one has no power", function()
+    local unpowered = place("gb-hub", 0, 0)
+    local powered = place("gb-hub", 6, 0)
+    local chest = place("gb-export-chest", 2, 0)
+    assert.are.equal(unpowered.unit_number, module_of(chest).hub)
+    unpowered.energy = 0
+    powered.energy = powered.electric_buffer_size
+    chest.insert({ name = "iron-gear-wheel", count = 10 })
+    for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
+    assert.are.equal(0, chest.get_item_count("iron-gear-wheel"))
+    assert.are.equal(powered.unit_number, module_of(chest).hub)
+  end)
+
+  test("stops using a hub of its old force after changing force", function()
+    local hub = place("gb-hub", 0, 0)
+    local chest = place("gb-export-chest", 2, 0)
+    hub.energy = hub.electric_buffer_size
+    chest.insert({ name = "iron-gear-wheel", count = 10 })
+    local entity = chest
+    entity.force = "neutral"
+    for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
+    assert.are.equal(10, chest.get_item_count("iron-gear-wheel"))
+    assert.is_nil(module_of(chest).hub)
+  end)
+
+  test("registers a cloned chest", function()
+    local hub = place("gb-hub", 0, 0)
+    local chest = place("gb-export-chest", 2, 0)
+    local clone = chest.clone({ position = { 3, 0 } })
+    created[#created + 1] = clone
+    assert.are.equal(hub.unit_number, module_of(clone).hub)
+  end)
+
   test("moves to another hub when its hub is removed", function()
     local first = place("gb-hub", 0, 0)
     local second = place("gb-hub", 6, 0)
@@ -79,6 +128,41 @@ describe("cargo module", function()
     assert.are.equal(0, player_state().balance)
   end)
 
+  test("leaves quality, damaged and used stacks unsold", function()
+    local hub = place("gb-hub", 0, 0)
+    local chest = place("gb-export-chest", 2, 0)
+    hub.energy = hub.electric_buffer_size
+    local inventory = chest.get_inventory(defines.inventory.chest)
+    if prototypes.quality.uncommon then
+      inventory.insert({ name = "iron-gear-wheel", count = 5, quality = "uncommon" })
+    end
+    inventory.insert({ name = "firearm-magazine", count = 1 })
+    inventory.insert({ name = "stone-furnace", count = 1, health = 0.5 })
+    for slot = 1, #inventory do
+      local stack = inventory[slot]
+      if stack.valid_for_read and stack.name == "firearm-magazine" then stack.ammo = 1 end
+    end
+    for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
+    assert.are.equal(1, inventory.get_item_count("firearm-magazine"))
+    assert.are.equal(1, inventory.get_item_count("stone-furnace"))
+    if prototypes.quality.uncommon then
+      assert.are.equal(5, inventory.get_item_count({ name = "iron-gear-wheel", quality = "uncommon" }))
+    end
+    assert.are.equal(0, player_state().balance)
+  end)
+
+  test("keeps visiting every export chest after one is removed", function()
+    local chests = {}
+    for i = 1, 3 do chests[i] = place("gb-export-chest", i, 5) end
+    local exports = storage.cargo.exports
+    local before = #exports
+    cargo.forget(chests[1].unit_number)
+    assert.are.equal(before - 1, #exports)
+    for index, unit_number in ipairs(exports) do
+      assert.are.equal(index, storage.cargo.modules[unit_number].export_index)
+    end
+  end)
+
   test("stops selling at the price floor", function()
     local hub = place("gb-hub", 0, 0)
     local chest = place("gb-export-chest", 2, 0)
@@ -97,11 +181,21 @@ describe("cargo module", function()
     assert.are.equal(48 * 100 - 30, cargo.deliver(hub.unit_number, "iron-plate", 10000))
   end)
 
-  test("keeps the export batch within budget with 500 chests", function()
+  -- LuaProfiler is opaque to Lua, so the duration is logged for docs/terminal.md, not asserted.
+  test("measures an export batch with chests in range holding 4 item kinds each", function()
     local hub = place("gb-hub", 0, 0)
-    for i = 1, 500 do
-      local chest = place("gb-export-chest", (i % 25) - 12, math.floor(i / 25) - 10)
-      chest.insert({ name = "iron-plate", count = 10 })
+    local kinds = { "iron-plate", "copper-plate", "iron-gear-wheel", "electronic-circuit" }
+    local count = 0
+    for x = -6, 6 do
+      for y = -6, 6 do
+        if count < 300 and (x ~= 0 or y ~= 0) and x * x + y * y <= 64 then
+          local chest = place("gb-export-chest", x * 1.5 + 0.5, y * 1.5 + 0.5)
+          if chest then
+            for _, kind in ipairs(kinds) do chest.insert({ name = kind, count = 10 }) end
+            count = count + 1
+          end
+        end
+      end
     end
     hub.energy = hub.electric_buffer_size
     local batches = math.ceil(#storage.cargo.exports / cargo.EXPORT_BATCH)
@@ -109,8 +203,11 @@ describe("cargo module", function()
     for _ = 1, batches do cargo.on_export_tick() end
     profiler.stop()
     profiler.divide(batches)
-    log({ "", "[galactic-bazaar] export batch of ", cargo.EXPORT_BATCH, " chests (500 chests): ", profiler })
-    player_state().markets["item/iron-plate"] = nil
+    log({ "", "[galactic-bazaar] export batch of ", cargo.EXPORT_BATCH, " chests (", count,
+      " chests in range, 4 kinds each): ", profiler })
+    for _, kind in ipairs(kinds) do player_state().markets["item/" .. kind] = nil end
+    assert.is_true(count >= 100)
+    assert.is_true(player_state().balance > 0)
   end)
 
   test("keeps its modules across a save and reload", function()

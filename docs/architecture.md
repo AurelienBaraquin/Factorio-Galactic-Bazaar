@@ -48,17 +48,18 @@ Only the first eight entries ship in the mod: `.gitattributes` marks everything 
 ## 3. Flows
 
 - **Init and configuration change**: `control.lua` calls `forces.init` (one state per force, with
-  its account), `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)) and
-  `hubs.init` (drops hubs that no longer exist).
+  its account), `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)),
+  `hubs.init` (drops hubs that no longer exist) and `cargo.init` (drops chests that no longer
+  exist, re-attaches the others).
 - **Building events**: `control.lua` routes every way an entity can appear (filtered to the mod's
   buildings) to `hubs.on_built`, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
-- **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md)).
+- **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md));
+  after a merge, every cargo chest is re-attached.
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
-  NPC market lazily when read ([market.md](market.md)); not yet called by gameplay (the terminal
-  will).
+  NPC market lazily when read ([market.md](market.md)); export chests sell through it.
 
 ## 4. Decisions
 
