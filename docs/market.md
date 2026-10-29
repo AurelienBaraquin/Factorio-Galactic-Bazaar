@@ -1,15 +1,39 @@
 # Market: prices and trades
 
-How a tradeable key's buy and sell prices are computed from its base value and its market state.
-The reasoning is in [ADR-0003](adr/0003-market-price-model.md); base values in [pricing.md](pricing.md).
-Code: `scripts/core/market.lua` (pure, not yet wired into the game).
+How a tradeable key's buy and sell prices are computed from its base value and its market state,
+how they move on their own, and how a force trades. The reasoning is in
+[ADR-0003](adr/0003-market-price-model.md) (price model) and
+[ADR-0004](adr/0004-lazy-npc-market-simulation.md) (NPC simulation); base values in
+[pricing.md](pricing.md).
 
-## State
+## Runtime API (`scripts/market.lua`)
+
+| Function | Does |
+|---|---|
+| `market.quote(force_index, kind, name)` | `{buy, sell, mid, history}` for `"item"`/`"fluid"` `name`, or `nil` if not tradeable |
+| `market.buy(force_index, kind, name, quantity)` | debits the account and moves the market; `true, cost` or `false, reason` |
+| `market.sell(force_index, kind, name, quantity)` | credits the account and moves the market; `true, revenue` or `false, reason` |
+
+A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
+`insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving
+the goods is the caller's job (the terminal). Read only the keys you display: a full catch-up
+costs up to 0.05 ms per key.
+
+## NPC simulation (`scripts/core/npc_market.lua`, `npc_market.DEFAULTS`)
+
+Each key's market is advanced when read, by one step per `step_ticks` (3600, one minute) elapsed:
+decay, then a random drift of at most `volatility` (0.05) depths, then a price sample kept in a
+history of `history_size` (30). Each entry has its own random sequence
+(`scripts/core/random.lua`), so prices do not depend on read order.
+
+## Price model (`scripts/core/market.lua`)
+
+### State
 
 One number per key: the displacement `s` in units. Positive after players sold (surplus, lower
 prices), negative after they bought (shortage, higher prices); 0 is the balanced market.
 
-## Functions
+### Functions
 
 | Function | Returns |
 |---|---|
@@ -22,7 +46,7 @@ prices), negative after they bought (shortage, higher prices); 0 is the balanced
 
 Reasons: `invalid-quantity` (not a positive number), `insufficient-liquidity` (beyond the bound).
 
-## Parameters (`market.DEFAULTS`)
+### Parameters (`market.DEFAULTS`)
 
 | Name | Default | Meaning |
 |---|---|---|

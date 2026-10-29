@@ -1,0 +1,69 @@
+-- The market of each force (ADR-0003, ADR-0004): quotes and trades for any key with a base value.
+-- Market entries live in storage.forces[force_index].markets[key] and are brought up to date only
+-- when read, so the simulation costs nothing while nobody trades or looks.
+local account = require("scripts.core.account")
+local market_model = require("scripts.core.market")
+local npc_market = require("scripts.core.npc_market")
+local pricing = require("scripts.pricing")
+
+local market = {}
+
+local MARKET_PARAMS = market_model.DEFAULTS
+local NPC_PARAMS = npc_market.DEFAULTS
+
+-- The up-to-date market entry of a key for a force, with its base value; nil when the force has no
+-- state (being merged) or the key has no base value (not tradeable).
+local function current_entry(force_index, key)
+  local state = storage.forces[force_index]
+  local base_value = storage.base_values[key]
+  if not (state and base_value) then return nil end
+  local entry = state.markets[key]
+  if not entry then
+    entry = npc_market.new_entry(key, force_index, game.tick)
+    state.markets[key] = entry
+  end
+  npc_market.catch_up(entry, base_value, game.tick, MARKET_PARAMS, NPC_PARAMS)
+  return entry, base_value, state
+end
+
+--- Current prices of `kind`/`name` ("item"/"fluid") for a force: {buy, sell, mid, history}, or nil
+--- when it is not tradeable.
+function market.quote(force_index, kind, name)
+  local entry, base_value = current_entry(force_index, pricing.key(kind, name))
+  if not entry then return nil end
+  return {
+    buy = market_model.buy_price(base_value, entry.displacement, MARKET_PARAMS),
+    sell = market_model.sell_price(base_value, entry.displacement, MARKET_PARAMS),
+    mid = market_model.mid_price(base_value, entry.displacement, MARKET_PARAMS),
+    history = entry.history,
+  }
+end
+
+local function trade(force_index, kind, name, quantity, side)
+  local key = pricing.key(kind, name)
+  local entry, base_value, state = current_entry(force_index, key)
+  if not entry then return false, "not-tradeable" end
+  local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
+  local credits, displacement = quote(base_value, entry.displacement, quantity, MARKET_PARAMS)
+  if not credits then return false, displacement end
+  local amount = side == "buy" and -credits or credits
+  local ok, reason = account.apply(state, amount, { tick = game.tick, kind = side, key = key, quantity = quantity })
+  if not ok then return false, reason end
+  entry.displacement = displacement
+  return true, credits
+end
+
+--- Buys `quantity` units for the force: debits the account and moves the market, or changes nothing.
+--- Returns true and the cost, or false and a reason (not-tradeable, invalid-quantity,
+--- insufficient-liquidity, insufficient-funds). Delivering the goods is the caller's job.
+function market.buy(force_index, kind, name, quantity)
+  return trade(force_index, kind, name, quantity, "buy")
+end
+
+--- Sells `quantity` units for the force: credits the account and moves the market, or changes
+--- nothing. Returns true and the revenue, or false and a reason. Taking the goods is the caller's job.
+function market.sell(force_index, kind, name, quantity)
+  return trade(force_index, kind, name, quantity, "sell")
+end
+
+return market

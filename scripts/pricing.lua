@@ -17,9 +17,14 @@ function pricing.init()
   end
 end
 
+--- Key of an item or fluid in base values and markets: "item/<name>" or "fluid/<name>".
+function pricing.key(kind, name)
+  return kind .. "/" .. name
+end
+
 --- Base value of an item or fluid in credits, or nil when it has none (not tradeable).
 function pricing.base_value(kind, name)
-  return storage.base_values[kind .. "/" .. name]
+  return storage.base_values[pricing.key(kind, name)]
 end
 
 return pricing
