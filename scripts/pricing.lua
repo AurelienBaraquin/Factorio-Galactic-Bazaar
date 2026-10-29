@@ -1,0 +1,25 @@
+-- Computes the base value of every item and fluid from the game's prototypes (ADR-0002) and keeps it
+-- in storage.base_values. Base values depend only on prototypes, so they are shared by all forces and
+-- recomputed whenever prototypes may have changed.
+local raw_graph = require("scripts.recipe_graph")
+local recipe_graph = require("scripts.core.recipe_graph")
+local valuation = require("scripts.core.valuation")
+
+local pricing = {}
+
+--- on_init and on_configuration_changed: rebuilds storage.base_values.
+function pricing.init()
+  local graph = recipe_graph.build(raw_graph.extract())
+  local result = valuation.compute(graph, graph.keys)
+  storage.base_values = result.values
+  if #result.unpriced > 0 then
+    log("[galactic-bazaar] no base value (not tradeable): " .. table.concat(result.unpriced, ", "))
+  end
+end
+
+--- Base value of an item or fluid in credits, or nil when it has none (not tradeable).
+function pricing.base_value(kind, name)
+  return storage.base_values[kind .. "/" .. name]
+end
+
+return pricing
