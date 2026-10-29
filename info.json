@@ -1,0 +1,9 @@
+{
+  "name": "galactic-bazaar",
+  "version": "0.1.0",
+  "title": "Galactic Bazaar",
+  "author": "AurelienBaraquin",
+  "description": "A galactic market where every flow of the factory is a tradable asset.",
+  "factorio_version": "2.1",
+  "dependencies": ["base >= 2.1.0", "? space-age >= 2.1.0"]
+}

@@ -242,7 +242,7 @@ lockfile is frozen. Run twice in CI: without and with `space-age` (optional depe
 
 - Download is public, no login: `curl -fsSL https://factorio.com/get-download/<ver>/headless/linux64 | tar -xJ -C ~`
   (`<ver>` = `2.1.24`, or `stable`). Binary: `~/factorio/bin/x64/factorio`.
-- The headless build includes the DLC mods (`space-age`, `quality`, `elevated-rails`, plus `recycler` in 2.1) - verified by listing the 2.1.24 archive; disabled unless requested (`--mods`).
+- The headless build includes the DLC mods (`space-age`, `quality`, `elevated-rails`, plus `recycler` in 2.1) - verified by listing the 2.1.24 archive. **They are ENABLED by default** when a plain `--mod-directory` run's `mod-list.json` does not mention them (observed 2026-10-29: a "vanilla" `--create` loaded space-age). For a vanilla run, list `space-age`, `quality`, `elevated-rails` and `recycler` with `"enabled": false`. Whether FactorioTest's `--mods` disables them otherwise is **[unverified]**.
 - Downloading **portal mods** (deps) needs `FACTORIO_USERNAME` + `FACTORIO_TOKEN`
   (token from factorio.com/profile or `player-data.json`), not a portal API key.
   Galactic Bazaar has no portal deps today, so CI needs no secret.
