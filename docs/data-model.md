@@ -11,7 +11,11 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 
 | Field | Type | Meaning |
 |---|---|---|
-| *(none yet)* | | each state is an empty table until the first economy field is added |
+| `balance` | number | credits held by the force; never negative |
+| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance` |
+
+Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
+refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing.
 
 Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.lua`):
 
@@ -21,7 +25,10 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
   reconciled on `on_configuration_changed` as a self-heal for missed events (missing states
   created, states of vanished forces dropped);
 - when forces merge (`on_forces_merging`), the source state is folded into the destination and
-  removed. A new field must define how two values combine, in `force_registry.merge`;
+  removed: balances add up, journals are joined in tick order and trimmed. A new field must
+  define how two values combine, in `force_registry.merge`;
+- `force_registry.ensure` fills in any field a state lacks, so a save from an older version is
+  upgraded on `on_configuration_changed` without a separate migration;
 - the source state is removed at `on_forces_merging`, while the source force still exists until
   the end of the tick: **readers must accept a missing state** (nil-check); only write paths call
   `force_registry.ensure`;

@@ -44,7 +44,15 @@ Only the first seven entries ship in the mod: `.gitattributes` marks everything 
 - `control.lua` is the only file that registers event handlers, because Factorio keeps one
   handler per event per mod; modules expose handler functions and `control.lua` composes them.
 
-## 3. Decisions
+## 3. Flows
+
+- **Init and configuration change**: `control.lua` calls `forces.init` (one state per force, with
+  its account) then `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)).
+- **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md)).
+- **Market prices**: `scripts/core/market.lua` turns a base value and a displacement into quotes
+  ([market.md](market.md)); not yet wired to gameplay.
+
+## 4. Decisions
 
 See [`adr/`](adr/) for the recorded decisions and `../.assistant/decisions-log.md` for smaller
 ones.
