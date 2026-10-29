@@ -16,6 +16,22 @@ describe("trading hub", function()
     assert.are.equal("gb-hub", prototypes.item["gb-hub"].place_result.name)
   end)
 
+  test("is unlocked by the Galactic Bazaar technology, early and in red science", function()
+    local technology = prototypes.technology["gb-galactic-bazaar"]
+    local unlocks = {}
+    for _, effect in pairs(technology.effects) do
+      if effect.type == "unlock-recipe" then unlocks[effect.recipe] = true end
+    end
+    assert.is_true(unlocks["gb-hub"])
+    assert.are.equal(1, #technology.research_unit_ingredients)
+    assert.are.equal("automation-science-pack", technology.research_unit_ingredients[1].name)
+    -- Writing a technology's `researched` is legitimate; luacheck sees it as a write through `game`.
+    local research = game.forces.player.technologies["gb-galactic-bazaar"]
+    research.researched = true -- luacheck: ignore 122
+    assert.is_true(game.forces.player.recipes["gb-hub"].enabled)
+    research.researched = false -- luacheck: ignore 122
+  end)
+
   test("is registered when built and forgotten when destroyed", function()
     local entity = place_hub({ 0, 0 })
     local unit_number = entity.unit_number

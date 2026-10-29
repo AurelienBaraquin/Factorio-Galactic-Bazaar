@@ -15,7 +15,7 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 ```
 info.json       mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
 data.lua        prototype stage entry point: requires one file per prototype family
-prototypes/     prototype definitions (trading hub)
+prototypes/     prototype definitions (trading hub, technologies)
 control.lua     runtime stage entry point: registers every event handler
 locale/         in-game text, one folder per language (en, fr)
 scripts/        runtime adapters between the game API and the pure logic

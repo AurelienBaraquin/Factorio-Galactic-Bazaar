@@ -13,6 +13,9 @@ make, but no root access:
 ./tools/setup-lua.sh
 ```
 
+The `pre-commit` git hook (`.githooks/pre-commit`) runs the documentation check, then luacheck and
+busted when `.lua/` is installed, before every commit.
+
 ## Static analysis: luacheck
 
 ```bash
