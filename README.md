@@ -36,4 +36,25 @@ Exit code `0` and a `Loading mod galactic-bazaar` line in the output mean the mo
 headless build **enables its bundled DLC mods unless `mod-list.json` disables them**: keep the
 `false` entries for a vanilla check, and set them to `true` to check with Space Age.
 
-Playing the mod in the Windows game from a WSL checkout is not set up yet (issue #5).
+## Play-test in the game (Windows game, WSL checkout)
+
+Windows cannot follow Linux symlinks, so the mod is **copied** into the game's mods folder:
+
+```bash
+python3 tools/build.py deploy /mnt/c/Users/<you>/AppData/Roaming/Factorio/mods
+```
+
+It writes a plain copy to `mods/galactic-bazaar/`, removes files that no longer ship, and touches
+nothing else; it refuses a folder without `mod-list.json`. Re-run it after each change, then
+restart the game (or reload mods from the main menu) for prototype changes. To remove the mod,
+delete `mods/galactic-bazaar/`.
+
+## Package
+
+```bash
+python3 tools/build.py package     # -> dist/galactic-bazaar_<version>.zip
+```
+
+The zip holds one folder `galactic-bazaar_<version>/` (the version comes from `info.json`). What
+ships: every non-ignored file of the working tree, minus the paths marked `export-ignore` in
+`.gitattributes` (documentation, tests, tooling, dotfiles). The same list is used by `deploy`.

@@ -7,3 +7,4 @@
 *.zip
 node_modules/
 factorio-test-data-dir/
+dist/
