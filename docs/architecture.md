@@ -15,8 +15,13 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 ```
 info.json      mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
 data.lua       prototype stage entry point (empty)
-control.lua    runtime stage entry point (empty)
+control.lua    runtime stage entry point: registers every event handler
 locale/        in-game text, one folder per language (en, fr)
+scripts/       runtime adapters between the game API and the pure logic
+scripts/core/  pure Lua logic, no game API (checked by luacheck, unit-tested)
+spec/          busted unit tests of scripts/core/
+tests/         FactorioTest in-game tests of scripts/
+package.json   development tooling only (FactorioTest CLI), not part of the mod
 changelog.txt  release notes in the strict format the game parses
 docs/        brief, architecture, ADRs and the documentation index
 tools/       repository tooling, never shipped in the mod (documentation check)
@@ -28,8 +33,13 @@ tools/       repository tooling, never shipped in the mod (documentation check)
 
 ## 2. Conventions in place
 
-- Economy state is keyed by force in `storage` ([ADR-0001](adr/0001-economy-state-scoped-by-force.md)).
-  It is a rule for the code to come; no code applies it yet.
+- Economy state is keyed by force in `storage` ([ADR-0001](adr/0001-economy-state-scoped-by-force.md));
+  shape and invariants in [data-model.md](data-model.md).
+- Two layers: `scripts/core/` is pure Lua that takes and returns plain tables (unit-tested with
+  busted, game API forbidden by luacheck); `scripts/` adapts it to the game (reads the API,
+  calls core, writes `storage`).
+- `control.lua` is the only file that registers event handlers, because Factorio keeps one
+  handler per event per mod; modules expose handler functions and `control.lua` composes them.
 
 ## 3. Decisions
 

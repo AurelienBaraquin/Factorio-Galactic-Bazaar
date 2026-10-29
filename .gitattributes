@@ -1,0 +1,15 @@
+# Files that are not part of the mod: excluded from the mod zip and from deployments
+# (tools/build.py reads these attributes file by file, so folders need the /** form).
+/.* export-ignore
+/.*/** export-ignore
+/docs/** export-ignore
+/spec/** export-ignore
+/tests/** export-ignore
+/tools/** export-ignore
+/node_modules/** export-ignore
+/factorio-test-data-dir/** export-ignore
+/dist/** export-ignore
+*.md export-ignore
+/package.json export-ignore
+/package-lock.json export-ignore
+/factorio-test.lock.json export-ignore

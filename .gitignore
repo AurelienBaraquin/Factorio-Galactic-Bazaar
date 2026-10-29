@@ -1,6 +1,10 @@
-# Local agent tooling state (not part of the project)
+# Local toolchains and agent state (not part of the project)
+.lua/
 .claude-flow/
 .claude/settings.local.json
 
 # Packaged mod archives
 *.zip
+node_modules/
+factorio-test-data-dir/
+dist/
