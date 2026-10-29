@@ -23,3 +23,4 @@ and a document whose covered paths keep changing without it is reported as possi
 | [ci.md](ci.md) | What each CI pipeline runs and when | `.github/workflows/` | a workflow, trigger or step changes |
 | [data-model.md](data-model.md) | What the mod persists in `storage` and its invariants | `scripts/forces.lua` `scripts/core/force_registry.lua` `scripts/pricing.lua` | the shape of `storage` or its lifecycle changes |
 | [pricing.md](pricing.md) | How base values are computed, and the parameters that shape them | `scripts/recipe_graph.lua` `scripts/core/recipe_graph.lua` `scripts/core/valuation.lua` | the graph rules, the algorithm or a parameter changes |
+| [market.md](market.md) | How buy and sell prices react to trades and recover | `scripts/core/market.lua` | the price model or its parameters change |
