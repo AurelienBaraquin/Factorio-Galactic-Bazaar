@@ -25,10 +25,11 @@ describe("trading hub", function()
     assert.is_true(unlocks["gb-hub"])
     assert.are.equal(1, #technology.research_unit_ingredients)
     assert.are.equal("automation-science-pack", technology.research_unit_ingredients[1].name)
+    -- Writing a technology's `researched` is legitimate; luacheck sees it as a write through `game`.
     local research = game.forces.player.technologies["gb-galactic-bazaar"]
-    research.researched = true
+    research.researched = true -- luacheck: ignore 122
     assert.is_true(game.forces.player.recipes["gb-hub"].enabled)
-    research.researched = false
+    research.researched = false -- luacheck: ignore 122
   end)
 
   test("is registered when built and forgotten when destroyed", function()
