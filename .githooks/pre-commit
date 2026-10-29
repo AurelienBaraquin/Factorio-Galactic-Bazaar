@@ -4,7 +4,7 @@
 # Emergency bypass for one commit: SKIP_DOCS_CHECK=1 git commit ...
 set -euo pipefail
 
-script="scripts/check-docs.mjs"
+script="tools/check-docs.mjs"
 
 [ "${SKIP_DOCS_CHECK:-}" = "1" ] && exit 0
 [ -f "$script" ] || exit 0

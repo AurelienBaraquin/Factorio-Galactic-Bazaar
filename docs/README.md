@@ -6,7 +6,7 @@ covers. What each kind of document must contain is described by the `project-syn
 (`doc-surfaces.md`).
 
 The **Covers** column lists, in code spans, the paths a document describes. The docs check
-(`scripts/check-docs.mjs`) uses it: a top-level folder, `Dockerfile`, compose file, CI pipeline,
+(`tools/check-docs.mjs`) uses it: a top-level folder, `Dockerfile`, compose file, CI pipeline,
 `.env.example`, API contract, schema or migrations folder that no document covers is an error,
 and a document whose covered paths keep changing without it is reported as possibly stale.
 
@@ -17,5 +17,5 @@ and a document whose covered paths keep changing without it is reported as possi
 | [adr/](adr/) | Why the structural choices were made | decisions | a structural decision is made or reversed |
 | [decisions-log.md](../.assistant/decisions-log.md) | Smaller choices and their reasons | decisions | a smaller choice is made |
 | [lessons.md](../.assistant/lessons.md) | Mistakes made and what now prevents them | lessons | review, CI or the user catches a mistake |
-| [README.md](README.md) | This index and the documentation tooling | `scripts/check-docs.mjs` `.github/workflows/docs-check.yml` | the docs check or its workflow changes |
+| [README.md](README.md) | This index and the documentation tooling | `tools/check-docs.mjs` `.github/workflows/docs-check.yml` | the docs check or its workflow changes |
 | [../README.md](../README.md) | Getting started: prerequisites, headless load check | `README.md` | a prerequisite or setup step changes |

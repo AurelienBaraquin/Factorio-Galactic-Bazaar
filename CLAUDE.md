@@ -38,7 +38,7 @@ This file stays short. Details live in the documents below — link to them, do 
 6. Branches are named `<type>/<issue>-<slug>`, for example `feat/12-pricing-engine`.
 7. Commits follow Conventional Commits (`feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `ci`, `perf`, `build`).
 8. Never add `Co-Authored-By` or "Generated with" lines to commits or pull requests; `.claude/settings.json` disables them and `.githooks/commit-msg` rejects them.
-9. The documentation check (`node scripts/check-docs.mjs`) runs before every commit, and fails when a surface has no document; fix what it reports instead of bypassing it.
+9. The documentation check (`node tools/check-docs.mjs`) runs before every commit, and fails when a surface has no document; fix what it reports instead of bypassing it.
 10. The documentation check also runs in CI.
 11. Enable the git hooks once per clone with `git config core.hooksPath .githooks`; Claude Code refuses `git commit` until they are active.
 12. Working mode: act freely on reversible changes; stop on structural or irreversible ones. The owner can override it for a given task.
@@ -55,7 +55,7 @@ This file stays short. Details live in the documents below — link to them, do 
 
 ```bash
 git config core.hooksPath .githooks   # once per clone
-node scripts/check-docs.mjs           # documentation check
+node tools/check-docs.mjs             # documentation check
 ```
 
 ## 5. Living documentation protocol
