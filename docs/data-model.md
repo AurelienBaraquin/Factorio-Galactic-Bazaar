@@ -13,6 +13,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 |---|---|---|
 | `balance` | number | credits held by the force; never negative |
 | `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance` |
+| `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
 refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing.
@@ -25,7 +26,8 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
   reconciled on `on_configuration_changed` as a self-heal for missed events (missing states
   created, states of vanished forces dropped);
 - when forces merge (`on_forces_merging`), the source state is folded into the destination and
-  removed: balances add up, journals are joined in tick order and trimmed. A new field must
+  removed: balances add up, journals are joined in tick order and trimmed, the destination keeps
+  its own markets. A new field must
   define how two values combine, in `force_registry.merge`;
 - `force_registry.ensure` fills in any field a state lacks, so a save from an older version is
   upgraded on `on_configuration_changed` without a separate migration;

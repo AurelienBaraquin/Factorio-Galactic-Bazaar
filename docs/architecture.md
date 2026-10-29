@@ -49,8 +49,9 @@ Only the first seven entries ship in the mod: `.gitattributes` marks everything 
 - **Init and configuration change**: `control.lua` calls `forces.init` (one state per force, with
   its account) then `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)).
 - **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md)).
-- **Market prices**: `scripts/core/market.lua` turns a base value and a displacement into quotes
-  ([market.md](market.md)); not yet wired to gameplay.
+- **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
+  NPC market lazily when read ([market.md](market.md)); not yet called by gameplay (the terminal
+  will).
 
 ## 4. Decisions
 
