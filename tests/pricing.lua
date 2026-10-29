@@ -15,12 +15,13 @@ describe("base values", function()
     assert.is_true(count > 150)
   end)
 
-  test("converge, and leave at most a handful of keys unpriced", function()
+  test("are computed quickly, leaving few tradeable keys unpriced", function()
     local profiler = helpers.create_profiler()
-    local result = valuation.compute(recipe_graph.build(raw_graph.extract()))
+    local graph = recipe_graph.build(raw_graph.extract())
+    local result = valuation.compute(graph, graph.keys)
     profiler.stop()
-    log({ "", "[galactic-bazaar] base values computed in ", profiler, ", ", result.iterations, " iterations" })
-    assert.is_true(result.converged)
+    log({ "", "[galactic-bazaar] graph and base values computed in ", profiler, "; unpriced: ",
+      table.concat(result.unpriced, ", ") })
     assert.is_true(#result.unpriced <= 3, table.concat(result.unpriced, ", "))
   end)
 
@@ -30,6 +31,13 @@ describe("base values", function()
     assert.is_true(pricing.base_value("item", "processing-unit") > pricing.base_value("item", "electronic-circuit"))
     assert.is_true(pricing.base_value("item", "uranium-235") > pricing.base_value("item", "uranium-238"))
     assert.is_true(pricing.base_value("fluid", "water") < pricing.base_value("fluid", "crude-oil"))
+    assert.is_true(pricing.base_value("item", "space-science-pack") > 0)
+  end)
+
+  test("price holmium ore through scrap recycling, not ruins, with Space Age", function()
+    if not script.active_mods["space-age"] then return end
+    local scrap = pricing.base_value("item", "scrap")
+    assert.is_true(pricing.base_value("item", "holmium-ore") > scrap)
   end)
 
   test("are kept in storage across a save and reload", function()

@@ -22,8 +22,10 @@ end
 local function unlocked_recipes()
   local unlocked = {}
   for _, technology in pairs(prototypes.technology) do
-    for _, effect in pairs(technology.effects) do
-      if effect.type == "unlock-recipe" then unlocked[effect.recipe] = true end
+    if not technology.hidden then
+      for _, effect in pairs(technology.effects) do
+        if effect.type == "unlock-recipe" then unlocked[effect.recipe] = true end
+      end
     end
   end
   return unlocked
@@ -64,10 +66,7 @@ local function copy_mined_sources()
   local sources = {}
   for name, entity in pairs(prototypes.entity) do
     local source = copy_mining(name, entity.type, entity.mineable_properties)
-    if source then
-      source.infinite = entity.type == "resource" and entity.infinite_resource or nil
-      sources[#sources + 1] = source
-    end
+    if source then sources[#sources + 1] = source end
   end
   for name, chunk in pairs(prototypes.asteroid_chunk) do
     local source = copy_mining(name, "asteroid-chunk", chunk.mineable_properties)
@@ -84,25 +83,41 @@ local function copy_tile_fluids()
   return fluids
 end
 
-local function copy_item_results()
-  local items = {}
-  for name, item in pairs(prototypes.item) do
-    items[name] = {
-      hidden = item.hidden,
-      parameter = item.parameter,
-      spoil_result = item.spoil_result and item.spoil_result.name,
-      burnt_result = item.burnt_result and item.burnt_result.name,
-    }
+-- Every item and fluid a player could trade: not hidden, not a blueprint parameter, and not a tool
+-- that only exists in the cursor (blueprints, planners, remotes and wires are all "spawnable").
+local function tradeable_keys()
+  local keys = {}
+  for kind, group in pairs({ item = prototypes.item, fluid = prototypes.fluid }) do
+    for name, prototype in pairs(group) do
+      local spawnable = kind == "item" and prototype.flags and prototype.flags.spawnable
+      if not (prototype.hidden or prototype.parameter or spawnable) then keys[#keys + 1] = kind .. "/" .. name end
+    end
   end
-  return items
+  table.sort(keys)
+  return keys
 end
 
-local function copy_fluids()
-  local fluids = {}
-  for name, fluid in pairs(prototypes.fluid) do
-    fluids[name] = { hidden = fluid.hidden, parameter = fluid.parameter }
+-- Items that yield something when launched in a rocket, with the rocket parts one launch needs: the
+-- silo needing the fewest parts, and the product of its fixed recipe.
+local function copy_launches()
+  local silo
+  for _, entity in pairs(prototypes.get_entity_filtered({ { filter = "type", type = "rocket-silo" } })) do
+    if entity.fixed_recipe and (not silo or entity.rocket_parts_required < silo.rocket_parts_required) then
+      silo = entity
+    end
   end
-  return fluids
+  if not silo then return {} end
+  local part = silo.fixed_recipe.products[1]
+  local launches = {}
+  for name, item in pairs(prototypes.item) do
+    local products = item.rocket_launch_products
+    if products and #products > 0 then
+      launches[#launches + 1] = {
+        item = name, products = copy_amounts(products), part = part.name, parts = silo.rocket_parts_required,
+      }
+    end
+  end
+  return launches
 end
 
 --- Returns the raw graph as plain tables (see scripts/core/recipe_graph.lua for the format).
@@ -111,8 +126,8 @@ function recipe_graph.extract()
     recipes = copy_recipes(),
     mined = copy_mined_sources(),
     tile_fluids = copy_tile_fluids(),
-    items = copy_item_results(),
-    fluids = copy_fluids(),
+    launches = copy_launches(),
+    keys = tradeable_keys(),
   }
 end
 

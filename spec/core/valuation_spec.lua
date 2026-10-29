@@ -8,88 +8,118 @@ local function near(expected, actual)
   return math.abs(expected - actual) <= 1e-9 * math.max(1, math.abs(expected))
 end
 
-local function compute(recipes, fallback)
-  return valuation.compute({ recipes = recipes, fallback = fallback or {} })
+local function compute(recipes, fallback, natural, keys)
+  return valuation.compute({ recipes = recipes, fallback = fallback or {}, natural = natural or {} }, keys)
 end
 
 describe("valuation.compute", function()
   it("adds input values and recipe cost along a chain", function()
-    local result = compute({
+    local values = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
       recipe("plate", 0.32, { ore = 1 }, { plate = 1 }),
       recipe("gear", 0.05, { plate = 2 }, { gear = 1 }),
-    })
-    assert.is_true(near(1.32, result.values.plate))
-    assert.is_true(near(2.69, result.values.gear))
-    assert.is_true(result.converged)
+    }).values
+    assert.is_true(near(1.32, values.plate))
+    assert.is_true(near(2.69, values.gear))
   end)
 
   it("keeps the cheapest of several recipes", function()
-    local result = compute({
+    local values = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
       recipe("slow", 5, { ore = 1 }, { plate = 1 }),
       recipe("fast", 1, { ore = 2 }, { plate = 4 }),
-    })
-    assert.is_true(near(0.75, result.values.plate))
+    }).values
+    assert.is_true(near(0.75, values.plate))
+  end)
+
+  it("finds a cheaper bulk path through a more expensive intermediate, like coal liquefaction", function()
+    local values = compute({
+      recipe("mine/crude", 1, {}, { crude = 10 }),
+      recipe("oil", 0, { crude = 100 }, { heavy = 25, light = 45 }),
+      recipe("mine/coal", 1, {}, { coal = 1 }),
+      recipe("liquefaction", 0, { coal = 10 }, { heavy = 1000 }),
+    }).values
+    assert.is_true(near(0.01, values.heavy))
   end)
 
   it("gives a rare by-product a higher value per unit than a common one", function()
-    local result = compute({
+    local values = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
       recipe("processing", 0, { ore = 10 }, { common = 0.99, rare = 0.01 }),
-    })
-    assert.is_true(result.values.rare > 50 * result.values.common)
-    assert.is_true(near(10, result.values.common * 0.99 + result.values.rare * 0.01))
+    }).values
+    assert.is_true(values.rare > 50 * values.common)
+    assert.is_true(near(10, values.common * 0.99 + values.rare * 0.01))
   end)
 
   it("lets a second recipe anchor a by-product's value, like Kovarex for uranium-235", function()
-    local result = compute({
+    local values = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
       recipe("processing", 0, { ore = 10 }, { u238 = 0.993, u235 = 0.007 }),
       recipe("kovarex", 6, { u238 = 3 }, { u235 = 1 }),
-    })
-    local v238, v235 = result.values.u238, result.values.u235
-    assert.is_true(near(3 * v238 + 6, v235))
-    assert.is_true(v238 < 10 / 0.993)
-    assert.is_true(v235 > 3 * v238)
+    }).values
+    assert.is_true(near(3 * values.u238 + 6, values.u235))
+    assert.is_true(near(5 / 0.993, values.u238))
   end)
 
-  it("is not lowered by a cycle that costs something", function()
-    local result = compute({
+  it("is not pulled down by a loop through the key itself, like cutting and welding a plate", function()
+    local values = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
-      recipe("smelt", 0.3, { ore = 1 }, { plate = 1 }),
-      recipe("press", 0.1, { plate = 1 }, { sheet = 1 }),
-      recipe("unpress", 0.1, { sheet = 1 }, { plate = 1 }),
-    })
-    assert.is_true(near(1.3, result.values.plate))
-    assert.is_true(near(1.4, result.values.sheet))
+      recipe("smelt", 0.32, { ore = 1 }, { plate = 1 }),
+      recipe("cut", 0.01, { plate = 1 }, { strip = 1, scrap = 1 }),
+      recipe("weld", 0.01, { strip = 1 }, { plate = 1 }),
+    }).values
+    assert.is_true(near(1.32, values.plate))
+    assert.is_true(near(0.665, values.strip))
   end)
 
-  it("prices from fallback sources only what the main graph cannot", function()
-    local result = compute({
+  it("is not pulled down by filling and emptying a barrel", function()
+    local values = compute({
+      recipe("pump/water", 0.001, {}, { water = 1 }),
+      recipe("mine/ore", 1, {}, { ore = 1 }),
+      recipe("barrel", 0.1, { ore = 1 }, { barrel = 1 }),
+      recipe("fill", 0.02, { barrel = 1, water = 50 }, { filled = 1 }),
+      recipe("empty", 0.02, { filled = 1 }, { barrel = 1, water = 50 }),
+    }).values
+    assert.is_true(near(0.001, values.water))
+    assert.is_true(near(1.1, values.barrel))
+  end)
+
+  it("prices from fallback sources only what the main graph cannot, splitting over all outputs", function()
+    local values = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
       recipe("crushing", 0.1, { chunk = 1 }, { ore = 20 }),
+      recipe("tap", 2, {}, { resin = 1, sap = 1 }),
     }, {
       recipe("mine/asteroid", 0.2, {}, { chunk = 1 }),
-      recipe("mine/tree", 0.5, {}, { wood = 4 }),
-    })
-    assert.are.equal(1, result.values.ore)
-    assert.is_true(near(0.2, result.values.chunk))
-    assert.is_true(near(0.125, result.values.wood))
+    }).values
+    assert.are.equal(1, values.ore)
+    assert.is_true(near(0.2, values.chunk))
+    assert.is_true(near(1, values.sap))
+  end)
+
+  it("lets a process beat scavenging: natural sources come after the fallback", function()
+    local values = compute({
+      recipe("mine/scrap", 0.5, {}, { scrap = 1 }),
+    }, {
+      recipe("scrap-recycling", 0.02, { scrap = 1 }, { gear = 1, holmium = 0.01 }),
+    }, {
+      recipe("mine/ruin", 0.5, {}, { holmium = 5, stone = 10 }),
+    }).values
+    assert.is_true(near(0.26 / 0.01, values.holmium))
+    assert.is_true(near(0.025, values.stone))
   end)
 
   it("never values anything below the minimum, even for free recipes", function()
-    local result = compute({ recipe("free", 0, {}, { thing = 1 }) })
-    assert.are.equal(valuation.MIN_VALUE, result.values.thing)
+    local values = compute({ recipe("free", 0, {}, { thing = 1 }) }).values
+    assert.are.equal(valuation.MIN_VALUE, values.thing)
   end)
 
-  it("lists keys it cannot price, sorted", function()
+  it("lists every wanted key it cannot price, sorted", function()
     local result = compute({
       recipe("mine/ore", 1, {}, { ore = 1 }),
       recipe("needs-steam", 1, { steam = 1, ore = 1 }, { turbine = 1 }),
-      recipe("reprocessing", 1, { depleted = 1 }, { ore = 1 }),
-    })
-    assert.are.same({ "depleted", "steam", "turbine" }, result.unpriced)
+    }, nil, nil, { "ore", "pistol" })
+    assert.are.same({ "pistol", "steam", "turbine" }, result.unpriced)
   end)
 
   it("gives the same values whatever the recipe order", function()
