@@ -20,11 +20,11 @@ describe("production graph", function()
     graph = recipe_graph.build(raw_graph.extract())
     profiler.stop()
     log({ "", "[galactic-bazaar] production graph built: ", #graph.recipes, " recipes, ", #graph.fallback,
-      " fallback sources, in ", profiler })
+      " fallback and ", #graph.natural, " natural sources, in ", profiler })
   end)
 
   test("has only finite, positive amounts and non-negative costs", function()
-    for _, list in ipairs({ graph.recipes, graph.fallback }) do
+    for _, list in ipairs({ graph.recipes, graph.fallback, graph.natural }) do
       for _, built in ipairs(list) do
         assert.is_true(built.cost >= 0 and built.cost < math.huge, built.name)
         for _, side in ipairs({ built.inputs, built.outputs }) do
@@ -40,18 +40,23 @@ describe("production graph", function()
     assert.are.same({ ["item/iron-plate"] = 1 }, find(graph.recipes, "iron-plate").outputs)
     assert.are.same({ ["item/iron-ore"] = 1 }, find(graph.recipes, "mine/iron-ore").outputs)
     assert.is_table(find(graph.recipes, "pump/water"))
-    assert.is_table(find(graph.fallback, "mine/fish"))
+    assert.is_table(find(graph.natural, "mine/fish"))
   end)
 
   test("nets the Kovarex catalyst", function()
     assert.are.same({ ["item/uranium-238"] = 3 }, find(graph.recipes, "kovarex-enrichment-process").inputs)
   end)
 
-  test("excludes every recycling recipe when the recycler is active", function()
+  test("excludes every generated recycling recipe when the recycler is active", function()
     if not script.active_mods["recycler"] then return end
     assert.are.equal("recycling", graph.excluded["iron-gear-wheel-recycling"])
     for _, built in ipairs(graph.recipes) do
       assert.is_nil(built.name:find("%-recycling$"), built.name)
     end
+  end)
+
+  test("keeps Fulgora's scrap recycling as a fallback process with Space Age", function()
+    if not script.active_mods["space-age"] then return end
+    assert.is_table(find(graph.fallback, "scrap-recycling"))
   end)
 end)
