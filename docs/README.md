@@ -13,8 +13,9 @@ and a document whose covered paths keep changing without it is reported as possi
 | Document | What it answers | Covers | Update when |
 |---|---|---|---|
 | [brief.md](brief.md) | What to build and why: purpose, scope, priorities, success criteria | the intent of the project | the scope, priorities or success criteria change |
-| [architecture.md](architecture.md) | How the code is organised and how its parts fit together | `docs/` `.assistant/` `.github/` `.githooks/` `.claude/` | a module, folder, flow or convention is added, moved or removed |
+| [architecture.md](architecture.md) | How the code is organised and how its parts fit together | `info.json` `data.lua` `control.lua` `locale/` `changelog.txt` `docs/` `.assistant/` `.github/` `.githooks/` `.claude/` | a module, folder, flow or convention is added, moved or removed |
 | [adr/](adr/) | Why the structural choices were made | decisions | a structural decision is made or reversed |
 | [decisions-log.md](../.assistant/decisions-log.md) | Smaller choices and their reasons | decisions | a smaller choice is made |
 | [lessons.md](../.assistant/lessons.md) | Mistakes made and what now prevents them | lessons | review, CI or the user catches a mistake |
 | [README.md](README.md) | This index and the documentation tooling | `scripts/check-docs.mjs` `.github/workflows/docs-check.yml` | the docs check or its workflow changes |
+| [../README.md](../README.md) | Getting started: prerequisites, headless load check | `README.md` | a prerequisite or setup step changes |

@@ -1,0 +1,1 @@
+-- Runtime stage. Event handlers are registered from scripts/ as they are added.

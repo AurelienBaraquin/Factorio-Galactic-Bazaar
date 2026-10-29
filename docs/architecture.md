@@ -9,9 +9,15 @@ describe exists, not before.
 
 ## 1. Layout
 
-No mod code exists yet. The repository holds the project foundations only:
+The repository root is the mod folder: Factorio reads `info.json`, the stage files and
+`locale/` directly from it. No gameplay code exists yet.
 
 ```
+info.json      mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
+data.lua       prototype stage entry point (empty)
+control.lua    runtime stage entry point (empty)
+locale/        in-game text, one folder per language (en, fr)
+changelog.txt  release notes in the strict format the game parses
 docs/        brief, architecture, ADRs and the documentation index
 scripts/     repository tooling (documentation check)
 .assistant/  decisions log and lessons for AI agents
