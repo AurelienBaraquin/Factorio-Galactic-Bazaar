@@ -1,1 +1,2 @@
--- Prototype stage, round 1. Prototype families are required from prototypes/ as they are added.
+-- Prototype stage, round 1: one file per prototype family under prototypes/.
+require("prototypes.hub")
