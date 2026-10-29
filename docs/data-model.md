@@ -49,4 +49,11 @@ Invariants:
   versions, startup settings or prototypes changed), never edited elsewhere;
 - every value is finite and at least 10⁻⁶; a key with no value (`nil`) is not tradeable.
 
+## `storage.hubs`
+
+`storage.hubs[unit_number] = {entity = LuaEntity}` — every trading hub that exists
+([terminal.md](terminal.md)). Written by `scripts/hubs.lua` on build events and
+`on_object_destroyed`; invalid entries are dropped on `on_configuration_changed`. Read entities
+with `hubs.get(unit_number)`, which checks `valid`.
+
 Personal data: none. Backups: `storage` lives inside the save file.

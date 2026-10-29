@@ -6,15 +6,18 @@ max_line_length = 120
 exclude_files = { ".lua/**", ".luarocks/**", "factorio-test-data-dir/**", "dist/**", "node_modules/**" }
 not_globals = { "global", "io", "os", "coroutine", "loadfile", "dofile" }
 
+-- Factorio's lualib adds table.deepcopy (and its alias util.copy) to every stage.
+local factorio_table = { fields = { "deepcopy" } }
+
 stds.factorio_runtime = {
   globals = { "storage" },
-  read_globals = { "game", "script", "remote", "commands", "settings", "rendering",
+  read_globals = { table = factorio_table, "game", "script", "remote", "commands", "settings", "rendering",
     "helpers", "prototypes", "rcon", "defines", "log", "localised_print",
     "table_size", "serpent", "__DebugAdapter", "__Profiler" },
 }
 stds.factorio_data = {
   globals = { "data" },
-  read_globals = { "mods", "settings", "defines", "feature_flags", "helpers", "log",
+  read_globals = { table = factorio_table, "mods", "settings", "defines", "feature_flags", "helpers", "log",
     "table_size", "serpent", "localised_print" },
 }
 

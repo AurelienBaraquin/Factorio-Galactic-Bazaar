@@ -14,7 +14,8 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 
 ```
 info.json       mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
-data.lua        prototype stage entry point (empty)
+data.lua        prototype stage entry point: requires one file per prototype family
+prototypes/     prototype definitions (trading hub)
 control.lua     runtime stage entry point: registers every event handler
 locale/         in-game text, one folder per language (en, fr)
 scripts/        runtime adapters between the game API and the pure logic
@@ -31,7 +32,7 @@ docs/           brief, architecture, ADRs and the documentation index
 .claude/        Claude Code project settings, hooks, Factorio modding skills and agents
 ```
 
-Only the first seven entries ship in the mod: `.gitattributes` marks everything else
+Only the first eight entries ship in the mod: `.gitattributes` marks everything else
 `export-ignore`, and `tools/build.py` uses that list for both the zip and play-test deploys.
 
 ## 2. Conventions in place
@@ -47,7 +48,10 @@ Only the first seven entries ship in the mod: `.gitattributes` marks everything 
 ## 3. Flows
 
 - **Init and configuration change**: `control.lua` calls `forces.init` (one state per force, with
-  its account) then `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)).
+  its account), `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)) and
+  `hubs.init` (drops hubs that no longer exist).
+- **Building events**: every way an entity can appear is routed to `hubs.on_built` with a name
+  filter; `on_object_destroyed` removes it from the registry ([terminal.md](terminal.md)).
 - **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md)).
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
   NPC market lazily when read ([market.md](market.md)); not yet called by gameplay (the terminal
