@@ -10,7 +10,8 @@ local function existing_force_indices()
 end
 
 --- on_init and on_configuration_changed: creates storage.forces and reconciles it with the
---- forces that exist, so a save that gained or lost forces while the mod was absent is repaired.
+--- forces that exist. The force events keep it in step during play; this reconciliation is a
+--- self-heal in case an event was missed (for example a handler that errored).
 function forces.init()
   storage.forces = storage.forces or {}
   force_registry.sync(storage.forces, existing_force_indices())
