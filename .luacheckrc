@@ -3,7 +3,7 @@
 -- `global` is the Factorio 1.1 name of `storage`.
 std = "lua52"
 max_line_length = 120
-exclude_files = { ".lua/**", "factorio-test-data-dir/**", "dist/**", "node_modules/**" }
+exclude_files = { ".lua/**", ".luarocks/**", "factorio-test-data-dir/**", "dist/**", "node_modules/**" }
 not_globals = { "global", "io", "os", "coroutine", "loadfile", "dofile" }
 
 stds.factorio_runtime = {
