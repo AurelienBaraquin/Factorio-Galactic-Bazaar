@@ -13,6 +13,7 @@ how they move on their own, and how a force trades. The reasoning is in
 | `market.quote(force_index, kind, name)` | `{buy, sell, mid, history}` for `"item"`/`"fluid"` `name`, or `nil` if not tradeable |
 | `market.buy(force_index, kind, name, quantity)` | debits the account and moves the market; `true, cost` or `false, reason` |
 | `market.sell(force_index, kind, name, quantity)` | credits the account and moves the market; `true, revenue` or `false, reason` |
+| `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
 
 A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
 `insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving
@@ -42,6 +43,7 @@ prices), negative after they bought (shortage, higher prices); 0 is the balanced
 | `market.quote_buy(V, s, q, params)` | total cost of `q` units and the new `s`, or `nil, reason` |
 | `market.quote_sell(V, s, q, params)` | total revenue of `q` units and the new `s`, or `nil, reason` |
 | `market.max_buy` / `market.max_sell` | most units tradeable before the bound `|s| = max_depths × L` |
+| `market.max_sell_at_or_above(V, s, min_price, params)` | most units sellable while the next unit's sell price stays ≥ `min_price` (closed form) |
 | `market.decay(s, ticks, params)` | `s` after `ticks` of reversion towards 0 |
 
 Reasons: `invalid-quantity` (not a positive number), `insufficient-liquidity` (beyond the bound).

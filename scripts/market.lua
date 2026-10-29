@@ -53,6 +53,14 @@ local function trade(force_index, kind, name, quantity, side)
   return true, credits
 end
 
+--- Units of `kind`/`name` the force can sell while each unit still sells for at least
+--- `min_price_ratio` × its base value; 0 when it is not tradeable.
+function market.sellable(force_index, kind, name, min_price_ratio)
+  local entry, base_value = current_entry(force_index, pricing.key(kind, name))
+  if not entry then return 0 end
+  return market_model.max_sell_at_or_above(base_value, entry.displacement, min_price_ratio * base_value, MARKET_PARAMS)
+end
+
 --- Buys `quantity` units for the force: debits the account and moves the market, or changes nothing.
 --- Returns true and the cost, or false and a reason (not-tradeable, invalid-quantity,
 --- insufficient-liquidity, insufficient-funds). Delivering the goods is the caller's job.

@@ -9,6 +9,8 @@ data:extend({
     prerequisites = { "electronics", "steel-processing" },
     effects = {
       { type = "unlock-recipe", recipe = "gb-hub" },
+      { type = "unlock-recipe", recipe = "gb-export-chest" },
+      { type = "unlock-recipe", recipe = "gb-import-chest" },
     },
     unit = {
       count = 75,

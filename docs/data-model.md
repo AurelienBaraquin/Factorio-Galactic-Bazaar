@@ -56,4 +56,12 @@ Invariants:
 `on_object_destroyed`; invalid entries are dropped on `on_configuration_changed`. Read entities
 with `hubs.get(unit_number)`, which checks `valid`.
 
+## `storage.cargo`
+
+`{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil,
+min_price_ratio}}, exports = {unit_number...}, cursor}` — every cargo chest and the round-robin
+order of export chests ([terminal.md](terminal.md)). Written by `scripts/cargo.lua`. Invariants:
+`exports` lists exactly the export modules; `hub` is the nearest registered hub within range or
+`nil`; invalid entries are dropped on `on_configuration_changed`.
+
 Personal data: none. Backups: `storage` lives inside the save file.
