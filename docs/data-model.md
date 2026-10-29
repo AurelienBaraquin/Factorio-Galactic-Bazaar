@@ -27,4 +27,17 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
   `force_registry.ensure`;
 - nothing writes `storage` during `on_load`.
 
+## `storage.base_values`
+
+`storage.base_values["item/<name>"]` and `storage.base_values["fluid/<name>"]` — base value in
+credits of every tradeable item and fluid ([ADR-0002](adr/0002-base-value-from-the-production-graph.md)).
+Shared by all forces: it depends only on prototypes. Written by `scripts/pricing.lua`, read with
+`pricing.base_value(kind, name)`.
+
+Invariants:
+
+- rebuilt from the prototypes on `on_init` and on every `on_configuration_changed` (mods,
+  versions, startup settings or prototypes changed), never edited elsewhere;
+- every value is finite and at least 10⁻⁶; a key with no value (`nil`) is not tradeable.
+
 Personal data: none. Backups: `storage` lives inside the save file.
