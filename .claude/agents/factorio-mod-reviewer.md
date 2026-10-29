@@ -25,7 +25,7 @@ Checklist (check each; cite evidence)
 - Locale: every `{"key"}` LocalisedString, prototype name/description, setting, technology and GUI caption has a key in both `locale/en/` and `locale/fr/` (grep both; list missing keys).
 - Multiplayer: GUI handlers that act on `game.player` instead of `event.player_index`; per-player GUI state mixed with per-force economy; actions not permission/force-checked (a player buying for another force); remote interfaces mutating state without validation.
 - Space Age optional: unguarded references to Space Age prototypes/items/planets in data or control stage.
-- Tests: behaviour change without busted spec (core) or FactorioTest (adapter); storage changes without an `after_reload_script` test.
+- Tests: behaviour change without busted spec (core) or FactorioTest (adapter); storage changes without an `after_reload_mods` test (`after_reload_script` only reloads the scenario script and fails for mods).
 
 Output
 Ranked list, most severe first. Severity: CRITICAL (desync, save corruption, crash on load, MP exploit), HIGH (wrong behaviour, missing migration, UPS regression), MEDIUM (missing locale/test, fragile code), LOW (style). For each:

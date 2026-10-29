@@ -32,7 +32,7 @@ describe("storage.forces", function()
 
   test("survives a save and reload", function()
     storage.forces[game.forces.player.index].gb_test_marker = true
-  end).after_reload_script(function()
+  end).after_reload_mods(function()
     local state = storage.forces[game.forces.player.index]
     assert.is_true(state.gb_test_marker)
     state.gb_test_marker = nil
