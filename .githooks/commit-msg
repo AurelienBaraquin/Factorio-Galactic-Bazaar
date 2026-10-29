@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Rejects commit messages that break the project's rules. Enable with:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+message_file="$1"
+subject="$(head -n 1 "$message_file")"
+
+conventional='^(feat|fix|chore|docs|test|refactor|ci|perf|build|revert)(\([a-z0-9._/-]+\))?!?: .+'
+if [[ ! "$subject" =~ $conventional ]] && [[ ! "$subject" =~ ^(Merge|Revert|fixup!|squash!) ]]; then
+  echo "commit-msg: the subject must follow Conventional Commits, e.g. 'feat(api): add login'." >&2
+  exit 1
+fi
+
+if grep -qiE '^(Co-Authored-By:|.*Generated with)' "$message_file"; then
+  echo "commit-msg: remove the AI attribution line (Co-Authored-By / Generated with)." >&2
+  exit 1
+fi
