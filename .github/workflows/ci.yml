@@ -16,3 +16,14 @@ jobs:
       - uses: leafo/gh-actions-luarocks@v6
       - run: luarocks install luacheck 1.2.0
       - run: luacheck .
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: "5.2"
+      - uses: leafo/gh-actions-luarocks@v6
+      - run: luarocks install busted 2.3.0
+      - run: busted

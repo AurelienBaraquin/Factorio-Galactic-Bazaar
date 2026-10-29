@@ -17,6 +17,8 @@ info.json      mod manifest: name, version, factorio_version 2.1, dependencies (
 data.lua       prototype stage entry point (empty)
 control.lua    runtime stage entry point (empty)
 locale/        in-game text, one folder per language (en, fr)
+scripts/core/  pure Lua logic, no game API (checked by luacheck, unit-tested)
+spec/          busted unit tests of scripts/core/
 changelog.txt  release notes in the strict format the game parses
 docs/        brief, architecture, ADRs and the documentation index
 tools/       repository tooling, never shipped in the mod (documentation check)

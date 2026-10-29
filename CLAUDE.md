@@ -30,27 +30,28 @@ This file stays short. Details live in the documents below — link to them, do 
 
 ## 3. Hard rules
 
-1. Static analysis must pass (`.lua/bin/luacheck .`, exit 0) before a change is done.
-2. Never commit secrets, credentials or `.env` files; secrets come from the environment. Validate all external input at the boundary.
-3. State a measurable budget before optimising, and verify it after.
-4. Never store money, reputation or any economy state in a single global or per-player variable; key it by force in `storage` (ADR-0001).
-5. Never commit or push to `main`. Work on a branch and open a pull request that links its issue (`Closes #N`).
-6. The owner merges pull requests; you do not.
-7. Branches are named `<type>/<issue>-<slug>`, for example `feat/12-pricing-engine`.
-8. Commits follow Conventional Commits (`feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `ci`, `perf`, `build`).
-9. Never add `Co-Authored-By` or "Generated with" lines to commits or pull requests; `.claude/settings.json` disables them and `.githooks/commit-msg` rejects them.
-10. The documentation check (`node tools/check-docs.mjs`) runs before every commit, and fails when a surface has no document; fix what it reports instead of bypassing it.
-11. The documentation check also runs in CI.
-12. Enable the git hooks once per clone with `git config core.hooksPath .githooks`; Claude Code refuses `git commit` until they are active.
-13. Working mode: act freely on reversible changes; stop on structural or irreversible ones. The owner can override it for a given task.
-14. Always ask before: adding a dependency, deleting files or data, changing the save-data format without a migration, changing CI or hooks, pushing to `main`, publishing to the Factorio mod portal.
-15. Autonomy: without asking you may edit documentation, write ADRs and decision-log entries, create branches, push branches and open pull requests. Anything else that changes the repository or the outside world: ask first.
-16. Code, commits and documentation are written in English. GitHub issues and the project board are written in French. In-game text ships English and French locales.
-17. Do what the task asks, nothing more.
-18. Read a file fully before editing it.
-19. Never state something about the code you have not verified in the code.
-20. Documentation is part of done: a change is not finished until the documents that describe what it touched are updated, in the same change.
-21. Everything that exists and that someone needs to build, run, test, ship, operate or use the project has one document, listed in `docs/README.md`. A new surface (interface, data model, service, technology, pipeline, environment, command, configuration variable) gets its document in the change that introduces it. Keep one home per fact: link, do not copy, and prefer a generated reference when the code is the source of truth.
+1. Every piece of new logic ships with a test. `.lua/bin/busted` must pass before a change is done.
+2. Static analysis must pass (`.lua/bin/luacheck .`, exit 0) before a change is done.
+3. Never commit secrets, credentials or `.env` files; secrets come from the environment. Validate all external input at the boundary.
+4. State a measurable budget before optimising, and verify it after.
+5. Never store money, reputation or any economy state in a single global or per-player variable; key it by force in `storage` (ADR-0001).
+6. Never commit or push to `main`. Work on a branch and open a pull request that links its issue (`Closes #N`).
+7. The owner merges pull requests; you do not.
+8. Branches are named `<type>/<issue>-<slug>`, for example `feat/12-pricing-engine`.
+9. Commits follow Conventional Commits (`feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `ci`, `perf`, `build`).
+10. Never add `Co-Authored-By` or "Generated with" lines to commits or pull requests; `.claude/settings.json` disables them and `.githooks/commit-msg` rejects them.
+11. The documentation check (`node tools/check-docs.mjs`) runs before every commit, and fails when a surface has no document; fix what it reports instead of bypassing it.
+12. The documentation check also runs in CI.
+13. Enable the git hooks once per clone with `git config core.hooksPath .githooks`; Claude Code refuses `git commit` until they are active.
+14. Working mode: act freely on reversible changes; stop on structural or irreversible ones. The owner can override it for a given task.
+15. Always ask before: adding a dependency, deleting files or data, changing the save-data format without a migration, changing CI or hooks, pushing to `main`, publishing to the Factorio mod portal.
+16. Autonomy: without asking you may edit documentation, write ADRs and decision-log entries, create branches, push branches and open pull requests. Anything else that changes the repository or the outside world: ask first.
+17. Code, commits and documentation are written in English. GitHub issues and the project board are written in French. In-game text ships English and French locales.
+18. Do what the task asks, nothing more.
+19. Read a file fully before editing it.
+20. Never state something about the code you have not verified in the code.
+21. Documentation is part of done: a change is not finished until the documents that describe what it touched are updated, in the same change.
+22. Everything that exists and that someone needs to build, run, test, ship, operate or use the project has one document, listed in `docs/README.md`. A new surface (interface, data model, service, technology, pipeline, environment, command, configuration variable) gets its document in the change that introduces it. Keep one home per fact: link, do not copy, and prefer a generated reference when the code is the source of truth.
 
 ## 4. Commands
 
@@ -59,6 +60,7 @@ git config core.hooksPath .githooks   # once per clone
 node tools/check-docs.mjs             # documentation check
 ./tools/setup-lua.sh                  # once: Lua 5.2 toolchain into .lua/
 .lua/bin/luacheck .                   # static analysis (must exit 0)
+.lua/bin/busted                       # unit tests of scripts/core/ (must exit 0)
 ```
 
 ## 5. Living documentation protocol
@@ -82,6 +84,6 @@ user — never guess into a document. Keep this file under about 100 lines.
 
 ## 6. Open questions
 
-- Test tooling (busted, in-game test framework) — settled in milestone M0.
+- In-game test framework (FactorioTest on headless) — issue #4.
 - Success criteria for 1.0, beyond M1 — owner.
 - Unified contract model for every exchange — ADR when the contract engine is designed.

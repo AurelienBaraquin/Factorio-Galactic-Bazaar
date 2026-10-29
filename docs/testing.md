@@ -28,3 +28,18 @@ enforces two project rules:
   be unit-tested outside the game.
 
 Exit code `0` means clean; `1` warnings; `2` and above, syntax or configuration errors.
+
+## Unit tests: busted
+
+```bash
+.lua/bin/busted
+```
+
+Unit tests cover the pure logic in `scripts/core/` and run outside the game, on Lua 5.2.
+Specs live in `spec/`, mirror the module path and end in `_spec.lua`
+(`scripts/core/force_registry.lua` → `spec/core/force_registry_spec.lua`). Configuration:
+`.busted` (runs `spec/`, resolves `require("scripts.core.x")` from the repository root, as
+Factorio does).
+
+What is deliberately not unit-tested: code outside `scripts/core/`, which calls the game API.
+It is covered by in-game tests once they exist (issue #4).
