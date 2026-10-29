@@ -8,5 +8,5 @@ script.on_event(defines.events.on_force_created, forces.on_force_created)
 script.on_event(defines.events.on_forces_merging, forces.on_forces_merging)
 
 if script.active_mods["factorio-test"] then
-  require("__factorio-test__/init")({ "tests/forces" }, { load_luassert = true })
+  require("__factorio-test__/init")({ "tests/forces", "tests/recipe_graph" }, { load_luassert = true })
 end
