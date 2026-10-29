@@ -186,7 +186,7 @@ describe("terminal purchase", function()
   test("state is scoped to the force and survives reload", function()
     local force_index = game.forces.player.index
     assert(storage.forces[force_index] ~= nil)
-  end).after_reload_script(function()
+  end).after_reload_mods(function()
     assert(storage.forces[game.forces.player.index] ~= nil)
   end)
 end)

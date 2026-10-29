@@ -218,7 +218,7 @@ Code inside `describe` runs at load; anything touching the game goes in tests/ho
 Also: `test.each({...})("name %s", fn)`, `test.todo`, `tags("slow")`,
 `ticks_between_tests(n)`, async via `after_ticks(n, fn)` or `async(timeout)` + `on_tick(fn)` + `done()`,
 multi-step `.step("label", fn)`. **Save/load safety:** chain
-`test(...).after_reload_script(fn)` / `.after_reload_mods(fn)` - the reload reruns all files,
+`test(...).after_reload_mods(fn)` (**for a mod, always this one**: `game.reload_mods` "acts like saving and loading" for mods, whereas `after_reload_script` calls `game.reload_script`, which reloads the *scenario* script and fails a mod test with "Reload was requested but did not happen" - verified 2026-10-29 on 2.1.24) - the reload reruns all files,
 so it proves state lives in `storage` and that `on_load` re-registers handlers. Use it for
 every per-force economy state test.
 
@@ -235,8 +235,9 @@ Behaviour: symlinks the mod into `<data-dir>/mods`, auto-detects Factorio (or
 exits 0 only if all tests pass, kills Factorio after `--output-timeout` (15 s) of silence.
 Config file: `factorio-test.json` (camelCase keys of long flags), e.g.
 `{ "modPath": ".", "mods": [], "gameSpeed": 1000 }`.
-Mod resolution writes `factorio-test.lock.json` - **commit it**; with `CI` set the
-lockfile is frozen. Run twice in CI: without and with `space-age` (optional dependency).
+Mod resolution writes `factorio-test.lock.json` for the mod's portal dependencies - commit it
+when it appears; with `CI` set it is frozen. `factorio-test` itself is pinned by the CLI, so a mod
+with no portal dependency gets no lockfile and frozen CI runs still pass (verified 2026-10-29). Run twice in CI: without and with `space-age` (optional dependency).
 
 ## 7. Headless Factorio on Linux / WSL2
 

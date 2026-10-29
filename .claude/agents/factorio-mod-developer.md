@@ -27,7 +27,7 @@ Design rules
 
 Tests (required for every behaviour change)
 - Core logic: busted spec in `spec/**/*_spec.lua`; write the failing spec first, then the code.
-- Adapters/entities/GUI/circuits/save-load: FactorioTest file in `tests/`, registered in the guarded `require("__factorio-test__/init")` call at the end of `control.lua`. Use `.after_reload_script(...)` for anything stored in `storage`.
+- Adapters/entities/GUI/circuits/save-load: FactorioTest file in `tests/`, registered in the guarded `require("__factorio-test__/init")` call at the end of `control.lua`. Use `.after_reload_mods(...)` for anything stored in `storage` (`.after_reload_script` reloads only the scenario script and fails for mods).
 
 Done means, with exit code 0 for each (commands in the factorio-tooling skill):
 `luacheck .` ; `busted --lpath=./?.lua spec` (or the targeted spec file) ; `npx factorio-test run -p .` when headless Factorio is available (and once with `--mods space-age` if the change touches DLC paths). If a tool is not installed, say so explicitly instead of claiming success. Add a `changelog.txt` entry in the official format.
