@@ -1,4 +1,5 @@
-# Local agent tooling state (not part of the project)
+# Local toolchains and agent state (not part of the project)
+.lua/
 .claude-flow/
 .claude/settings.local.json
 

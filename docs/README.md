@@ -17,5 +17,7 @@ and a document whose covered paths keep changing without it is reported as possi
 | [adr/](adr/) | Why the structural choices were made | decisions | a structural decision is made or reversed |
 | [decisions-log.md](../.assistant/decisions-log.md) | Smaller choices and their reasons | decisions | a smaller choice is made |
 | [lessons.md](../.assistant/lessons.md) | Mistakes made and what now prevents them | lessons | review, CI or the user catches a mistake |
-| [README.md](README.md) | This index and the documentation tooling | `tools/check-docs.mjs` `.github/workflows/docs-check.yml` | the docs check or its workflow changes |
+| [README.md](README.md) | This index and the documentation tooling | `tools/check-docs.mjs` | the docs check or its workflow changes |
 | [../README.md](../README.md) | Getting started: prerequisites, headless load check | `README.md` | a prerequisite or setup step changes |
+| [testing.md](testing.md) | How the code is checked and tested, and how to run each check | `.luacheckrc` `tools/setup-lua.sh` | a check, its configuration or the toolchain changes |
+| [ci.md](ci.md) | What each CI pipeline runs and when | `.github/workflows/` | a workflow, trigger or step changes |
