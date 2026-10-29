@@ -14,3 +14,4 @@ Never rewrite history: if a choice is reversed, add a new line that says so.
 2026-10-29 — Code, commits and docs in English; GitHub issues and board in French; in-game locales en + fr — English is the norm of the Factorio modding ecosystem; the owner tracks work in French.
 2026-10-29 — Work flows through issue → branch → pull request, merged by the owner — every change is traceable to an item of the GitHub Project.
 2026-10-29 — Target Factorio 2.1 instead of 2.0 (reverses the first line above); Space Age stays optional — 2.1.24 is the current stable release and a mod declaring 2.0 is reported not to load on 2.1.
+2026-10-29 — Repository tooling lives in `tools/`, never in `scripts/` — `scripts/` is the conventional folder for the mod's runtime code (adapters in `scripts/`, pure logic in `scripts/core/`), and `tools/` is never shipped in the mod zip.
