@@ -1,14 +1,18 @@
 -- Per-force economy state registry (ADR-0001). Pure Lua: operates on a plain table
 -- `forces` keyed by force index, so it runs identically in the game and under busted.
+local account = require("scripts.core.account")
+
 local force_registry = {}
 
---- Returns the state of `force_index`, creating an empty one if it is missing.
+--- Returns the state of `force_index`, creating it if it is missing and filling in any field it
+--- lacks (which also upgrades states saved by an older version of the mod).
 function force_registry.ensure(forces, force_index)
   local state = forces[force_index]
   if not state then
     state = {}
     forces[force_index] = state
   end
+  account.init(state)
   return state
 end
 
@@ -30,7 +34,12 @@ end
 --- Folds the state of `source_index` into `destination_index`, then removes the source.
 --- Each field added to the force state must define here how two values combine.
 function force_registry.merge(forces, source_index, destination_index)
-  force_registry.ensure(forces, destination_index)
+  local destination = force_registry.ensure(forces, destination_index)
+  local source = forces[source_index]
+  if source then
+    account.init(source)
+    account.merge(destination, source)
+  end
   forces[source_index] = nil
 end
 

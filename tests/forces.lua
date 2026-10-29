@@ -7,9 +7,12 @@ local function count(t)
 end
 
 describe("storage.forces", function()
-  test("holds one state per existing force", function()
+  test("holds one state per existing force, each with an account", function()
     for _, force in pairs(game.forces) do
-      assert.is_table(storage.forces[force.index])
+      local state = storage.forces[force.index]
+      assert.is_table(state)
+      assert.are.equal("number", type(state.balance))
+      assert.is_table(state.journal)
     end
     assert.are.equal(count(game.forces), count(storage.forces))
   end)
@@ -20,13 +23,17 @@ describe("storage.forces", function()
     game.merge_forces(force, "player")
   end)
 
-  test("drops the source state when forces merge", function()
+  test("drops the source state and adds its balance when forces merge", function()
+    local player_state = storage.forces[game.forces.player.index]
+    local balance_before = player_state.balance
     local source = game.create_force("gb-test-merged")
     local source_index = source.index
+    storage.forces[source_index].balance = 25
     game.merge_forces(source, "player")
     after_ticks(1, function()
       assert.is_nil(storage.forces[source_index])
-      assert.is_table(storage.forces[game.forces.player.index])
+      assert.are.equal(balance_before + 25, storage.forces[game.forces.player.index].balance)
+      player_state.balance = balance_before
     end)
   end)
 

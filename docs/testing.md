@@ -54,7 +54,9 @@ PATH=~/.local/share/factorio-headless/factorio/bin/x64:$PATH npm run test:game -
 
 The tests in `tests/` run inside a headless Factorio 2.1.24 (install: [README](../README.md)),
 in an isolated `factorio-test-data-dir/` that never touches a real mods folder. They cover the
-adapters in `scripts/`: storage lifecycle, events, and that state survives a save and reload
+adapters in `scripts/`: storage lifecycle and force events (`tests/forces.lua`), the production
+graph and base values built from the real prototypes (`tests/recipe_graph.lua`,
+`tests/pricing.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). `control.lua` registers them only when the `factorio-test` mod is
 active, so they are inert in a normal game. CLI configuration: the `factorio-test` key of
 `package.json`.
