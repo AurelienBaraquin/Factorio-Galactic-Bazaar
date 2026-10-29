@@ -13,23 +13,26 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 `locale/` directly from it. No gameplay code exists yet.
 
 ```
-info.json      mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
-data.lua       prototype stage entry point (empty)
-control.lua    runtime stage entry point: registers every event handler
-locale/        in-game text, one folder per language (en, fr)
-scripts/       runtime adapters between the game API and the pure logic
-scripts/core/  pure Lua logic, no game API (checked by luacheck, unit-tested)
-spec/          busted unit tests of scripts/core/
-tests/         FactorioTest in-game tests of scripts/
-package.json   development tooling only (FactorioTest CLI), not part of the mod
-changelog.txt  release notes in the strict format the game parses
-docs/        brief, architecture, ADRs and the documentation index
-tools/       repository tooling, never shipped in the mod (documentation check)
-.assistant/  decisions log and lessons for AI agents
-.github/     issue and pull request templates, CI workflows
-.githooks/   git hooks (commit message rules, documentation check)
-.claude/     Claude Code project settings, hooks, Factorio modding skills and agents
+info.json       mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
+data.lua        prototype stage entry point (empty)
+control.lua     runtime stage entry point: registers every event handler
+locale/         in-game text, one folder per language (en, fr)
+scripts/        runtime adapters between the game API and the pure logic
+scripts/core/   pure Lua logic, no game API (checked by luacheck, unit-tested)
+changelog.txt   release notes in the strict format the game parses
+spec/           busted unit tests of scripts/core/
+tests/          FactorioTest in-game tests of scripts/
+package.json    development tooling only (FactorioTest CLI)
+tools/          repository tooling: Lua toolchain setup, packaging and deploy, documentation check
+docs/           brief, architecture, ADRs and the documentation index
+.assistant/     decisions log and lessons for AI agents
+.github/        issue and pull request templates, CI workflows
+.githooks/      git hooks (commit message rules, documentation check)
+.claude/        Claude Code project settings, hooks, Factorio modding skills and agents
 ```
+
+Only the first seven entries ship in the mod: `.gitattributes` marks everything else
+`export-ignore`, and `tools/build.py` uses that list for both the zip and play-test deploys.
 
 ## 2. Conventions in place
 
