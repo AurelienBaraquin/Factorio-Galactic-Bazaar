@@ -104,7 +104,7 @@ every(cargo.EXPORT_INTERVAL, cargo.on_export_tick)
 every(market_gui.SLOT_TICKS, market_gui.on_refresh_tick)
 every(freight.UNLOAD_INTERVAL, freight.on_unload_tick)
 every(power.SETTLE_TICKS, power.on_settle_tick)
-every(manifold.SELL_TICKS, manifold.on_sell_tick)
+every(manifold.EXPORT_INTERVAL, manifold.on_export_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 for ticks, handlers in pairs(periodic) do

@@ -29,7 +29,9 @@ also asks whether Space Age cargo pods could be reused.
 Option 3. A purchase is paid at once (market cost plus a freight fee, both journaled) and split into
 capsules of at most `capacity_stacks` stacks. Each hub launches one capsule every
 `launch_interval_ticks`; a capsule lands `delay_ticks` after its launch and is unloaded into the
-hub's import chests. What does not fit stays in the landed capsule and is retried, so nothing is
+hub's import chests (since #63, fluids into its import manifolds). What does not fit stays in the
+landed capsule and is retried without holding back the other landed capsules (amended 2026-10-30,
+#63: a fluid whose manifold holds another fluid must not block the items behind it), so nothing is
 lost while the chests are full. A hub holds at most `max_capsules` capsules in its queue. When a hub
 disappears, the cargo still in its queue is sold back to the market for the force that paid; what
 the market refuses is refunded at the price paid, as is cargo of an item that no longer exists. The

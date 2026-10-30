@@ -30,7 +30,7 @@ local CARGO = {
   },
   fluid = {
     stack_size = function(name) return prototypes.fluid[name] and freight.FLUID_UNITS_PER_STACK end,
-    has_receiver = function(hub_unit_number) return manifold.has_import(hub_unit_number) end,
+    has_receiver = function(hub_unit_number, name) return manifold.can_receive(hub_unit_number, name) end,
     deliver = function(hub_unit_number, name, count) return manifold.deliver(hub_unit_number, name, count) end,
     no_receiver = "no-import-manifold",
   },
@@ -73,7 +73,7 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   local cargo_kind = CARGO[kind]
   local stack_size = cargo_kind and cargo_kind.stack_size(name)
   if not stack_size then return false, "not-tradeable" end
-  if not cargo_kind.has_receiver(hub_unit_number) then return false, cargo_kind.no_receiver end
+  if not cargo_kind.has_receiver(hub_unit_number, name) then return false, cargo_kind.no_receiver end
   local existing = storage.freight.hubs[hub_unit_number]
   local capsules, next_launch = core.schedule(units, stack_size, freight.TIER, freight.queued(hub_unit_number),
     existing and existing.next_launch or 0, game.tick)
@@ -110,16 +110,24 @@ local function refund(capsule)
       quantity = capsule.count })
 end
 
--- Unloads the landed capsules of one queue, in order; a capsule that does not fit whole stays
--- landed with what is left, and holds back the ones behind it.
+-- Below this, what is left of a capsule's fluid counts as delivered (fluid amounts are fixed-point).
+local DELIVERED_EPSILON = 1e-6
+
+-- Unloads every landed capsule of one queue, in landing order; a capsule that does not fit whole
+-- stays landed with what is left and is retried, without holding back the others (a fluid whose
+-- manifold holds another fluid must not stop the items behind it).
 local function unload(hub_unit_number, queue, tick)
   local capsules = queue.capsules
-  while capsules[1] and capsules[1].arrival <= tick do
-    local capsule = capsules[1]
+  local index = 1
+  while capsules[index] and capsules[index].arrival <= tick do
+    local capsule = capsules[index]
     local delivered = CARGO[capsule.kind or "item"].deliver(hub_unit_number, capsule.name, capsule.count)
     capsule.count = capsule.count - delivered
-    if capsule.count > 0 then return end
-    table.remove(capsules, 1)
+    if capsule.count > DELIVERED_EPSILON then
+      index = index + 1
+    else
+      table.remove(capsules, index)
+    end
   end
 end
 

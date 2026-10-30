@@ -116,6 +116,10 @@ describe("market window", function()
     local balance = force_state().balance
     click("sell")
     assert.are.equal(balance, force_state().balance)
+    place("gb-fluid-import", 5, 4)
+    click("buy")
+    assert.are.equal("fluid", freight.capsules(hub.unit_number)[1].kind)
+    force_state().markets["fluid/crude-oil"] = nil
   end)
 
   test("previews exactly what the purchase then costs", function()
