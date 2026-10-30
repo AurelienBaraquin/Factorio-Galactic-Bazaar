@@ -85,3 +85,21 @@ nothing.
 While the chest holds fewer than 2 000 plates, the order combinator buys 200 plates every 10 s,
 spending at most 500 credits each time. Plates in flight are not counted, so the stock overshoots
 by up to about 600 plates (three orders land within 30 s); lower the threshold if that matters.
+
+## Incoming contracts
+
+Researched with **Contracts** (after the Galactic Bazaar and logistic science). Every 5 minutes, up
+to 3 at a time, a counterparty offers you to craft something you already know how to make. Open
+them with the **Contracts** button of the market window.
+
+- **Accept** at the hub you opened the window from: it needs an **import chest**, and enough
+  credits for the **guarantee** (deposit plus penalty), which is held until the end. The
+  ingredients arrive free by orbital capsule about 30 s later.
+- Craft the products and put them in a **contract chest** within 10 tiles of a hub: every second,
+  it hands over what your contracts still need, oldest first.
+- **On time**: you get the reward and the whole guarantee back, and +1 reputation. **Late or
+  abandoned**: the guarantee is lost, and −1 reputation. The guarantee is set at acceptance above
+  what the ingredients sell for then, so keeping them does not pay.
+- The reward is the value your crafting adds, so recipes that add little value pay little.
+- At most 8 contracts are open at a time, offers and active ones together.
+- An offer not accepted within 5 minutes expires; **Decline** removes it at once.

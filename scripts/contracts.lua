@@ -45,16 +45,25 @@ function contracts.get(force_index, id)
   return state and state.contracts.open[id]
 end
 
---- Accepts an offer: the force puts up the guarantee (deposit plus penalty), or nothing changes.
---- Returns true, or false and a reason (unknown, not-offered, expired, insufficient-funds).
-function contracts.accept(force_index, id)
+--- Whether a force could accept an offer now, with a guarantee of `guarantee` (the contract's own
+--- by default). Returns true, or false and a reason (unknown, not-offered, expired,
+--- insufficient-funds).
+function contracts.can_accept(force_index, id, guarantee)
   local state = state_of(force_index)
   local contract = state and state.contracts.open[id]
   if not contract then return false, "unknown" end
   if contract.state ~= core.OFFERED then return false, "not-offered" end
   if game.tick > contract.accept_by then return false, "expired" end
-  if state.balance < core.guarantee(contract) then return false, "insufficient-funds" end
-  move(state, -core.accept(contract, game.tick), "contract-guarantee", id)
+  if state.balance < (guarantee or core.guarantee(contract)) then return false, "insufficient-funds" end
+  return true
+end
+
+--- Accepts an offer: the force puts up the guarantee (deposit plus penalty), or nothing changes.
+--- Returns true, or false and a reason (see `can_accept`).
+function contracts.accept(force_index, id)
+  local ok, reason = contracts.can_accept(force_index, id)
+  if not ok then return false, reason end
+  move(storage.forces[force_index], -core.accept(contracts.get(force_index, id), game.tick), "contract-guarantee", id)
   return true
 end
 
@@ -89,6 +98,16 @@ function contracts.abandon(force_index, id)
   local contract = state and state.contracts.open[id]
   if not contract then return nil end
   local outcome = core.abandon(contract, game.tick)
+  if outcome then apply(state, id, outcome) end
+  return outcome
+end
+
+--- Voids an active contract whose goods no longer exist: the guarantee comes back, reputation stays.
+--- Returns the outcome, or nil.
+function contracts.void(force_index, id)
+  local state = state_of(force_index)
+  local contract = state and state.contracts.open[id]
+  local outcome = contract and core.void(contract, game.tick)
   if outcome then apply(state, id, outcome) end
   return outcome
 end

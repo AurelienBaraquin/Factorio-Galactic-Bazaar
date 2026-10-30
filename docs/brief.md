@@ -38,6 +38,8 @@ In scope:
 - Circuit network integration: price signals in, orders out.
 - Incoming contracts (NPCs ship inputs, the player delivers outputs) and outsourced production on
   NPC planets with finite capacity.
+- Every exchange that spans time — incoming contracts, capacity rental, outsourcing, credit — is one
+  contract model: goods each way, a deadline and money terms ([ADR-0015](adr/0015-one-contract-model.md)).
 - Reputation, credit and bankruptcy.
 - Abstract NPC planets, plus dynamic integration of the real Space Age planets when present.
 - Research always runs in the player's own labs; science packs can be bought.
@@ -80,5 +82,3 @@ Out of scope (until 1.0):
 ## Open questions
 
 - Success criteria for 1.0, beyond M1 — owner.
-- Whether every exchange is modelled as one unified contract (inputs, outputs, duration,
-  counterparty, guarantees) — to settle with an ADR when the contract engine is designed.

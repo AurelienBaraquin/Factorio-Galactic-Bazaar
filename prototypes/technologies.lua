@@ -180,4 +180,20 @@ data:extend({
       time = 30,
     },
   },
+  {
+    type = "technology",
+    name = "gb-contracts",
+    icons = data.raw.item["gb-contract-chest"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-galactic-bazaar", "logistic-science-pack" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-contract-chest" },
+      { type = "nothing", effect_description = { "technology-effect.gb-contracts" } },
+    },
+    unit = {
+      count = 100,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 15,
+    },
+  },
 })
