@@ -91,6 +91,14 @@ function market.sellable(force_index, kind, name, min_price_ratio, quality_name)
   return market_model.max_sell_at_or_above(base_value, entry.displacement, min_price_ratio * base_value, params)
 end
 
+--- Units of `kind`/`name` the force can buy before the market's shortage bound; 0 when it is not
+--- tradeable. Funds are not checked.
+function market.buyable(force_index, kind, name, quality_name)
+  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  if not entry then return 0 end
+  return market_model.max_buy(base_value, entry.displacement, params)
+end
+
 --- The base values were rebuilt (prototypes, settings or overrides changed): every market entry is
 --- brought up to date with its old value, then rebased on its new one so that its price stays the
 --- same multiple of the base value and within bounds; entries of keys that lost their value go.

@@ -76,3 +76,20 @@ scheduling in `scripts/core/freight.lua`; parameters in `freight.TIERS.capsule`.
 | Force merge | capsules paid by the merged force are credited to the destination force |
 
 Purchases are normal quality. Space Age cargo pods are not reused (ADR-0006).
+
+## Power module (`gb-power-export`, `gb-power-import`)
+
+Substations that trade electricity with the market ([ADR-0009](adr/0009-power-trading-by-tertiary-substations.md)).
+Code: `scripts/power.lua`; prototypes: `prototypes/power.lua`.
+
+| | |
+|---|---|
+| Prototypes | two 2×2 `electric-energy-interface`s, tinted orange (export) and green (import), `tertiary` priority like accumulators: export charges only from the network's surplus (input 40 MW, output 0), import discharges only on shortage (input 0, output 40 MW) |
+| Recipe | 10 steel plates, 10 electronic circuits, 20 copper cables, 5 s |
+| Technology | `gb-power-trading` (after the Galactic Bazaar and electric energy distribution 1; 150 × red and green) unlocks both, at 10 MW each; `gb-power-trading-2` (after electric energy distribution 2; 300 × red, green, blue) raises them to 40 MW |
+| Hub | a powered hub of the same force within `power.HUB_RANGE` (10 tiles), looked up at each settlement; without one the substation does not trade |
+| Settlement | every `power.SETTLE_TICKS` (300, 5 s): per force, the export buffers are sold in one trade while electricity fetches at least `power.MIN_PRICE_RATIO` (0.5) × its base value (unsold energy stays), and the import buffers are refilled in one trade, scaled down to what the force can pay and the market can supply |
+| Throughput | the buffer size, set at each settlement to the level's power × 5 s (`power.LEVEL_WATTS`: 10 MW, 40 MW); runtime flow limits cannot be changed in 2.1, so the prototype's are the highest level's |
+| Journal | one `sell` and one `buy` entry of `energy/electricity` per force per settlement, quantity in MJ |
+
+Energy prepaid into an import substation is lost when it is mined.

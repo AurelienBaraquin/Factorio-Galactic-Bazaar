@@ -107,6 +107,19 @@ local function tradeable_keys()
   return keys
 end
 
+-- Items burnt as chemical fuel (boilers, furnaces), with their energy in joules.
+local function copy_fuels()
+  local fuels = {}
+  for name, item in pairs(prototypes.item) do
+    local chemical = false
+    for _, category in ipairs(item.fuel_categories or {}) do chemical = chemical or category == "chemical" end
+    if chemical and item.fuel_value > 0 and recipe_graph.is_tradeable("item", name) then
+      fuels[#fuels + 1] = { item = name, joules = item.fuel_value }
+    end
+  end
+  return fuels
+end
+
 -- Items that yield something when launched in a rocket, with the rocket parts one launch needs: the
 -- silo needing the fewest parts, and the product of its fixed recipe.
 local function copy_launches()
@@ -137,6 +150,7 @@ function recipe_graph.extract()
     mined = copy_mined_sources(),
     tile_fluids = copy_tile_fluids(),
     launches = copy_launches(),
+    fuels = copy_fuels(),
     keys = tradeable_keys(),
   }
 end

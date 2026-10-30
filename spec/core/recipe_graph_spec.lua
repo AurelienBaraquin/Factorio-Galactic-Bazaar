@@ -14,7 +14,8 @@ end
 
 local function build(fields)
   return recipe_graph.build({
-    recipes = fields.recipes or {}, mined = fields.mined or {}, tile_fluids = fields.tile_fluids or {}, keys = {},
+    recipes = fields.recipes or {}, mined = fields.mined or {}, tile_fluids = fields.tile_fluids or {},
+    fuels = fields.fuels, keys = fields.keys or {},
   })
 end
 
@@ -160,5 +161,17 @@ describe("recipe_graph.build", function()
     } })
     assert.are.equal("a", graph.recipes[1].name)
     assert.are.equal("b", graph.recipes[2].name)
+  end)
+
+  it("turns each chemical fuel into electricity, in megajoules, and makes electricity a key", function()
+    local graph = build({ fuels = { { item = "coal", joules = 4e6 } }, keys = { "item/coal" } })
+    local burn = find(graph.recipes, "burn/coal")
+    assert.are.same({ ["item/coal"] = 1 }, burn.inputs)
+    assert.are.same({ [recipe_graph.ELECTRICITY_KEY] = 4 * recipe_graph.ELECTRICITY_PER_FUEL_MJ }, burn.outputs)
+    assert.are.same({ recipe_graph.ELECTRICITY_KEY, "item/coal" }, graph.keys)
+  end)
+
+  it("adds no electricity key without fuels", function()
+    assert.are.same({ "item/coal" }, build({ keys = { "item/coal" } }).keys)
   end)
 end)

@@ -8,13 +8,14 @@
 --   tile_fluids = { [fluid_name] = true }
 --   launches    = { {item, products = {Amount...}, part, parts} ... }: what launching `item` in a rocket
 --                 of `parts` × `part` yields
+--   fuels       = { {item, joules} ... }: chemical fuels and the energy one item gives when burnt
 --   keys        = sorted array of every item and fluid key that should have a value
 --   Amount      = {type = "item"|"fluid", name, amount | amount_min + amount_max,
 --                  independent_probability, shared_probability = {min, max}, extra_count_fraction}
 --
 -- Output:
 --   recipes  = sorted array of {name, cost, inputs = {[key] = n}, outputs = {[key] = n}}, where a key is
---              "item/<name>" or "fluid/<name>", amounts are expected net amounts per craft and cost is
+--              "item/<name>", "fluid/<name>" or ELECTRICITY_KEY, amounts are expected net amounts per craft and cost is
 --              the fixed credit cost of one craft (crafting time, or mining time for sources)
 --   fallback = same shape: planet-bound processes (a recipe that is recycling plus another category,
 --              like Fulgora's scrap recycling) and the tile fluids that are not primary, which may
@@ -22,7 +23,7 @@
 --   natural  = same shape: natural sources (trees, rocks, fish, plants, asteroid chunks), which may
 --              only price what neither the main graph nor the fallback does
 --   excluded = { [recipe_name] = reason }
---   keys     = raw.keys, passed through for the valuation
+--   keys     = raw.keys, plus ELECTRICITY_KEY when a fuel can make electricity
 local recipe_graph = {}
 
 -- Credits per second of crafting time (recipe energy at crafting speed 1).
@@ -34,6 +35,10 @@ recipe_graph.TILE_FLUID_COST = 0.001
 -- Tile fluids pumped everywhere: their pump is part of the main graph. Other tile fluids (lava, a
 -- heavy-oil sea) belong to one place and are fallback sources.
 recipe_graph.PRIMARY_TILE_FLUIDS = { water = true }
+-- Electricity, traded in megajoules (ADR-0009). A boiler and a steam engine both have an efficiency
+-- of 1 in 2.1, so burning a chemical fuel makes its fuel value in electricity.
+recipe_graph.ELECTRICITY_KEY = "energy/electricity"
+recipe_graph.ELECTRICITY_PER_FUEL_MJ = 1
 -- The game counts a resource's fluid_amount per 10 mining operations (uranium ore: 10 sulfuric acid
 -- per 10 ore, https://wiki.factorio.com/Uranium_ore), although the API describes it per operation.
 local MINING_OPERATIONS_PER_FLUID_AMOUNT = 10
@@ -153,6 +158,20 @@ function recipe_graph.build(raw)
       outputs = sum_into({}, launch.products, recipe_graph.expected_amount),
     }
   end
+  local keys = raw.keys
+  for _, fuel in ipairs(raw.fuels or {}) do
+    recipes[#recipes + 1] = {
+      name = "burn/" .. fuel.item,
+      cost = 0,
+      inputs = { ["item/" .. fuel.item] = 1 },
+      outputs = { [recipe_graph.ELECTRICITY_KEY] = fuel.joules / 1e6 * recipe_graph.ELECTRICITY_PER_FUEL_MJ },
+    }
+  end
+  if raw.fuels and #raw.fuels > 0 and keys then
+    keys = { recipe_graph.ELECTRICITY_KEY }
+    for _, key in ipairs(raw.keys) do keys[#keys + 1] = key end
+    table.sort(keys)
+  end
   for fluid in pairs(raw.tile_fluids) do
     local pump = {
       name = "pump/" .. fluid, cost = recipe_graph.TILE_FLUID_COST, inputs = {}, outputs = { ["fluid/" .. fluid] = 1 },
@@ -163,7 +182,7 @@ function recipe_graph.build(raw)
   table.sort(recipes, by_name)
   table.sort(fallback, by_name)
   table.sort(natural, by_name)
-  return { recipes = recipes, fallback = fallback, natural = natural, excluded = excluded, keys = raw.keys }
+  return { recipes = recipes, fallback = fallback, natural = natural, excluded = excluded, keys = keys }
 end
 
 return recipe_graph

@@ -80,6 +80,15 @@ script.on_init(set_values)
 script.on_configuration_changed(set_values)
 ```
 
+## Electricity
+
+Electricity is the key `energy/electricity`, in megajoules ([ADR-0009](adr/0009-power-trading-by-tertiary-substations.md)).
+Each tradeable chemical fuel gets a main-tier recipe `burn/<fuel>` giving its fuel value in MJ times
+`recipe_graph.ELECTRICITY_PER_FUEL_MJ` (1: boilers and steam engines have an efficiency of 1 in
+2.1), so electricity is worth the cheapest chemical fuel per megajoule: 0.050 credit/MJ in vanilla,
+0.033 with Space Age (2.1.24). Nuclear fuel is left out. Remote overrides do not take `energy` keys;
+the multiplier and fuel overrides reach electricity.
+
 ## Quality
 
 With a quality mod (Space Age), an item of a quality other than normal is worth its normal value

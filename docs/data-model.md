@@ -98,6 +98,13 @@ queue is dropped once empty and past its `next_launch`; the queue of a removed h
 `on_configuration_changed`, capsules of items that no longer exist are refunded and dropped, and
 the queues of hubs that no longer exist are sold back.
 
+## `storage.power`
+
+`{modules = {[unit_number] = {entity, kind = "export"|"import"}}}` — every power substation
+([terminal.md](terminal.md), ADR-0009). Written by `scripts/power.lua` on build events and
+`on_object_destroyed`; invalid entries are dropped on `on_configuration_changed`. The hub a
+substation trades through is looked up at each settlement, not stored.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market
