@@ -65,13 +65,14 @@ scheduling in `scripts/core/freight.lua`; parameters in `freight.TIERS.capsule`.
 
 | | |
 |---|---|
-| Payment | at order time: the market cost plus `fee_rate` (5 %) of it, journaled as a `buy` and a `freight` entry; refused whole if the balance does not cover both |
+| Payment | at order time: the market cost plus `fee_rate` (5 %) of it, journaled as a `buy` and a `freight` entry; refused whole if the balance does not cover both. Each capsule records the force that paid and the market price paid per unit |
 | Capsules | an order is split into capsules of at most `capacity_stacks` (10) stacks of the item |
 | Throughput | each hub launches one capsule every `launch_interval_ticks` (600, 10 s), so at most 1 stack a second per hub |
 | Latency | a capsule lands `delay_ticks` (1800, 30 s) after its launch |
 | Queue bound | at most `max_capsules` (20) capsules per hub, landed ones included; a larger order is refused (`queue-full`) |
-| Unloading | every `freight.UNLOAD_INTERVAL` (60) ticks, landed capsules are unloaded into the hub's import chests in landing order; what does not fit stays landed and is retried, holding back the capsules behind it |
-| Hub removed | the cargo still queued is sold back to the market for the force that paid (the fee is not refunded) |
+| Unloading | every `freight.UNLOAD_INTERVAL` (60) ticks, landed capsules are unloaded into the hub's import chests of the hub's force, in landing order; what does not fit stays landed and is retried, holding back the capsules behind it. Landing needs no power. A delivery only visits the chests of its hub (`storage.cargo.imports`), so its cost does not grow with the other cargo chests of the map |
+| Hub removed | the cargo still queued is sold back to the market for the force that paid; what the market refuses (item no longer tradeable, no liquidity) is refunded at the price paid (`freight-refund`). The fee is not refunded |
+| Item removed | on a configuration change, capsules of items that no longer exist are refunded at the price paid and dropped |
 | Force merge | capsules paid by the merged force are credited to the destination force |
 
 Quality items are not delivered yet (#11). Space Age cargo pods are not reused (ADR-0006).

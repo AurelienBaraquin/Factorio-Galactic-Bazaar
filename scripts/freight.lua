@@ -1,7 +1,8 @@
 -- Purchase deliveries by orbital capsule (ADR-0006): a purchase is paid at once with its freight
 -- fee, then lands in the hub's import chests capsule by capsule. Queues live in
 -- storage.freight.hubs[hub_unit_number] = {next_launch, capsules = {{force_index, name, count,
--- arrival}, ...}}, in landing order; the force that paid is kept per capsule (ADR-0001).
+-- unit_cost, arrival}, ...}}, in landing order; the force that paid and the market price it paid per
+-- unit are kept per capsule (ADR-0001), so cargo that can never land is settled.
 local account = require("scripts.core.account")
 local cargo = require("scripts.cargo")
 local core = require("scripts.core.freight")
@@ -19,10 +20,6 @@ local function queue_of(hub_unit_number)
   local queues = storage.freight.hubs
   queues[hub_unit_number] = queues[hub_unit_number] or { next_launch = 0, capsules = {} }
   return queues[hub_unit_number]
-end
-
-local function stack_size(name)
-  return prototypes.item[name].stack_size
 end
 
 --- Capsules queued at a hub, landed ones waiting for room included.
@@ -50,10 +47,12 @@ end
 --- capsule; or false and a reason (no-import-chest, queue-full, invalid-quantity, a market refusal,
 --- insufficient-funds).
 function freight.order(force_index, hub_unit_number, name, units)
+  local item = prototypes.item[name]
+  if not item then return false, "not-tradeable" end
   if not cargo.has_import(hub_unit_number) then return false, "no-import-chest" end
-  local queue = queue_of(hub_unit_number)
-  local capsules, next_launch = core.schedule(units, stack_size(name), freight.TIER, #queue.capsules,
-    queue.next_launch, game.tick)
+  local existing = storage.freight.hubs[hub_unit_number]
+  local capsules, next_launch = core.schedule(units, item.stack_size, freight.TIER, freight.queued(hub_unit_number),
+    existing and existing.next_launch or 0, game.tick)
   if not capsules then return false, next_launch end
   local cost, fee = freight.preview(force_index, name, units)
   if not cost then return false, fee end
@@ -61,14 +60,26 @@ function freight.order(force_index, hub_unit_number, name, units)
   if state.balance < cost + fee then return false, "insufficient-funds" end
   local bought, paid = market.buy(force_index, "item", name, units)
   if not bought then return false, paid end
-  -- The balance covered cost and fee in this same tick, so the fee is always paid.
+  -- The balance covered cost and fee in this tick; the cap only absorbs float rounding, so the debit
+  -- cannot be refused.
+  fee = math.min(fee, state.balance)
   account.apply(state, -fee, { tick = game.tick, kind = "freight", key = pricing.key("item", name), quantity = units })
+  local queue = queue_of(hub_unit_number)
   for _, capsule in ipairs(capsules) do
-    capsule.force_index, capsule.name = force_index, name
+    capsule.force_index, capsule.name, capsule.unit_cost = force_index, name, paid / units
     queue.capsules[#queue.capsules + 1] = capsule
   end
   queue.next_launch = next_launch
   return true, paid, fee, capsules[#capsules].arrival
+end
+
+-- Gives back to the force that paid the market price of cargo that cannot be sold back (the fee is
+-- not refunded).
+local function refund(capsule)
+  local state = storage.forces[capsule.force_index]
+  if not state then return end
+  account.apply(state, capsule.unit_cost * capsule.count,
+    { tick = game.tick, kind = "freight-refund", key = pricing.key("item", capsule.name), quantity = capsule.count })
 end
 
 -- Unloads the landed capsules of one queue, in order; a capsule that does not fit whole stays
@@ -92,15 +103,14 @@ function freight.on_unload_tick(event)
   end
 end
 
---- A hub is gone: the cargo still queued for it is sold back for the forces that paid.
+--- A hub is gone: the cargo still queued for it is sold back for the forces that paid; what the
+--- market refuses (no longer tradeable, no liquidity) is refunded at the price paid.
 function freight.on_hub_removed(hub_unit_number)
   local queue = storage.freight.hubs[hub_unit_number]
   if not queue then return end
   storage.freight.hubs[hub_unit_number] = nil
   for _, capsule in ipairs(queue.capsules) do
-    if not market.sell(capsule.force_index, "item", capsule.name, capsule.count) then
-      log("[galactic-bazaar] could not sell back " .. capsule.count .. " " .. capsule.name .. " of a removed hub")
-    end
+    if not market.sell(capsule.force_index, "item", capsule.name, capsule.count) then refund(capsule) end
   end
 end
 
@@ -114,14 +124,14 @@ function freight.on_forces_merging(event)
   end
 end
 
--- Drops capsules of items that no longer exist (a mod was removed): they cannot land.
+-- Refunds and drops capsules of items that no longer exist (a mod was removed): they cannot land.
 local function drop_unknown_items(queue)
   local kept = {}
   for _, capsule in ipairs(queue.capsules) do
     if prototypes.item[capsule.name] then
       kept[#kept + 1] = capsule
     else
-      log("[galactic-bazaar] dropped a capsule of " .. capsule.name .. ", which no longer exists")
+      refund(capsule)
     end
   end
   queue.capsules = kept

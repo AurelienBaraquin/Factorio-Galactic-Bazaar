@@ -80,11 +80,76 @@ describe("orbital capsule", function()
     assert.are.equal(0, freight.queued(hub.unit_number))
   end)
 
-  test("sells the queued cargo back for the force that paid when the hub is removed", function()
+  test("unloads what fits and keeps the rest landed, holding back the next capsule", function()
+    local per_capsule = prototypes.item[GEAR].stack_size * freight.TIER.capacity_stacks
+    freight.order(game.forces.player.index, hub.unit_number, GEAR, per_capsule + 10)
+    local capsules = freight.capsules(hub.unit_number)
+    chest.insert({ name = "stone", count = 47 * 50 })
+    freight.on_unload_tick({ tick = capsules[2].arrival })
+    local room = prototypes.item[GEAR].stack_size
+    assert.are.equal(room, chest.get_item_count(GEAR))
+    assert.are.equal(2, freight.queued(hub.unit_number))
+    assert.are.equal(per_capsule - room, capsules[1].count)
+    assert.are.equal(10, capsules[2].count)
+  end)
+
+  test("sells the queued cargo back for the force that paid when the hub is destroyed", function()
     freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
     local after_order = player_state().balance
-    freight.on_hub_removed(hub.unit_number)
-    assert.is_true(player_state().balance > after_order)
-    assert.are.equal(0, freight.queued(hub.unit_number))
+    local unit_number = hub.unit_number
+    hub.destroy()
+    after_ticks(1, function()
+      assert.is_true(player_state().balance > after_order)
+      assert.are.equal(0, freight.queued(unit_number))
+    end)
+  end)
+
+  test("refunds the price paid for cargo the market will not take back", function()
+    local unit_number = 1e9
+    storage.freight.hubs[unit_number] = { next_launch = 0, capsules = {
+      { force_index = game.forces.player.index, name = "gb-no-such-item", count = 4, unit_cost = 2.5, arrival = 0 },
+    } }
+    freight.on_hub_removed(unit_number)
+    assert.are.equal(1e6 + 10, player_state().balance)
+    assert.are.equal("freight-refund", player_state().journal[#player_state().journal].kind)
+  end)
+
+  test("refunds capsules of items that no longer exist, and settles the queues of removed hubs", function()
+    storage.freight.hubs[hub.unit_number] = { next_launch = 0, capsules = {
+      { force_index = game.forces.player.index, name = "gb-no-such-item", count = 4, unit_cost = 2.5, arrival = 0 },
+    } }
+    freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
+    local unit_number = hub.unit_number
+    local after_order = player_state().balance
+    storage.hubs[unit_number] = nil
+    freight.init()
+    assert.is_nil(storage.freight.hubs[unit_number])
+    assert.is_true(player_state().balance > after_order + 10)
+  end)
+
+  test("moves the capsules of a merged force to the destination force", function()
+    local source = game.create_force("gb-test-freight")
+    local source_index = source.index
+    storage.forces[source_index].balance = 1e6
+    freight.order(source_index, hub.unit_number, GEAR, 50)
+    game.merge_forces(source, "player")
+    after_ticks(1, function()
+      assert.are.equal(game.forces.player.index, freight.capsules(hub.unit_number)[1].force_index)
+    end)
+  end)
+
+  test("keeps its queue across a save and reload", function()
+    freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
+    storage.gb_test_freight = { hub = hub.unit_number, chest = chest.unit_number }
+  end).after_reload_mods(function()
+    local unit_number = storage.gb_test_freight.hub
+    local capsules = freight.capsules(unit_number)
+    assert.are.equal(1, #capsules)
+    assert.are.equal(50, capsules[1].count)
+    assert.is_true(storage.freight.hubs[unit_number].next_launch > 0)
+    storage.freight.hubs[unit_number] = nil
+    storage.hubs[unit_number].entity.destroy()
+    storage.cargo.modules[storage.gb_test_freight.chest].entity.destroy()
+    storage.gb_test_freight = nil
   end)
 end)

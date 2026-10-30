@@ -41,6 +41,17 @@ describe("freight.schedule", function()
     assert.are.equal(0, freight.max_order(tier.max_capsules + 1, STACK, tier))
   end)
 
+  it("refuses a huge order without building its capsules", function()
+    local capsules, reason = freight.schedule(1e12, STACK, tier, 0, 0, 0)
+    assert.is_nil(capsules)
+    assert.are.equal("queue-full", reason)
+  end)
+
+  it("fills capsules exactly at the capacity boundary", function()
+    local capsules = freight.schedule(2 * PER_CAPSULE, STACK, tier, 0, 0, 0)
+    assert.are.same({ PER_CAPSULE, PER_CAPSULE }, { capsules[1].count, capsules[2].count })
+  end)
+
   it("refuses quantities that are not positive whole numbers", function()
     for _, units in ipairs({ 0, -1, 1.5, 0 / 0 }) do
       local capsules, reason = freight.schedule(units, STACK, tier, 0, 0, 0)

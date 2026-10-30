@@ -31,7 +31,8 @@ capsules of at most `capacity_stacks` stacks. Each hub launches one capsule ever
 `launch_interval_ticks`; a capsule lands `delay_ticks` after its launch and is unloaded into the
 hub's import chests. What does not fit stays in the landed capsule and is retried, so nothing is
 lost while the chests are full. A hub holds at most `max_capsules` capsules in its queue. When a hub
-disappears, the cargo still in its queue is sold back to the market for the force that paid. The
+disappears, the cargo still in its queue is sold back to the market for the force that paid; what
+the market refuses is refunded at the price paid, as is cargo of an item that no longer exists. The
 orbital capsule is the tier unlocked with the hub. The scheduling is pure (`scripts/core/freight.lua`);
 the queue lives in `storage.freight`, keyed by hub (it is logistics, not economy state: the payer
 force is recorded per capsule, ADR-0001).
@@ -39,7 +40,8 @@ force is recorded per capsule, ADR-0001).
 ## Consequences
 
 - Positive: latency and throughput become a real constraint without a new production chain; later
-  tiers only add a parameter set; the cost is one pass over the hubs with a queue per second.
+  tiers only add a parameter set; the cost is one pass over the hubs with a queue per second, each
+  delivery visiting only the import chests of its hub.
 - Trade-offs accepted: no visual landing yet (graphics follow the visual identity, #48); a buyer
   pays the fee even when the chests are full, and waits.
 - Follow-up: a physical consumable or a landing animation can be added on top of the same queue;
