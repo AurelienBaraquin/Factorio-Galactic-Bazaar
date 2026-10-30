@@ -16,6 +16,8 @@ local function init()
   market_gui.init()
 end
 
+remote.add_interface("galactic-bazaar", pricing.REMOTE)
+
 script.on_init(init)
 script.on_configuration_changed(init)
 script.on_event(defines.events.on_force_created, forces.on_force_created)
@@ -89,8 +91,8 @@ script.on_event({
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/market", "tests/hubs", "tests/cargo",
-      "tests/freight", "tests/market_gui" },
+    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/market", "tests/hubs",
+      "tests/cargo", "tests/freight", "tests/market_gui" },
     { load_luassert = true }
   )
 end

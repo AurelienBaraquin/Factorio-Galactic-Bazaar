@@ -17,6 +17,9 @@
 -- passes left without a value, so they never undercut a general production chain: first the
 -- fallback (planet-bound processes, non-primary tile fluids), then natural sources (trees, rocks,
 -- fish, plants, asteroid chunks), so that a process beats scavenging.
+--
+-- Fixed values (overrides by settings or other mods) are set before any recipe and never replaced:
+-- they act as sources, and every product made from them follows.
 local valuation = {}
 
 -- No key is worth less than this: a recipe with no inputs and no cost must not create free goods.
@@ -37,8 +40,8 @@ local function prepare(recipe)
   }
 end
 
-local function new_state()
-  return { values = {}, ancestors = {}, consumers = {}, queue = {}, queued = {} }
+local function new_state(fixed)
+  return { values = {}, ancestors = {}, consumers = {}, queue = {}, queued = {}, fixed = fixed or {} }
 end
 
 local function push(state, key)
@@ -61,7 +64,7 @@ local function offer(state, recipe, allowed)
   end
   local share = total / #recipe.output_keys
   for _, key in ipairs(recipe.output_keys) do
-    if not ancestors[key] and (not allowed or allowed[key]) then
+    if not ancestors[key] and not state.fixed[key] and (not allowed or allowed[key]) then
       local candidate = math.max(share / recipe.outputs[key], valuation.MIN_VALUE)
       local current = state.values[key]
       if not current or candidate < current then
@@ -107,8 +110,13 @@ end
 
 --- Returns {values = {[key] = credits}, unpriced = sorted keys with no value}. `keys` lists every
 --- key that should have a value (all items and fluids); keys only seen in recipes are added.
-function valuation.compute(graph, keys)
-  local state = new_state()
+--- `fixed` (optional) maps keys to values that recipes may not change.
+function valuation.compute(graph, keys, fixed)
+  local state = new_state(fixed)
+  for _, key in ipairs(sorted_keys(state.fixed)) do
+    state.values[key] = math.max(state.fixed[key], valuation.MIN_VALUE)
+    state.ancestors[key] = {}
+  end
   local main = {}
   for i, recipe in ipairs(graph.recipes) do
     main[i] = prepare(recipe)

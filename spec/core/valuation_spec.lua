@@ -8,8 +8,8 @@ local function near(expected, actual)
   return math.abs(expected - actual) <= 1e-9 * math.max(1, math.abs(expected))
 end
 
-local function compute(recipes, fallback, natural, keys)
-  return valuation.compute({ recipes = recipes, fallback = fallback or {}, natural = natural or {} }, keys)
+local function compute(recipes, fallback, natural, keys, fixed)
+  return valuation.compute({ recipes = recipes, fallback = fallback or {}, natural = natural or {} }, keys, fixed)
 end
 
 describe("valuation.compute", function()
@@ -131,5 +131,31 @@ describe("valuation.compute", function()
     local forward = compute(recipes).values
     local backward = compute({ recipes[3], recipes[2], recipes[1] }).values
     assert.are.same(forward, backward)
+  end)
+
+  describe("with fixed values", function()
+    local chain = {
+      recipe("mine/ore", 1, {}, { ore = 1 }),
+      recipe("plate", 0.32, { ore = 1 }, { plate = 1 }),
+      recipe("gear", 0.05, { plate = 2 }, { gear = 1 }),
+    }
+
+    it("keeps a fixed value and propagates it to the products", function()
+      local values = compute(chain, nil, nil, nil, { plate = 10 }).values
+      assert.are.equal(10, values.plate)
+      assert.is_true(near(20.05, values.gear))
+      assert.are.equal(1, values.ore)
+    end)
+
+    it("is not lowered by a cheaper recipe", function()
+      local values = compute(chain, nil, nil, nil, { gear = 0.5 }).values
+      assert.are.equal(0.5, values.gear)
+    end)
+
+    it("prices a key that no recipe can make", function()
+      local result = compute(chain, nil, nil, { "ore", "plate", "gear", "relic" }, { relic = 7 })
+      assert.are.equal(7, result.values.relic)
+      assert.are.same({}, result.unpriced)
+    end)
   end)
 end)

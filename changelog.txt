@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+Date: 2026-10-30
+  Features:
+    - Startup setting to scale every base value.
+    - Remote interface for other mods to fix or scale base values.
+  Bugfixes:
+    - A chest no longer loses its hub when an export runs right after its hub was destroyed.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2026-10-30
   Features:

@@ -14,6 +14,7 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 
 ```
 info.json       mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
+settings.lua    settings stage: the startup setting of the global value multiplier
 data.lua        prototype stage entry point: requires one file per prototype family
 prototypes/     prototype definitions (trading hub, cargo chests, technologies, custom inputs)
 control.lua     runtime stage entry point: registers every event handler
@@ -32,7 +33,7 @@ docs/           brief, architecture, ADRs and the documentation index
 .claude/        Claude Code project settings, hooks, Factorio modding skills and agents
 ```
 
-Only the first eight entries ship in the mod: `.gitattributes` marks everything else
+Only the first nine entries ship in the mod: `.gitattributes` marks everything else
 `export-ignore`, and `tools/build.py` uses that list for both the zip and play-test deploys.
 
 ## 2. Conventions in place
@@ -70,6 +71,8 @@ Only the first eight entries ship in the mod: `.gitattributes` marks everything 
 - **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md))
   and move queued capsules to the destination force; after a merge, every cargo chest is
   re-attached.
+- **Remote interface**: `control.lua` registers `galactic-bazaar` (`pricing.REMOTE`); an override
+  call checks its input, stores it and rebuilds the base values ([pricing.md](pricing.md)).
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
   NPC market lazily when read ([market.md](market.md)); export chests sell through it.
 

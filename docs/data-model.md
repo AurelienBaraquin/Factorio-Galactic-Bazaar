@@ -49,6 +49,14 @@ Invariants:
   versions, startup settings or prototypes changed), never edited elsewhere;
 - every value is finite and at least 10⁻⁶; a key with no value (`nil`) is not tradeable.
 
+## `storage.value_overrides`
+
+`storage.value_overrides["item/<name>"|"fluid/<name>"] = {value = credits}` or `{factor = f}` — base
+value overrides set by other mods through the remote interface ([pricing.md](pricing.md),
+[ADR-0007](adr/0007-value-overrides-as-fixed-sources.md)). Written by `scripts/pricing.lua` only after
+its checks: keys are tradeable when set, numbers positive and finite. Kept when a key stops being
+tradeable (ignored until it comes back).
+
 ## `storage.hubs`
 
 `storage.hubs[unit_number] = {entity = LuaEntity}` — every trading hub that exists

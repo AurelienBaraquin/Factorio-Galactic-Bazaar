@@ -13,7 +13,7 @@ and a document whose covered paths keep changing without it is reported as possi
 | Document | What it answers | Covers | Update when |
 |---|---|---|---|
 | [brief.md](brief.md) | What to build and why: purpose, scope, priorities, success criteria | the intent of the project | the scope, priorities or success criteria change |
-| [architecture.md](architecture.md) | How the code is organised and how its parts fit together | `info.json` `data.lua` `control.lua` `locale/` `scripts/` `changelog.txt` `docs/` `.assistant/` `.github/` `.githooks/` `.claude/` | a module, folder, flow or convention is added, moved or removed |
+| [architecture.md](architecture.md) | How the code is organised and how its parts fit together | `info.json` `settings.lua` `data.lua` `control.lua` `locale/` `scripts/` `changelog.txt` `docs/` `.assistant/` `.github/` `.githooks/` `.claude/` | a module, folder, flow or convention is added, moved or removed |
 | [adr/](adr/) | Why the structural choices were made | decisions | a structural decision is made or reversed |
 | [decisions-log.md](../.assistant/decisions-log.md) | Smaller choices and their reasons | decisions | a smaller choice is made |
 | [lessons.md](../.assistant/lessons.md) | Mistakes made and what now prevents them | lessons | review, CI or the user catches a mistake |
@@ -22,6 +22,6 @@ and a document whose covered paths keep changing without it is reported as possi
 | [testing.md](testing.md) | How the code is checked and tested, and how to run each check | `.luacheckrc` `.busted` `spec/` `tests/` `package.json` `tools/setup-lua.sh` | a check, its configuration or the toolchain changes |
 | [ci.md](ci.md) | What each CI pipeline runs and when | `.github/workflows/` | a workflow, trigger or step changes |
 | [data-model.md](data-model.md) | What the mod persists in `storage` and its invariants | `scripts/forces.lua` `scripts/core/force_registry.lua` `scripts/core/account.lua` `scripts/pricing.lua` `scripts/hubs.lua` `scripts/cargo.lua` `scripts/freight.lua` `scripts/market_gui.lua` | the shape of `storage` or its lifecycle changes |
-| [pricing.md](pricing.md) | How base values are computed, and the parameters that shape them | `scripts/recipe_graph.lua` `scripts/core/recipe_graph.lua` `scripts/core/valuation.lua` | the graph rules, the algorithm or a parameter changes |
+| [pricing.md](pricing.md) | How base values are computed, and the parameters that shape them | `scripts/recipe_graph.lua` `scripts/core/recipe_graph.lua` `scripts/core/valuation.lua` `scripts/core/overrides.lua` `scripts/pricing.lua` `settings.lua` | the graph rules, the algorithm or a parameter changes |
 | [market.md](market.md) | How buy and sell prices react to trades and recover, how forces trade | `scripts/market.lua` `scripts/core/market.lua` `scripts/core/npc_market.lua` `scripts/core/random.lua` | the price model or its parameters change |
 | [terminal.md](terminal.md) | The trading hub and its modules: prototypes, power, recipes, registry | `prototypes/` `scripts/hubs.lua` `scripts/cargo.lua` `scripts/market_gui.lua` `scripts/core/catalog.lua` `scripts/freight.lua` `scripts/core/freight.lua` | a terminal building, its recipe, its registry, the market window or a delivery tier changes |
