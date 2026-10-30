@@ -129,10 +129,10 @@ local function place_orders(module, tick)
     local allowance = orders.allowance(budget, spent.credits, state.balance)
     if allowance <= 0 then return end
     local ok, paid, fee = freight.order(force_index, hub.unit_number, request.name, request.units,
-      circuit_orders.JOURNAL_MERGE_TICKS, allowance)
+      circuit_orders.JOURNAL_MERGE_TICKS, allowance, request.kind)
     if ok then
       spent.credits = spent.credits + paid + fee
-    elseif paid == "no-import-chest" or paid == "queue-full" then
+    elseif paid == "queue-full" then
       return
     end
   end

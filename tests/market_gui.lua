@@ -36,7 +36,7 @@ local function force_state() return storage.forces[player.force_index] end
 local function shown_items()
   local items = {}
   for _, row in ipairs(data().elements.rows) do
-    if row.icon.visible then items[#items + 1] = row.icon.tags.item end
+    if row.icon.visible then items[#items + 1] = row.icon.tags.key end
   end
   return items
 end
@@ -104,7 +104,18 @@ describe("market window", function()
   test("filters the list by search text", function()
     market_gui.open(player, hub)
     type_text("search", "iron gear")
-    assert.are.same({ "iron-gear-wheel" }, shown_items())
+    assert.are.same({ "item/iron-gear-wheel" }, shown_items())
+  end)
+
+  test("lists fluids too, and refuses to sell them from the inventory", function()
+    market_gui.open(player, hub)
+    type_text("search", "crude oil")
+    assert.are.equal("fluid/crude-oil", shown_items()[1])
+    click("select")
+    type_text("quantity", "10")
+    local balance = force_state().balance
+    click("sell")
+    assert.are.equal(balance, force_state().balance)
   end)
 
   test("previews exactly what the purchase then costs", function()

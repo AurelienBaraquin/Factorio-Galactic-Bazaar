@@ -63,7 +63,7 @@ describe("telecommunications", function()
     hub.energy = hub.electric_buffer_size
     market_gui.open(player, hub)
     local data = storage.players[player.index]
-    data.selected = GEAR
+    data.selected = "item/" .. GEAR
     market.quote(force().index, "item", GEAR)
     state().markets["item/" .. GEAR].history = { 1, 2, 3 }
     local refresh = { tick = (player.index % market_gui.SLOTS) * market_gui.SLOT_TICKS }

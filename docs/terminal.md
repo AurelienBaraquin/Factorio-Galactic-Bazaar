@@ -24,10 +24,10 @@ logic in `scripts/core/catalog.lua`.
 | Part | Behaviour |
 |---|---|
 | Status | the force's balance, whether the hub has power, and its capsules queued out of `max_capsules` |
-| List | tradeable items (`storage.tradeable_items`, built with the base values), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price as the force sees them (`telecom.quote`, at most its telecommunications period old, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)), and with telecommunications 2 the trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
+| List | tradeable items then fluids (`storage.tradeable_items`, `storage.tradeable_fluids`, built with the base values; keys `item/<name>` and `fluid/<name>`), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price as the force sees them (`telecom.quote`, at most its telecommunications period old, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)), and with telecommunications 2 the trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
 | Detail | for the selected item: with telecommunications 2, a history line (sparkline of the last 30 NPC steps); a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee. A purchase is exactly the preview; a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
 | Buy | needs a powered hub with at least one import chest of its force; pays the market cost plus the freight fee at once and queues the units in orbital capsules (`freight.order`, see below); the printed result says when the last capsule lands |
-| Sell | needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
+| Sell | items only (fluids are sold by export manifolds); needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
 | Refresh | once a second per open window of a connected player, spread over `SLOTS` (10) slots of `SLOT_TICKS` (6) ticks by player index; a window whose hub is gone, foreign or out of reach is closed. Measured on 2.1.24: 0.18 ms per window refresh in vanilla (196 items), 0.40 ms with Space Age (284) — budget 0.5 ms per window |
 | Closing | close button, E/Esc or another window (`on_gui_closed`), hub destroyed, player leaves, changes force or is removed, out of reach on refresh, configuration change |
 
@@ -156,3 +156,16 @@ A price combinator snapshot's period runs from the end of its build. At level 2,
 snapshot is rebuilt every 2 s and, while prices move, its combinators are rewritten one per pass:
 prices reach the last of `n` combinators within 2 s plus about `n` × 0.1 s. Measured with 30
 combinators and moving prices: 0.04–0.05 ms per tick on average (2.1.24) — budget 0.06 ms.
+
+## Manifold module (`gb-fluid-export`, `gb-fluid-import`)
+
+Fluid trading (#63). Code: `scripts/manifold.lua`; prototypes: `prototypes/manifold.lua`.
+
+| | |
+|---|---|
+| Prototypes | two storage tanks (25 000 units, base storage tank), tinted orange (export) and green (import) |
+| Recipe | 1 storage tank + 10 electronic circuits, 3 s |
+| Technology | `gb-fluid-trading` (after the Galactic Bazaar and fluid handling; 100 × red and green) |
+| Hub | attached like the other modules (`manifold.HUB_RANGE`, 10 tiles) |
+| Export | every `manifold.SELL_TICKS` (60), each export manifold with a powered hub sells its fluid while it fetches at least `manifold.MIN_PRICE_RATIO` (0.5) × its base value; the sale goes first, then the fluid leaves the tank; journal entries merged per fluid and minute. Fluids are priced by name: temperature does not change the price |
+| Import | fluids bought from the market window or an order combinator travel by orbital capsule (`freight.order(…, "fluid")`), `freight.FLUID_UNITS_PER_STACK` (500) units taking the room of one stack, and land in the hub's import manifolds of its force at the fluid's default temperature (`manifold.deliver`); without an import manifold the order is refused (`no-import-manifold`) |

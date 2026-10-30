@@ -111,4 +111,20 @@ data:extend({
       time = 30,
     },
   },
+  {
+    type = "technology",
+    name = "gb-fluid-trading",
+    icons = data.raw.item["gb-fluid-import"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-galactic-bazaar", "fluid-handling" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-fluid-export" },
+      { type = "unlock-recipe", recipe = "gb-fluid-import" },
+    },
+    unit = {
+      count = 100,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 15,
+    },
+  },
 })

@@ -58,8 +58,8 @@ Researched with **Market orders** (after Market signals). Place it within 10 til
 trading hub that has an import chest, and wire signals into it; it cannot be opened and emits
 nothing.
 
-- Every **10 seconds**, it buys, for each **item signal** with a positive value, that many units
-  (normal quality). They arrive by orbital capsule in the hub's import chests about 30 s later, with
+- Every **10 seconds**, it buys, for each **item or fluid signal** with a positive value, that many
+  units (items of normal quality; fluids land in the hub's import manifolds). They arrive by orbital capsule in the hub's import chests about 30 s later, with
   the freight fee, like a purchase from the market window.
 - **Budget**: it buys **nothing** without a positive **Budget** signal on its input. The value is the
   most your force spends through all its order combinators in 10 s (never more than your balance).
@@ -68,7 +68,7 @@ nothing.
   since its item signals are prices, not orders.
 - A signal left on keeps buying every 10 s. The capsule queue (20 per hub) stops it when the import
   chests stay full; removing the hub sells the queued capsules back at the market price.
-- Negative values, fluids, qualities other than normal and items that cannot be traded are ignored.
+- Negative values, qualities other than normal and goods that cannot be traded are ignored.
 
 ### Example: keep about 2 000 iron plates in stock
 
