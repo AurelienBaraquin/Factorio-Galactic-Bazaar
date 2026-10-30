@@ -85,6 +85,14 @@ function market.quote_sell(base_value, displacement, quantity, params)
   return revenue, displacement + quantity
 end
 
+--- Displacement after the base value changes from `old_value` to `new_value`: scaled so that the
+--- price stays the same multiple of the base value (s / L is kept), then bounded again.
+function market.rebase(displacement, old_value, new_value, params)
+  local scaled = displacement * old_value / new_value
+  local bound = params.max_depths * market.depth(new_value, params)
+  return math.max(-bound, math.min(bound, scaled))
+end
+
 --- Displacement after `ticks` of reversion towards the base value.
 function market.decay(displacement, ticks, params)
   return displacement * 0.5 ^ (ticks / params.half_life_ticks)

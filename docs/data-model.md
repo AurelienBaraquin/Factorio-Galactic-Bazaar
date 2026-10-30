@@ -45,9 +45,22 @@ Shared by all forces: it depends only on prototypes. Written by `scripts/pricing
 
 Invariants:
 
-- rebuilt from the prototypes on `on_init` and on every `on_configuration_changed` (mods,
-  versions, startup settings or prototypes changed), never edited elsewhere;
-- every value is finite and at least 10⁻⁶; a key with no value (`nil`) is not tradeable.
+- rebuilt from the prototypes, the multiplier and the overrides on `on_init`, on every
+  `on_configuration_changed` (mods, versions, startup settings or prototypes changed) and after
+  each remote override call, never edited elsewhere;
+- every value is finite and at least 10⁻⁶, multiplier included; a key with no value (`nil`) is not
+  tradeable;
+- whenever it is rebuilt, every `markets` entry of every force is rebased on the new values
+  (`market.rebase_all`), and entries of keys that lost their value are dropped.
+
+## `storage.value_overrides`
+
+`storage.value_overrides["item/<name>"|"fluid/<name>"] = {value = credits}` or `{factor = f}` — base
+value overrides set by other mods through the remote interface ([pricing.md](pricing.md),
+[ADR-0007](adr/0007-value-overrides-as-fixed-sources.md)). Written by `scripts/value_overrides.lua` only
+after its checks: keys are tradeable when set, exactly one of `value` (10⁻⁴ to 10¹²) or `factor`
+(10⁻⁶ to 10⁶). Malformed entries are dropped at the next rebuild. Kept when a key stops being
+tradeable (ignored until it comes back).
 
 ## `storage.hubs`
 

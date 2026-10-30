@@ -83,14 +83,24 @@ local function copy_tile_fluids()
   return fluids
 end
 
--- Every item and fluid a player could trade: not hidden, not a blueprint parameter, and not a tool
--- that only exists in the cursor (blueprints, planners, remotes and wires are all "spawnable").
+local GROUPS = { item = "item", fluid = "fluid" }
+
+--- Whether `kind`/`name` ("item"/"fluid") is an item or fluid a player could trade: it exists, is
+--- not hidden, not a blueprint parameter, and not a tool that only exists in the cursor
+--- (blueprints, planners, remotes and wires are all "spawnable").
+function recipe_graph.is_tradeable(kind, name)
+  local group = GROUPS[kind] and prototypes[GROUPS[kind]]
+  local prototype = group and type(name) == "string" and group[name]
+  if not prototype then return false end
+  local spawnable = kind == "item" and prototype.flags and prototype.flags.spawnable
+  return not (prototype.hidden or prototype.parameter or spawnable)
+end
+
 local function tradeable_keys()
   local keys = {}
   for kind, group in pairs({ item = prototypes.item, fluid = prototypes.fluid }) do
-    for name, prototype in pairs(group) do
-      local spawnable = kind == "item" and prototype.flags and prototype.flags.spawnable
-      if not (prototype.hidden or prototype.parameter or spawnable) then keys[#keys + 1] = kind .. "/" .. name end
+    for name in pairs(group) do
+      if recipe_graph.is_tradeable(kind, name) then keys[#keys + 1] = kind .. "/" .. name end
     end
   end
   table.sort(keys)

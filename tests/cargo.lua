@@ -108,6 +108,16 @@ describe("cargo module", function()
     end)
   end)
 
+  test("stays attached to an unpowered hub when an export runs before its hub's removal is known", function()
+    local first = place("gb-hub", 0, 0)
+    local second = place("gb-hub", 6, 0)
+    local chest = place("gb-export-chest", 2, 0)
+    second.energy = 0
+    first.destroy()
+    for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
+    assert.are.equal(second.unit_number, module_of(chest).hub)
+  end)
+
   test("sells an export chest's content when its hub has power", function()
     local hub = place("gb-hub", 0, 0)
     local chest = place("gb-export-chest", 2, 0)

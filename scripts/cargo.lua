@@ -48,13 +48,17 @@ local function index_import(hub_unit_number, unit_number, present)
   if next(imports[hub_unit_number]) == nil then imports[hub_unit_number] = nil end
 end
 
-local function attach(module, powered_only)
+local function set_hub(module, hub_unit_number)
   local previous = module.hub
-  module.hub = nearest_hub(module.entity, powered_only)
-  if module.kind == "import" and module.hub ~= previous then
+  module.hub = hub_unit_number
+  if module.kind == "import" and hub_unit_number ~= previous then
     index_import(previous, module.entity.unit_number, false)
-    index_import(module.hub, module.entity.unit_number, true)
+    index_import(hub_unit_number, module.entity.unit_number, true)
   end
+end
+
+local function attach(module, powered_only)
+  set_hub(module, nearest_hub(module.entity, powered_only))
 end
 
 local function attach_all()
@@ -140,12 +144,19 @@ end
 
 --- The hub entity a module works for: its hub if it is valid, of the module's force and powered;
 --- otherwise the nearest powered hub of its force in range, which it then attaches to; nil when
---- there is none.
+--- there is none, the module then staying attached to its nearest hub, powered or not.
 function cargo.powered_hub(module)
   local hub = module.hub and hubs.get(module.hub)
-  if hub and hub.force == module.entity.force and has_power(hub) then return hub end
-  attach(module, true)
-  return module.hub and hubs.get(module.hub)
+  local own = hub and hub.force == module.entity.force
+  if own and has_power(hub) then return hub end
+  local powered = nearest_hub(module.entity, true)
+  if powered then
+    set_hub(module, powered)
+    return hubs.get(powered)
+  end
+  -- No powered hub in range: keep an unpowered hub of its own force, or find the nearest one.
+  if not own then attach(module) end
+  return nil
 end
 
 -- A stack worth exactly its base value: no extra data (equipment grid, inventory, blueprint, tags),

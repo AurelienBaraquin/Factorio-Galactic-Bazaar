@@ -17,10 +17,18 @@
 -- passes left without a value, so they never undercut a general production chain: first the
 -- fallback (planet-bound processes, non-primary tile fluids), then natural sources (trees, rocks,
 -- fish, plants, asteroid chunks), so that a process beats scavenging.
+--
+-- Fixed values (overrides by other mods) are never replaced: they act as sources from their tier on,
+-- and every product made from them follows.
 local valuation = {}
 
 -- No key is worth less than this: a recipe with no inputs and no cost must not create free goods.
 valuation.MIN_VALUE = 1e-6
+
+-- Tiers of sources, in the order they are valued.
+valuation.MAIN = 1
+valuation.FALLBACK = 2
+valuation.NATURAL = 3
 
 local function sorted_keys(map)
   local keys = {}
@@ -37,8 +45,8 @@ local function prepare(recipe)
   }
 end
 
-local function new_state()
-  return { values = {}, ancestors = {}, consumers = {}, queue = {}, queued = {} }
+local function new_state(fixed)
+  return { values = {}, ancestors = {}, consumers = {}, queue = {}, queued = {}, fixed = fixed or {}, tiers = {} }
 end
 
 local function push(state, key)
@@ -61,7 +69,7 @@ local function offer(state, recipe, allowed)
   end
   local share = total / #recipe.output_keys
   for _, key in ipairs(recipe.output_keys) do
-    if not ancestors[key] and (not allowed or allowed[key]) then
+    if not ancestors[key] and not state.fixed[key] and (not allowed or allowed[key]) then
       local candidate = math.max(share / recipe.outputs[key], valuation.MIN_VALUE)
       local current = state.values[key]
       if not current or candidate < current then
@@ -105,29 +113,59 @@ local function wanted_keys(graph, keys)
   return sorted_keys(wanted)
 end
 
---- Returns {values = {[key] = credits}, unpriced = sorted keys with no value}. `keys` lists every
---- key that should have a value (all items and fluids); keys only seen in recipes are added.
-function valuation.compute(graph, keys)
-  local state = new_state()
+-- Sets the fixed values of one tier: they become sources from that tier on.
+local function seed(state, tier)
+  for _, key in ipairs(sorted_keys(state.fixed)) do
+    local entry = state.fixed[key]
+    if (entry.tier or valuation.MAIN) == tier then
+      state.values[key] = math.max(entry.value, valuation.MIN_VALUE)
+      state.ancestors[key] = {}
+      state.tiers[key] = tier
+      push(state, key)
+    end
+  end
+end
+
+-- Records the tier of every key that got its first value in this tier.
+local function record_tiers(state, tier)
+  for key in pairs(state.values) do state.tiers[key] = state.tiers[key] or tier end
+end
+
+--- Returns {values = {[key] = credits}, tiers = {[key] = tier that priced it}, unpriced = sorted keys
+--- with no value}. `keys` lists every key that should have a value (all items and fluids); keys
+--- only seen in recipes are added. `fixed` (optional) maps keys to {value, tier}: a value recipes
+--- may not change, which becomes a source from its tier (`valuation.MAIN`, default, `FALLBACK` or
+--- `NATURAL`) on, so that it never undercuts a chain of an earlier tier it would not have entered.
+function valuation.compute(graph, keys, fixed)
+  local state = new_state(fixed)
+  seed(state, valuation.MAIN)
   local main = {}
   for i, recipe in ipairs(graph.recipes) do
     main[i] = prepare(recipe)
     add(state, main[i])
   end
   settle(state)
+  record_tiers(state, valuation.MAIN)
 
   local all_keys = wanted_keys(graph, keys)
   local earlier = main
-  for _, tier in ipairs({ graph.fallback, graph.natural }) do
+  local later = {
+    { tier = valuation.FALLBACK, recipes = graph.fallback },
+    { tier = valuation.NATURAL, recipes = graph.natural },
+  }
+  for _, step in ipairs(later) do
+    local tier, recipes = step.tier, step.recipes
+    seed(state, tier)
     local missing = {}
     for _, key in ipairs(all_keys) do
       if not state.values[key] then missing[key] = true end
     end
     local prepared = {}
-    for i, recipe in ipairs(tier) do prepared[i] = prepare(recipe) end
+    for i, recipe in ipairs(recipes) do prepared[i] = prepare(recipe) end
     for _, recipe in ipairs(prepared) do add(state, recipe, missing) end
     for _, recipe in ipairs(earlier) do offer(state, recipe, missing) end
     settle(state, missing)
+    record_tiers(state, tier)
     for _, recipe in ipairs(prepared) do earlier[#earlier + 1] = recipe end
   end
 
@@ -135,7 +173,7 @@ function valuation.compute(graph, keys)
   for _, key in ipairs(all_keys) do
     if not state.values[key] then unpriced[#unpriced + 1] = key end
   end
-  return { values = state.values, unpriced = unpriced }
+  return { values = state.values, tiers = state.tiers, unpriced = unpriced }
 end
 
 return valuation

@@ -1,31 +1,68 @@
 -- Computes the base value of every item and fluid from the game's prototypes (ADR-0002) and keeps it
--- in storage.base_values. Base values depend only on prototypes, so they are shared by all forces and
--- recomputed whenever prototypes may have changed.
+-- in storage.base_values. Base values depend only on prototypes, the startup multiplier and the
+-- overrides set by other mods (ADR-0007, stored in storage.value_overrides by
+-- scripts/value_overrides.lua), so they are shared by all forces and recomputed whenever one of
+-- those may have changed.
+local overrides = require("scripts.core.overrides")
 local raw_graph = require("scripts.recipe_graph")
 local recipe_graph = require("scripts.core.recipe_graph")
 local valuation = require("scripts.core.valuation")
 
 local pricing = {}
 
---- on_init and on_configuration_changed: rebuilds storage.base_values.
-function pricing.init()
-  local graph = recipe_graph.build(raw_graph.extract())
-  local result = valuation.compute(graph, graph.keys)
-  storage.base_values = result.values
-  storage.tradeable_items = {}
-  for key in pairs(result.values) do
-    local name = key:match("^item/(.+)$")
-    if name and prototypes.item[name] then table.insert(storage.tradeable_items, name) end
-  end
-  table.sort(storage.tradeable_items)
-  if #result.unpriced > 0 then
-    log("[galactic-bazaar] no base value (not tradeable): " .. table.concat(result.unpriced, ", "))
-  end
-end
+pricing.MULTIPLIER_SETTING = "gb-value-multiplier"
 
 --- Key of an item or fluid in base values and markets: "item/<name>" or "fluid/<name>".
 function pricing.key(kind, name)
   return kind .. "/" .. name
+end
+
+-- Overrides of keys that are still tradeable; the others are kept for when they come back.
+-- Malformed entries (none can be stored through the remote checks) are dropped.
+local function active_overrides(keys)
+  local tradeable, active, malformed = {}, {}, {}
+  for _, key in ipairs(keys) do tradeable[key] = true end
+  for key, entry in pairs(storage.value_overrides) do
+    if not overrides.is_valid(entry) then
+      malformed[#malformed + 1] = key
+    elseif tradeable[key] then
+      active[key] = entry
+    else
+      log("[galactic-bazaar] value override of " .. key .. " ignored: not a tradeable item or fluid")
+    end
+  end
+  for _, key in ipairs(malformed) do storage.value_overrides[key] = nil end
+  return active
+end
+
+-- Base values with the multiplier and the overrides applied: one valuation pass with the fixed
+-- values, and a second one when a factor needs the first pass's value of its key.
+local function compute()
+  local graph = recipe_graph.build(raw_graph.extract())
+  local multiplier = settings.startup[pricing.MULTIPLIER_SETTING].value
+  local entries = active_overrides(graph.keys)
+  local result = valuation.compute(graph, graph.keys, overrides.fixed(entries, multiplier))
+  if overrides.has_factors(entries) then
+    result = valuation.compute(graph, graph.keys, overrides.fixed(entries, multiplier, result))
+  end
+  return overrides.apply_multiplier(result.values, entries, multiplier), result.unpriced
+end
+
+--- Rebuilds storage.base_values (on_init, on_configuration_changed, after an override changes;
+--- callers then rebase the markets, see scripts/value_overrides.lua).
+function pricing.init()
+  storage.value_overrides = storage.value_overrides or {}
+  local values, unpriced = compute()
+  storage.base_values = values
+  storage.tradeable_items = {}
+  for key in pairs(values) do
+    local name = key:match("^item/(.+)$")
+    if name and prototypes.item[name] then table.insert(storage.tradeable_items, name) end
+  end
+  table.sort(storage.tradeable_items)
+  if #unpriced > 0 then
+    log("[galactic-bazaar] no base value (not tradeable): " .. table.concat(unpriced, ", "))
+  end
 end
 
 --- Base value of an item or fluid in credits, or nil when it has none (not tradeable).

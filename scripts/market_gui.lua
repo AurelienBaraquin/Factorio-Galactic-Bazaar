@@ -55,9 +55,11 @@ local function refresh_list(player, data)
   elements.page.caption = { "gb-gui.page", shown.page, shown.pages }
   for i, row in ipairs(elements.rows) do
     local name = shown.names[i]
-    for _, cell in pairs(row) do cell.visible = name ~= nil end
-    if name then
-      local quote = market.quote(player.force_index, "item", name)
+    -- The list is taken when the window opens: an item whose value another mod removes since then
+    -- is hidden, and one that gains a value appears on the next opening.
+    local quote = name and market.quote(player.force_index, "item", name)
+    for _, cell in pairs(row) do cell.visible = quote ~= nil end
+    if quote then
       row.icon.sprite = "item/" .. name
       row.icon.tags = { gb_action = "select", item = name }
       row.icon.toggled = name == data.selected
