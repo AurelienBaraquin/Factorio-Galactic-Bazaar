@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.14
+Date: 2026-10-30
+  Changes:
+    - Space logistics research branch: the electromagnetic catapult now follows the cargo shuttle.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.13
 Date: 2026-10-30
   Features:

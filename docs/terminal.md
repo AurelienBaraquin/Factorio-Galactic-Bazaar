@@ -51,11 +51,29 @@ The export price floor is per chest; its interface comes with #19.
 
 ## Technologies
 
-| Technology | Prerequisites | Cost | Unlocks |
-|---|---|---|---|
-| `gb-galactic-bazaar` (Galactic Bazaar) | Electronics, Steel processing | 75 × red science, 15 s each | trading hub, export chest, import chest |
+Every technology of the mod (`prototypes/technologies.lua`), vanilla science packs only. The
+**space logistics** branch (#68) grows the delivery tiers in step with the vanilla tree: the cargo
+shuttle once rocket fuel exists (blue science), then the catapult and, with production and utility science, the
+teleporter.
 
-Defined in `prototypes/technologies.lua`. The orbital capsule is added to it when it exists (#20). Research itself always happens in the player's labs.
+```text
+gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule delivery)
+├── gb-power-trading (red, green) ── gb-power-trading-2 (+ blue)
+├── gb-market-signals (red, green) ── gb-market-orders (red, green)
+├── gb-telecommunications-1 (red, green) ── gb-telecommunications-2 (red, green, after advanced circuits)
+├── gb-fluid-trading (red, green) ── fluid manifolds
+└── [space logistics branch]
+    └── gb-cargo-shuttle (red, green, blue) ── docking bay
+        ├── gb-catapult (red, green, blue) ── electromagnetic catapult
+        └── gb-teleporter (red, green, blue, purple, yellow) ── teleporter
+```
+
+`tests/technologies.lua` checks, in vanilla and with Space Age, that each of these technologies uses
+vanilla packs only, never needs fewer packs than a prerequisite, and unlocks recipes whose
+ingredients its prerequisites (or the start of the game) already give.
+
+Each building's section below gives its technology's prerequisites and cost. Research itself always
+happens in the player's labs.
 
 ## Delivery tiers (orbital capsule, cargo shuttle, teleporter)
 
@@ -211,7 +229,7 @@ Gives its hub the teleporter tier (#66, [ADR-0014](adr/0014-delivery-tier-per-hu
 |---|---|
 | Prototype | an `electric-energy-interface` derived from the base one, tinted violet, drawing 20 MW (`secondary-input`, 40 MJ buffer, intake capped at 24 MW so a network that cannot keep up drains it; a fresh one reaches half its buffer in about 5 s) |
 | Recipe | 100 processing units, 50 low density structures, 200 steel plates, 30 s |
-| Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × the five vanilla packs) |
+| Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × red, green, blue, purple and yellow) |
 | Hub | attached like the other modules (`teleporter.HUB_RANGE`, 10 tiles), indexed per hub (`storage.teleporters.by_hub`) |
 | Tier | the hub has the teleporter while one of its teleporters of its force holds at least `POWERED_SHARE` (half) of its buffer |
 | Without power | while all the hub's teleporters are unpowered, its teleporter shipments already queued wait (`delivers`); once the hub has no teleporter at all (mined, attached elsewhere), they land, since they were paid for |
@@ -224,7 +242,7 @@ Bulk exports (#67). Code: `scripts/catapult.lua`; prototypes: `prototypes/catapu
 |---|---|
 | Prototypes | a 48-slot chest derived from the steel chest, tinted red; under it, a hidden `gb-catapult-capacitor` (electric-energy-interface, not selectable, not blueprintable, not repairable, indestructible, no collision layers but the chest's footprint for pole coverage; `secondary-input`, 100 MJ buffer, intake capped at 30 MW) placed and removed by the script with the catapult; a catapult adopts a capacitor already under it (an area clone copies both) |
 | Recipe | 100 steel plates, 30 advanced circuits, 10 accumulators, 20 electric engines, 20 s |
-| Technology | `gb-catapult` (after the Galactic Bazaar, accumulators and electric engine; 250 × red, green and blue) |
+| Technology | `gb-catapult` (after the cargo shuttle and accumulators; 250 × red, green and blue) |
 | Hub | attached like the other modules (`catapult.HUB_RANGE`, 10 tiles); shoots only through a powered hub of its force |
 | Shot | every `catapult.PASS_TICKS` (6), catapults are visited in turn, up to `VISITS` (5), empty ones passed over, until one shoots: it shoots if its interval (`SHOT_TICKS`, 120) passed and its capacitor holds `SHOT_MJ` (50 MJ): it sells every plain stack while each unit fetches at least `cargo.DEFAULT_MIN_PRICE_RATIO` (0.5) × its base value, then spends the 50 MJ, only if something sold |
 | Journal | entries merged per item and minute (`cargo.JOURNAL_MERGE_TICKS`), like export chests |
