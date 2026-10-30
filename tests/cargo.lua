@@ -249,6 +249,22 @@ describe("cargo module", function()
     assert.are.equal(0, player_state().balance)
   end)
 
+  test("merges the journal entries of an export chest's repeated sales", function()
+    local hub = place("gb-hub", 0, 0)
+    local chest = place("gb-export-chest", 2, 0)
+    hub.energy = hub.electric_buffer_size
+    local saved_journal = player_state().journal
+    player_state().journal = {}
+    for _ = 1, 2 do
+      chest.insert({ name = "iron-gear-wheel", count = 10 })
+      for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
+    end
+    local journal = player_state().journal
+    player_state().journal = saved_journal
+    assert.are.equal(1, #journal)
+    assert.are.equal(20, journal[1].quantity)
+  end)
+
   test("keeps visiting every export chest after one is removed", function()
     local chests = {}
     for i = 1, 3 do chests[i] = place("gb-export-chest", i, 5) end

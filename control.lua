@@ -1,6 +1,7 @@
 -- Runtime stage: registers every event handler of the mod. Factorio keeps one handler per event
 -- per mod, so handlers from several modules are composed here, never registered in the modules.
 local cargo = require("scripts.cargo")
+local catapult = require("scripts.catapult")
 local forces = require("scripts.forces")
 local docking_bay = require("scripts.docking_bay")
 local freight = require("scripts.freight")
@@ -22,6 +23,7 @@ local function init()
   freight.init()
   docking_bay.init()
   teleporter.init()
+  catapult.init()
   power.init()
   price_signals.init()
   circuit_orders.init()
@@ -43,6 +45,7 @@ script.on_event(defines.events.on_forces_merged, function(event)
   manifold.on_forces_merged(event)
   docking_bay.on_forces_merged(event)
   teleporter.on_forces_merged(event)
+  catapult.on_forces_merged(event)
   price_signals.on_forces_merged(event)
   circuit_orders.on_forces_merged(event)
 end)
@@ -59,6 +62,7 @@ local BUILT_EVENTS = {
 local BUILDING_FILTER = {
   { filter = "name", name = hubs.NAME }, { filter = "name", name = circuit_orders.NAME, mode = "or" },
   { filter = "name", name = docking_bay.NAME, mode = "or" }, { filter = "name", name = teleporter.NAME, mode = "or" },
+  { filter = "name", name = catapult.NAME, mode = "or" },
 }
 for _, kinds in ipairs({ cargo.KINDS, power.KINDS, price_signals.KINDS, manifold.KINDS }) do
   for name in pairs(kinds) do
@@ -75,10 +79,12 @@ local function on_built(event)
     manifold.on_hub_built(entity)
     docking_bay.on_hub_built(entity)
     teleporter.on_hub_built(entity)
+    catapult.on_hub_built(entity)
     price_signals.on_hub_built(entity)
     circuit_orders.on_hub_built(entity)
   elseif not (power.on_built(entity) or price_signals.on_built(entity) or circuit_orders.on_built(entity)
-    or manifold.on_built(entity) or docking_bay.on_built(entity) or teleporter.on_built(entity)) then
+    or manifold.on_built(entity) or docking_bay.on_built(entity) or teleporter.on_built(entity)
+    or catapult.on_built(entity)) then
     cargo.on_built(entity)
   end
 end
@@ -95,13 +101,15 @@ script.on_event(defines.events.on_object_destroyed, function(event)
     manifold.on_hub_removed(event.useful_id)
     docking_bay.on_hub_removed(event.useful_id)
     teleporter.on_hub_removed(event.useful_id)
+    catapult.on_hub_removed(event.useful_id)
     price_signals.on_hub_removed(event.useful_id)
     circuit_orders.on_hub_removed(event.useful_id)
     freight.on_hub_removed(event.useful_id)
     market_gui.on_hub_removed(event.useful_id)
   elseif not (power.forget(event.useful_id) or price_signals.forget(event.useful_id)
     or circuit_orders.forget(event.useful_id) or manifold.forget(event.useful_id)
-    or docking_bay.forget(event.useful_id) or teleporter.forget(event.useful_id)) then
+    or docking_bay.forget(event.useful_id) or teleporter.forget(event.useful_id)
+    or catapult.forget(event.useful_id)) then
     cargo.forget(event.useful_id)
   end
 end)
@@ -117,6 +125,7 @@ every(market_gui.SLOT_TICKS, market_gui.on_refresh_tick)
 every(freight.UNLOAD_INTERVAL, freight.on_unload_tick)
 every(power.SETTLE_TICKS, power.on_settle_tick)
 every(manifold.EXPORT_INTERVAL, manifold.on_export_tick)
+every(catapult.PASS_TICKS, catapult.on_pass_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 for ticks, handlers in pairs(periodic) do
@@ -140,8 +149,9 @@ script.on_event({
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
     { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market",
-      "tests/hubs", "tests/cargo", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter",
-      "tests/power", "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/market_gui" },
+      "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight", "tests/docking_bay",
+      "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders", "tests/telecom",
+      "tests/market_gui" },
     { load_luassert = true }
   )
 end

@@ -14,6 +14,8 @@ cargo.DEFAULT_MIN_PRICE_RATIO = 0.5
 -- The market window sells while each unit fetches at least this fraction of its base value, so
 -- nearly spoiled stock cannot be dumped to push a price down for almost nothing (ADR-0013).
 cargo.WINDOW_MIN_PRICE_RATIO = 0.05
+-- Ticks over which a force's automatic sales of one item share one journal entry.
+cargo.JOURNAL_MERGE_TICKS = 3600
 -- Ticks between two export batches, and export chests visited per batch: 20 chests a second,
 -- spread thinly so that no single tick pays for many.
 cargo.EXPORT_INTERVAL = 6
@@ -164,9 +166,10 @@ end
 --- Sells the plain stacks of `inventory` for a force, each unit at its quality's price times its
 --- freshness (1 - spoil_percent, ADR-0013), while each unit fetches at least `min_price_ratio` × its
 --- base value; only stacks of `name` (any quality) when given, at most `limit` units when given,
---- only of `quality_name` when given. The sale goes first: a stack only shrinks for units the market
---- has paid for. Returns the units sold and the credits received.
-function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit, quality_name)
+--- only of `quality_name` when given; `merge_ticks` (optional) merges the journal entries of recurring
+--- sales. The sale goes first: a stack only shrinks for units the market has paid for. Returns the
+--- units sold and the credits received.
+function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit, quality_name, merge_ticks)
   local sold, revenue = 0, 0
   for slot = 1, #inventory do
     if limit and sold >= limit then break end
@@ -178,7 +181,7 @@ function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit,
       local units = freshness > 0 and math.min(stack.count, limit and limit - sold or math.huge,
         math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio / freshness, stack_quality)))
       if units and units > 0 then
-        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality, nil, freshness)
+        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality, merge_ticks, freshness)
         if ok then
           stack.count = stack.count - units
           sold, revenue = sold + units, revenue + credits
@@ -207,7 +210,7 @@ end
 local function export_from(module)
   if not (module.entity.valid and cargo.powered_hub(module)) then return end
   cargo.sell_stacks(module.entity.get_inventory(defines.inventory.chest), module.entity.force.index,
-    module.min_price_ratio)
+    module.min_price_ratio, nil, nil, nil, cargo.JOURNAL_MERGE_TICKS)
 end
 
 --- on_nth_tick(EXPORT_INTERVAL): sells the content of the next EXPORT_BATCH export chests.

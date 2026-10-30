@@ -152,6 +152,15 @@ entries are dropped and the others re-attached on `on_configuration_changed`.
 force merge and `on_object_destroyed`; invalid entries are dropped and the index rebuilt on
 `on_configuration_changed`.
 
+## `storage.catapults`
+
+`{modules = {[unit_number] = {entity, capacitor, hub, next_shot, order_index}}, order =
+{unit_number...}, cursor}` — every catapult, its hidden capacitor and the tick it may shoot again,
+in visiting order ([terminal.md](terminal.md)). Written by `scripts/catapult.lua` on build events,
+hub build and removal, force merge, shots and `on_object_destroyed` (which also removes the
+capacitor). Invariants: `order` lists exactly the modules and `modules[order[i]].order_index == i`;
+invalid entries are dropped and missing capacitors replaced on `on_configuration_changed`.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market

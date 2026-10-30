@@ -163,4 +163,21 @@ data:extend({
       time = 60,
     },
   },
+  {
+    type = "technology",
+    name = "gb-catapult",
+    icons = data.raw.item["gb-catapult"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-galactic-bazaar", "electric-energy-accumulators", "electric-engine" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-catapult" },
+    },
+    unit = {
+      count = 250,
+      ingredients = {
+        { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 },
+      },
+      time = 30,
+    },
+  },
 })
