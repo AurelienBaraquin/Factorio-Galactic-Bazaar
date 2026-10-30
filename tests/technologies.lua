@@ -39,7 +39,7 @@ local function makeable(item, known)
     if recipe.enabled and not recipe.hidden then return true end
     for name in pairs(known) do
       for _, effect in pairs(prototypes.technology[name].effects) do
-        if effect.type == "unlock-recipe" and effect.recipe == recipe.name then return true end
+        if effect.type == "unlock-recipe" and effect.recipe == recipe.name and not recipe.hidden then return true end
       end
     end
   end

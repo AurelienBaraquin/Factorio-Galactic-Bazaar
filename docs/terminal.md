@@ -51,11 +51,29 @@ The export price floor is per chest; its interface comes with #19.
 
 ## Technologies
 
-| Technology | Prerequisites | Cost | Unlocks |
-|---|---|---|---|
-| `gb-galactic-bazaar` (Galactic Bazaar) | Electronics, Steel processing | 75 × red science, 15 s each | trading hub, export chest, import chest |
+Every technology of the mod (`prototypes/technologies.lua`), vanilla science packs only. The
+**space logistics** branch (#68) grows the delivery tiers in step with the vanilla tree: the cargo
+shuttle once rocket fuel exists (blue science), then the catapult and, with production and utility science, the
+teleporter.
 
-Defined in `prototypes/technologies.lua`. The orbital capsule is added to it when it exists (#20). Research itself always happens in the player's labs.
+```text
+gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule delivery)
+├── gb-power-trading (red, green) ── gb-power-trading-2 (+ blue)
+├── gb-market-signals (red, green) ── gb-market-orders (red, green)
+├── gb-telecommunications-1 (red, green) ── gb-telecommunications-2 (red, green, after advanced circuits)
+├── gb-fluid-trading (red, green) ── fluid manifolds
+└── [space logistics branch]
+    └── gb-cargo-shuttle (red, green, blue) ── docking bay
+        ├── gb-catapult (red, green, blue) ── electromagnetic catapult
+        └── gb-teleporter (red, green, blue, purple, yellow) ── teleporter
+```
+
+`tests/technologies.lua` checks, in vanilla and with Space Age, that each of these technologies uses
+vanilla packs only, never needs fewer packs than a prerequisite, and unlocks recipes whose
+ingredients its prerequisites (or the start of the game) already give.
+
+Each building's section below gives its technology's prerequisites and cost. Research itself always
+happens in the player's labs.
 
 ## Delivery tiers (orbital capsule, cargo shuttle, teleporter)
 
@@ -211,7 +229,7 @@ Gives its hub the teleporter tier (#66, [ADR-0014](adr/0014-delivery-tier-per-hu
 |---|---|
 | Prototype | an `electric-energy-interface` derived from the base one, tinted violet, drawing 20 MW (`secondary-input`, 40 MJ buffer, intake capped at 24 MW so a network that cannot keep up drains it; a fresh one reaches half its buffer in about 5 s) |
 | Recipe | 100 processing units, 50 low density structures, 200 steel plates, 30 s |
-| Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × the five vanilla packs) |
+| Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × red, green, blue, purple and yellow) |
 | Hub | attached like the other modules (`teleporter.HUB_RANGE`, 10 tiles), indexed per hub (`storage.teleporters.by_hub`) |
 | Tier | the hub has the teleporter while one of its teleporters of its force holds at least `POWERED_SHARE` (half) of its buffer |
 | Without power | while all the hub's teleporters are unpowered, its teleporter shipments already queued wait (`delivers`); once the hub has no teleporter at all (mined, attached elsewhere), they land, since they were paid for |
@@ -231,26 +249,3 @@ Bulk exports (#67). Code: `scripts/catapult.lua`; prototypes: `prototypes/catapu
 | Budget | a shot of 48 full stacks: 0.44–0.48 ms with 4 kinds, 0.65 ms with 48 different items (2.1.24); one shot per pass — budget 0.8 ms |
 | Throughput | at most one shot per pass for the whole map (10 a second): with more than 20 loaded catapults, each waits about `n` × 0.1 s rather than 2 s |
 | Lifecycle | a catapult whose capacitor is gone (another mod destroyed it) gets a new one at its next shot or on configuration change |
-
-## Research tree
-
-Every technology of the mod (`prototypes/technologies.lua`), vanilla science packs only. The
-**space logistics** branch (#68) grows the delivery tiers in step with the vanilla tree: the cargo
-shuttle once rocket fuel exists (blue science), then the catapult and, with the last two packs, the
-teleporter.
-
-```text
-gb-galactic-bazaar (red) ── hub, cargo chests, orbital capsule
-├── gb-power-trading (red, green) ── gb-power-trading-2 (+ blue)
-├── gb-market-signals (red, green) ── gb-market-orders (red, green)
-├── gb-telecommunications-1 (red, green) ── gb-telecommunications-2 (red, green, after advanced circuits)
-├── gb-fluid-trading (red, green) ── fluid manifolds
-└── space logistics
-    └── gb-cargo-shuttle (red, green, blue) ── docking bay
-        ├── gb-catapult (red, green, blue) ── electromagnetic catapult
-        └── gb-teleporter (all five vanilla packs) ── teleporter
-```
-
-`tests/technologies.lua` checks, in vanilla and with Space Age, that each of these technologies uses
-vanilla packs only, never needs fewer packs than a prerequisite, and unlocks recipes whose
-ingredients its prerequisites (or the start of the game) already give.
