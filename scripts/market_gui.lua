@@ -99,7 +99,11 @@ local function refresh_detail(player, data)
     return
   end
   local cost, fee = freight.preview(player.force_index, name, quantity)
+  -- What selling from the inventory would bring: the market price of the units, scaled by the
+  -- freshness of the stacks the sale would take (ADR-0013).
   local revenue = market.preview(player.force_index, "item", name, "sell", quantity)
+  local inventory = player.get_main_inventory()
+  if revenue and inventory then revenue = revenue * cargo.sale_freshness(inventory, name, quantity, "normal") end
   elements.preview.caption = { "gb-gui.preview", quantity,
     cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee) }
       or { "gb-gui.unavailable" },
@@ -282,7 +286,8 @@ function actions.sell(player, data)
   local inventory = player.get_main_inventory()
   if not (name and quantity and inventory) then return end
   if not trading_hub(player, data) then return end
-  local sold, revenue = cargo.sell_stacks(inventory, player.force_index, 0, name, quantity, "normal")
+  local sold, revenue = cargo.sell_stacks(inventory, player.force_index, cargo.WINDOW_MIN_PRICE_RATIO, name, quantity,
+    "normal")
   if sold == 0 then return notify(player, { "gb-gui.sold-nothing" }) end
   notify(player, { "gb-gui.sold", sold, item_label(name), catalog.format_credits(revenue) })
   refresh(player, data)

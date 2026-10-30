@@ -11,6 +11,9 @@ cargo.KINDS = { ["gb-export-chest"] = "export", ["gb-import-chest"] = "import" }
 cargo.HUB_RANGE = 10
 -- An export chest sells while each unit fetches at least this fraction of its base value.
 cargo.DEFAULT_MIN_PRICE_RATIO = 0.5
+-- The market window sells while each unit fetches at least this fraction of its base value, so
+-- nearly spoiled stock cannot be dumped to push a price down for almost nothing (ADR-0013).
+cargo.WINDOW_MIN_PRICE_RATIO = 0.05
 -- Ticks between two export batches, and export chests visited per batch: 20 chests a second,
 -- spread thinly so that no single tick pays for many.
 cargo.EXPORT_INTERVAL = 6
@@ -136,20 +139,33 @@ function cargo.powered_hub(module)
   return nil
 end
 
--- A stack worth exactly its base value at its quality: no extra data (equipment grid, inventory,
--- blueprint, tags), undamaged, and for tools and ammunition unused.
+-- Item types whose stacks carry no data of their own beyond spoilage (no equipment grid, inventory,
+-- blueprint, label, tags or entity data). An allowlist: a type it does not name, from a later game
+-- version or a mod, is treated as carrying data and is not sold.
+local DATALESS_ITEM_TYPES = {
+  ["item"] = true, ["tool"] = true, ["capsule"] = true, ["ammo"] = true, ["module"] = true, ["gun"] = true,
+  ["rail-planner"] = true, ["repair-tool"] = true, ["space-platform-starter-pack"] = true,
+}
+
+-- Whether a stack's LuaItem holds only its spoilage: every stack of a spoilable item has one.
+local function has_only_spoilage(stack)
+  return DATALESS_ITEM_TYPES[stack.prototype.type] and stack.prototype.get_spoil_ticks(stack.quality) > 0
+end
+
+-- A stack worth its base value at its quality, scaled by its freshness: no extra data (equipment
+-- grid, inventory, blueprint, tags), undamaged, and for tools and ammunition unused.
 local function is_plain(stack)
-  if stack.item or stack.health < 1 then return false end
+  if (stack.item and not has_only_spoilage(stack)) or stack.health < 1 then return false end
   if stack.is_tool and stack.durability < stack.prototype.get_durability(stack.quality) then return false end
   if stack.is_ammo and stack.ammo < stack.prototype.magazine_size then return false end
   return true
 end
 
---- Sells the plain stacks of `inventory` for a force, each at its quality's price, while each unit
---- fetches at least `min_price_ratio` × its base value; only stacks of `name` (any quality) when
---- given, at most `limit` units when given, only of `quality_name` when given. The sale goes first:
---- a stack only shrinks for units the market has paid for. Returns the units sold and the credits
---- received.
+--- Sells the plain stacks of `inventory` for a force, each unit at its quality's price times its
+--- freshness (1 - spoil_percent, ADR-0013), while each unit fetches at least `min_price_ratio` × its
+--- base value; only stacks of `name` (any quality) when given, at most `limit` units when given,
+--- only of `quality_name` when given. The sale goes first: a stack only shrinks for units the market
+--- has paid for. Returns the units sold and the credits received.
 function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit, quality_name)
   local sold, revenue = 0, 0
   for slot = 1, #inventory do
@@ -158,10 +174,11 @@ function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit,
     if stack.valid_for_read and (not name or stack.name == name)
       and (not quality_name or stack.quality.name == quality_name) and is_plain(stack) then
       local stack_quality = stack.quality.name
-      local units = math.min(stack.count, limit and limit - sold or math.huge,
-        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio, stack_quality)))
-      if units > 0 then
-        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality)
+      local freshness = 1 - stack.spoil_percent
+      local units = freshness > 0 and math.min(stack.count, limit and limit - sold or math.huge,
+        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio / freshness, stack_quality)))
+      if units and units > 0 then
+        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality, nil, freshness)
         if ok then
           stack.count = stack.count - units
           sold, revenue = sold + units, revenue + credits
@@ -170,6 +187,21 @@ function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit,
     end
   end
   return sold, revenue
+end
+
+--- Average freshness (1 - spoil_percent) of the first `limit` plain units of `name` and
+--- `quality_name` in `inventory`, in the order `sell_stacks` sells them; 1 when there are none.
+function cargo.sale_freshness(inventory, name, limit, quality_name)
+  local units, fresh = 0, 0
+  for slot = 1, #inventory do
+    if units >= limit then break end
+    local stack = inventory[slot]
+    if stack.valid_for_read and stack.name == name and stack.quality.name == quality_name and is_plain(stack) then
+      local taken = math.min(stack.count, limit - units)
+      units, fresh = units + taken, fresh + taken * (1 - stack.spoil_percent)
+    end
+  end
+  return units > 0 and fresh / units or 1
 end
 
 local function export_from(module)

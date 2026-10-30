@@ -60,12 +60,13 @@ function market.quote(force_index, kind, name, quality_name)
   }
 end
 
-local function trade(force_index, key, quantity, side, merge_ticks)
+local function trade(force_index, key, quantity, side, merge_ticks, value_factor)
   local entry, base_value, state, params = current_entry(force_index, key)
   if not entry then return false, "not-tradeable" end
   local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
   local credits, displacement = quote(base_value, entry.displacement, quantity, params)
   if not credits then return false, displacement end
+  credits = credits * value_factor
   local amount = side == "buy" and -credits or credits
   local journal_entry = { tick = game.tick, kind = side, key = key, quantity = quantity, merge_ticks = merge_ticks }
   local ok, reason = account.apply(state, amount, journal_entry)
@@ -129,13 +130,18 @@ end
 --- Returns true and the cost, or false and a reason (not-tradeable, invalid-quantity,
 --- insufficient-liquidity, insufficient-funds). Delivering the goods is the caller's job.
 function market.buy(force_index, kind, name, quantity, quality_name, merge_ticks)
-  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "buy", merge_ticks)
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "buy", merge_ticks, 1)
 end
 
 --- Sells `quantity` units for the force: credits the account and moves the market, or changes
 --- nothing. Returns true and the revenue, or false and a reason. Taking the goods is the caller's job.
-function market.sell(force_index, kind, name, quantity, quality_name, merge_ticks)
-  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell", merge_ticks)
+--- `merge_ticks` (optional) merges the journal entries of recurring sales; `value_factor` (default
+--- 1) scales the revenue, not the market move: the share of a fresh unit's value the goods keep
+--- (spoilage, ADR-0013).
+function market.sell(force_index, kind, name, quantity, quality_name, merge_ticks, value_factor)
+  value_factor = value_factor or 1
+  if not (value_factor >= 0 and value_factor <= 1) then return false, "invalid-value-factor" end
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell", merge_ticks, value_factor)
 end
 
 return market
