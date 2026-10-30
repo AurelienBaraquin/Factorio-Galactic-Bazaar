@@ -4,6 +4,7 @@
 -- stays per force. Every action is re-validated, since GUI events are player input.
 local cargo = require("scripts.cargo")
 local catalog = require("scripts.core.catalog")
+local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
 
@@ -42,6 +43,7 @@ local function refresh_status(player, data)
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(balance) }
   local hub = usable_hub(player, data)
   elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
+  elements.freight.caption = { "gb-gui.capsules", freight.queued(data.hub), freight.TIER.max_capsules }
 end
 
 -- Updates the fixed rows in place: elements are never destroyed by a refresh, so a click sent just
@@ -79,10 +81,11 @@ local function refresh_detail(player, data)
     elements.preview.caption = { "gb-gui.enter-quantity" }
     return
   end
-  local cost = market.preview(player.force_index, "item", name, "buy", quantity)
+  local cost, fee = freight.preview(player.force_index, name, quantity)
   local revenue = market.preview(player.force_index, "item", name, "sell", quantity)
   elements.preview.caption = { "gb-gui.preview", quantity,
-    cost and catalog.format_credits(cost) or { "gb-gui.unavailable" },
+    cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee) }
+      or { "gb-gui.unavailable" },
     revenue and catalog.format_credits(revenue) or { "gb-gui.unavailable" } }
 end
 
@@ -128,6 +131,7 @@ local function build(player)
   local elements = { window = window }
   elements.balance = status.add({ type = "label", style = "bold_label" })
   elements.power = status.add({ type = "label" })
+  elements.freight = status.add({ type = "label" })
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
   controls.add({ type = "label", caption = { "gb-gui.search" } })
@@ -230,18 +234,10 @@ function actions.buy(player, data)
   if not (name and quantity) then return end
   local hub = trading_hub(player, data)
   if not hub then return end
-  local units = math.min(quantity, cargo.import_capacity(hub.unit_number, name))
-  if units <= 0 then return notify(player, { "gb-gui.no-space" }) end
-  local ok, result = market.buy(player.force_index, "item", name, units)
-  if not ok then return notify(player, { "gb-gui.refused-" .. result }) end
-  local stored = cargo.deliver(hub.unit_number, name, units)
-  if stored < units then
-    -- Capacity and delivery read the same chests in the same tick, so this should not happen; if
-    -- it does, the undelivered units are sold back rather than paid for and lost.
-    log("[galactic-bazaar] delivered " .. stored .. " of " .. units .. " " .. name .. "; selling back the rest")
-    market.sell(player.force_index, "item", name, units - stored)
-  end
-  notify(player, { "gb-gui.bought", stored, item_label(name), catalog.format_credits(result) })
+  local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity)
+  if not ok then return notify(player, { "gb-gui.refused-" .. cost }) end
+  notify(player, { "gb-gui.ordered", quantity, item_label(name), catalog.format_credits(cost),
+    catalog.format_credits(fee), math.ceil((arrival - game.tick) / 60) })
   refresh(player, data)
 end
 

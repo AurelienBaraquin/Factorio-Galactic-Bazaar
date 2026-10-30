@@ -66,6 +66,16 @@ Invariants: `exports` lists exactly the export modules and `modules[exports[i]].
 works through a valid, powered hub of its own force; invalid entries are dropped and every module
 re-attached on `on_configuration_changed`.
 
+## `storage.freight`
+
+`{hubs = {[hub unit_number] = {next_launch, capsules = {{force_index, name, count, arrival}...}}}}`
+— the delivery queue of each hub ([terminal.md](terminal.md), ADR-0006). Written by
+`scripts/freight.lua`. Invariants: `capsules` is in landing order and holds at most
+`max_capsules` entries; `force_index` is the force that paid; `count` is what is still to unload. A
+queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back; on
+`on_configuration_changed`, capsules of items that no longer exist are dropped and the queues of
+hubs that no longer exist are sold back.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market

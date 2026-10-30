@@ -192,13 +192,9 @@ local function import_inventories(hub_unit_number)
   return inventories
 end
 
---- How many `name` items (normal quality) the import chests of a hub can still take.
-function cargo.import_capacity(hub_unit_number, name)
-  local capacity = 0
-  for _, inventory in ipairs(import_inventories(hub_unit_number)) do
-    capacity = capacity + inventory.get_insertable_count({ name = name, quality = "normal" })
-  end
-  return capacity
+--- Whether a hub has at least one import chest of its force to receive purchases.
+function cargo.has_import(hub_unit_number)
+  return #import_inventories(hub_unit_number) > 0
 end
 
 --- Puts purchased items into the import chests of a hub. Returns how many were stored; the rest
