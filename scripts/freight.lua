@@ -105,13 +105,43 @@ function freight.capsules(hub_unit_number)
   return queue and queue.capsules or {}
 end
 
+-- How a hub would ship `units` × `name` now: the best tier that has room in its queue and can supply
+-- every shipment (a bay short of fuel hands the order down to the next tier). Returns the tier, its
+-- provider, the shipments and the tier's next free launch tick; or nil and the last tier's reason.
+local function plan(hub_unit_number, units, stack_size)
+  local existing = storage.freight.hubs[hub_unit_number]
+  local reason
+  for _, candidate in ipairs(candidates(hub_unit_number)) do
+    local tier, provider = candidate.tier, candidate.provider
+    local capsules, launch = core.schedule(units, stack_size, tier, freight.queued(hub_unit_number, tier.name),
+      next_launch(existing, tier.name), game.tick)
+    if not capsules then
+      reason = launch
+    elseif not (provider and provider.can_supply) or provider.can_supply(hub_unit_number, #capsules) then
+      return tier, provider, capsules, launch
+    end
+  end
+  return nil, reason
+end
+
+--- The tier an order of `units` × `name` (`kind` "item", default, or "fluid") would ship by from a hub
+--- now, or nil when no tier can take it.
+function freight.tier_for(hub_unit_number, name, units, kind)
+  local cargo_kind = CARGO[kind or "item"]
+  local stack_size = cargo_kind and cargo_kind.stack_size(name)
+  if not (stack_size and hub_unit_number) then return nil end
+  return (plan(hub_unit_number, units, stack_size))
+end
+
 --- What buying `units` × `name` (`kind` "item", default, or "fluid") through a hub would cost right
---- now: the market cost and the freight fee of the hub's tier (the capsule's without a hub), or nil
---- and a reason.
+--- now: the market cost and the freight fee of the tier that order would ship by (the capsule's
+--- without a hub), or nil and a reason.
 function freight.preview(force_index, name, units, kind, hub_unit_number)
   local cost, reason = market.preview(force_index, kind or "item", name, "buy", units)
   if not cost then return nil, reason end
-  return cost, core.fee(cost, freight.tier(hub_unit_number))
+  local tier = hub_unit_number and freight.tier_for(hub_unit_number, name, units, kind)
+    or core.TIERS[core.DEFAULT_TIER]
+  return cost, core.fee(cost, tier)
 end
 
 --- Buys `units` × `name` for a force and queues them at a hub. Pays the market cost and the freight
@@ -127,17 +157,8 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   local stack_size = cargo_kind and cargo_kind.stack_size(name)
   if not stack_size then return false, "not-tradeable" end
   if not cargo_kind.has_receiver(hub_unit_number, name) then return false, cargo_kind.no_receiver end
-  local existing = storage.freight.hubs[hub_unit_number]
-  -- The best tier that can carry the whole order: one whose building lacks what the shipments need
-  -- (a bay short of fuel) hands the order down to the next tier.
-  local tier, provider, capsules, launch
-  for _, candidate in ipairs(candidates(hub_unit_number)) do
-    tier, provider = candidate.tier, candidate.provider
-    capsules, launch = core.schedule(units, stack_size, tier, freight.queued(hub_unit_number, tier.name),
-      next_launch(existing, tier.name), game.tick)
-    if not capsules then return false, launch end
-    if not (provider and provider.can_supply) or provider.can_supply(hub_unit_number, #capsules) then break end
-  end
+  local tier, provider, capsules, launch = plan(hub_unit_number, units, stack_size)
+  if not tier then return false, provider end
   if expected_tier and tier.name ~= expected_tier then return false, "tier-changed" end
   local cost, reason = market.preview(force_index, kind, name, "buy", units)
   if not cost then return false, reason end

@@ -61,9 +61,7 @@ local function refresh_status(player, data)
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(balance) }
   local hub = usable_hub(player, data)
   elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
-  -- The tier shown is the one a purchase from this window will ship by, or be refused (tier-changed).
   local tier = freight.tier(data.hub)
-  data.tier = tier.name
   elements.freight.caption = { "gb-gui.delivery", { "gb-gui.tier-" .. tier.name },
     freight.queued(data.hub, tier.name), tier.max_capsules }
 end
@@ -121,6 +119,10 @@ local function refresh_detail(player, data)
     elements.preview.caption = { "gb-gui.enter-quantity" }
     return
   end
+  -- The tier this quantity would ship by: a purchase from the window ships by it, or is refused
+  -- (tier-changed) if that changed since it was shown.
+  local planned = freight.tier_for(data.hub, item, quantity, kind)
+  data.tier = planned and planned.name
   local cost, fee = freight.preview(player.force_index, item, quantity, kind, data.hub)
   -- What selling from the inventory would bring: the market price of the units, scaled by the
   -- freshness of the stacks the sale would take (ADR-0013). Fluids are sold by export manifolds.
@@ -128,7 +130,8 @@ local function refresh_detail(player, data)
   local inventory = player.get_main_inventory()
   if revenue and inventory then revenue = revenue * cargo.sale_freshness(inventory, item, quantity, "normal") end
   elements.preview.caption = { "gb-gui.preview", quantity,
-    cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee) }
+    cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee),
+      { "gb-gui.tier-" .. (planned or freight.tier(data.hub)).name } }
       or { "gb-gui.unavailable" },
     revenue and catalog.format_credits(revenue) or { "gb-gui.unavailable" } }
 end

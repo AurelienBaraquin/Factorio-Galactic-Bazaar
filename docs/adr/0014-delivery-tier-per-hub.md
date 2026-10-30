@@ -28,7 +28,8 @@ shuttle, teleporter). Modules that provide a tier register a provider with
 tier and answers, with no side effect (it is asked on every preview and refresh), whether a hub has
 it now (`available`) and whether it can carry N shipments (`can_supply`, e.g. fuel); `supply`
 consumes what the shipments of a paid order need. A hub ships by the highest-ranked available tier,
-the orbital capsule otherwise; an order a tier cannot supply falls back to the next one. An order is scheduled, priced (fee) and bounded with the tier at order time, and
+the orbital capsule otherwise; an order a tier cannot supply, or whose queue is full, falls back to
+the next one, and the window plans and shows the tier for the quantity typed. An order is scheduled, priced (fee) and bounded with the tier at order time, and
 each shipment records its tier. Each tier has its own launch schedule and its own queue bound in the
 hub's single queue, and unloading takes every landed shipment, so a fast tier never waits behind a
 slow one and a better tier never locks a hub out. The market window shows the tier and its queue;

@@ -138,8 +138,9 @@ the others re-attached on `on_configuration_changed`.
 
 ## `storage.docking_bays`
 
-`{modules = {[unit_number] = {entity, hub, fuel_mj}}}` — every docking bay and the fuel it has
-burnt beyond what shipments needed ([terminal.md](terminal.md)). Written by `scripts/docking_bay.lua`
+`{modules = {[unit_number] = {entity, hub, fuel_mj}}, by_hub = {[hub unit_number] = {[unit_number] =
+true}}}` — every docking bay, the fuel it has burnt beyond what shipments needed, and the bays
+attached to each hub ([terminal.md](terminal.md)). Written by `scripts/docking_bay.lua`
 on build events, hub build and removal, force merge, orders and `on_object_destroyed`; invalid
 entries are dropped and the others re-attached on `on_configuration_changed`.
 
