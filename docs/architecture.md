@@ -82,6 +82,9 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Remote interface**: `control.lua` registers `galactic-bazaar` (`value_overrides.REMOTE`); an
   override call checks its input, stores it, rebuilds the base values and rebases the markets
   ([pricing.md](pricing.md)).
+- **Market feed**: the market window's list and the price combinators read prices through
+  `telecom.quote` or on the force's telecommunications period, so what a force sees is at most that
+  old; trades always use live prices ([terminal.md](terminal.md), ADR-0012).
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
   NPC market lazily when read ([market.md](market.md)); export chests sell through it.
 

@@ -1,8 +1,16 @@
-# Player guide: circuit network
+# Player guide: circuit network and market feed
 
 What the Galactic Bazaar puts on the circuit network, and how to read it. In-game descriptions say
 the same in short; this page gives the details and examples. Developer details are in
 [terminal.md](terminal.md).
+
+## Market feed
+
+The prices listed in the market window and emitted by price combinators are read at most once per
+period: 30 s without research, 10 s with **Galactic telecommunications 1**, 2 s with **level 2**,
+which also shows the trend column and a price history line for the selected item. What you pay or
+receive is always the live price, shown in the window's preview. With many price combinators,
+the last ones get new prices a little later: about 0.1 s per combinator.
 
 ## Price signal combinators
 
@@ -29,7 +37,8 @@ Circuit signals are whole numbers, so:
 
 ### Freshness
 
-Prices are read once every **10 seconds** per force; a combinator shows the last complete reading.
+Prices are read once per period: **30 seconds** without research, **10 seconds** with Galactic
+telecommunications 1, **2 seconds** with level 2; a combinator shows the last complete reading.
 After a reading in which prices changed, combinators are rewritten one after another, about ten a
 second, so with many combinators the last ones lag a few seconds more. The balance is updated at
 every visit, within a few seconds. Without a powered hub in range, a combinator emits nothing.

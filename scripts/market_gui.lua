@@ -7,6 +7,8 @@ local catalog = require("scripts.core.catalog")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local telecom = require("scripts.telecom")
+local telecom_core = require("scripts.core.telecom")
 
 local market_gui = {}
 
@@ -18,6 +20,8 @@ market_gui.SLOTS = 10
 
 local WINDOW = "gb_market"
 local TREND_CAPTIONS = { up = "▲", down = "▼", flat = "–" }
+-- Price history points shown in the detail panel (telecommunications level 2).
+local HISTORY_WIDTH = 30
 
 local function item_label(name)
   return prototypes.item[name].localised_name
@@ -50,6 +54,11 @@ end
 -- before it still finds its button (multiplayer latency).
 local function refresh_list(player, data)
   local elements = data.elements
+  -- Below telecommunications 2 the trend column stays in place, empty: hiding its cells would shift
+  -- every later cell of the table into the wrong column.
+  local history = telecom.shows_history(player.force)
+  local period = telecom.period(player.force)
+  elements.trend_header.caption = history and { "gb-gui.column-trend" } or ""
   local shown = catalog.page(data.matches, data.page)
   data.page = shown.page
   elements.page.caption = { "gb-gui.page", shown.page, shown.pages }
@@ -57,7 +66,7 @@ local function refresh_list(player, data)
     local name = shown.names[i]
     -- The list is taken when the window opens: an item whose value another mod removes since then
     -- is hidden, and one that gains a value appears on the next opening.
-    local quote = name and market.quote(player.force_index, "item", name)
+    local quote = name and telecom.quote(player.force_index, "item", name, period)
     for _, cell in pairs(row) do cell.visible = quote ~= nil end
     if quote then
       row.icon.sprite = "item/" .. name
@@ -67,7 +76,7 @@ local function refresh_list(player, data)
       row.name.tooltip = item_label(name)
       row.buy.caption = catalog.format_credits(quote.buy)
       row.sell.caption = catalog.format_credits(quote.sell)
-      row.trend.caption = TREND_CAPTIONS[catalog.trend(quote.history)]
+      row.trend.caption = history and TREND_CAPTIONS[catalog.trend(quote.history)] or ""
     end
   end
 end
@@ -79,6 +88,11 @@ local function refresh_detail(player, data)
   if not name then return end
   elements.detail_icon.sprite = "item/" .. name
   elements.detail_name.caption = item_label(name)
+  local seen = telecom.shows_history(player.force) and telecom.quote(player.force_index, "item", name)
+  -- A market entry has no history for its first NPC steps: nothing to draw yet.
+  seen = seen and #seen.history >= 2 and seen
+  elements.history.visible = seen and true or false
+  if seen then elements.history.caption = { "gb-gui.history", telecom_core.sparkline(seen.history, HISTORY_WIDTH) } end
   local quantity = catalog.parse_quantity(elements.quantity.text)
   if not quantity then
     elements.preview.caption = { "gb-gui.enter-quantity" }
@@ -129,8 +143,9 @@ local function add_list(body, elements)
   local list = body.add({ type = "table", column_count = #COLUMNS })
   for i, column in ipairs(COLUMNS) do
     if column.align then list.style.column_alignments[i] = column.align end
-    add_cell(list, column, { type = "label", style = "bold_label",
+    local header = add_cell(list, column, { type = "label", style = "bold_label",
       caption = column.header and { "gb-gui.column-" .. column.header } or "" })
+    if column.key == "trend" then elements.trend_header = header end
   end
   elements.rows = {}
   for i = 1, catalog.PAGE_SIZE do
@@ -173,6 +188,7 @@ local function build(player)
     tags = { gb_action = "quantity" } })
   actions.add({ type = "button", caption = { "gb-gui.buy" }, style = "green_button", tags = { gb_action = "buy" } })
   actions.add({ type = "button", caption = { "gb-gui.sell" }, style = "red_button", tags = { gb_action = "sell" } })
+  elements.history = detail.add({ type = "label" })
   elements.preview = detail.add({ type = "label" })
 
   window.force_auto_center()

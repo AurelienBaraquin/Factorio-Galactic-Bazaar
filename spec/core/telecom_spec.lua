@@ -1,0 +1,23 @@
+local telecom = require("scripts.core.telecom")
+
+describe("telecom.period", function()
+  it("shortens with each level, and clamps unknown levels", function()
+    assert.is_true(telecom.period(0) > telecom.period(1))
+    assert.is_true(telecom.period(1) > telecom.period(2))
+    assert.are.equal(telecom.period(2), telecom.period(5))
+    assert.are.equal(telecom.period(0), telecom.period(-1))
+  end)
+
+  it("shows history from level 2 only", function()
+    assert.is_false(telecom.shows_history(1))
+    assert.is_true(telecom.shows_history(2))
+  end)
+end)
+
+describe("telecom.sparkline", function()
+  it("scales the last values between their minimum and maximum", function()
+    assert.are.equal("▁▅█", telecom.sparkline({ 99, 1, 2, 3 }, 3))
+    assert.are.equal("", telecom.sparkline({}, 5))
+    assert.are.equal("▅▅", telecom.sparkline({ 4, 4 }, 5))
+  end)
+end)

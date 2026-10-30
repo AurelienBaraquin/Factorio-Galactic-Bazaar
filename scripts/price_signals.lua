@@ -2,8 +2,9 @@
 -- buy or sell price of every tradeable item and fluid (normal quality) and the force's balance, each
 -- through the nearest powered hub of its force in range (ADR-0005).
 --
--- Prices are snapshot per force every UPDATE_TICKS, quoted SNAPSHOT_CHUNK per pass so that no tick
--- pays for all of them; a snapshot gets a new version only when a price changed. A combinator holds
+-- Prices are snapshot per force every telecommunications period (ADR-0012), quoted SNAPSHOT_CHUNK
+-- per pass so that no tick pays for all of them; a snapshot gets a new version only when a price
+-- changed. A combinator holds
 -- two sections the script owns: the prices (rewritten whole when the version changed, the costly
 -- write) and the balance (one slot, read live at each visit). Every PASS_TICKS, up to VISITS
 -- combinators are visited in turn, stopping after one price rewrite. State lives in
@@ -11,13 +12,12 @@
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
 local signals = require("scripts.core.signals")
+local telecom = require("scripts.telecom")
 
 local price_signals = {}
 
 price_signals.KINDS = { ["gb-buy-price-combinator"] = "buy", ["gb-sell-price-combinator"] = "sell" }
 price_signals.HUB_RANGE = 10
--- Age, in ticks, after which a force's price snapshot is taken again.
-price_signals.UPDATE_TICKS = 600
 -- Ticks between two passes, and combinators visited per pass (a pass stops after one price rewrite).
 price_signals.PASS_TICKS = 6
 price_signals.VISITS = 10
@@ -55,8 +55,10 @@ local function advance(force_index, builder)
       local previous = storage.price_signals.snapshots[force_index]
       local unchanged = previous and same_filters(previous.buy, builder.buy)
         and same_filters(previous.sell, builder.sell)
+      -- The period runs from the end of the build, so a long build does not leave every snapshot
+      -- stale on arrival.
       storage.price_signals.snapshots[force_index] = {
-        tick = builder.tick, buy = builder.buy, sell = builder.sell,
+        tick = game.tick, buy = builder.buy, sell = builder.sell,
         version = previous and (unchanged and previous.version or previous.version + 1) or 1,
       }
       storage.price_signals.builders[force_index] = nil
@@ -73,11 +75,11 @@ local function advance(force_index, builder)
 end
 
 -- The force's last complete snapshot (nil before the first one); starts building a new one when it
--- is missing or older than UPDATE_TICKS.
+-- is missing or older than the force's telecommunications period.
 local function snapshot(force_index)
   local state = storage.price_signals
   local current = state.snapshots[force_index]
-  local stale = not current or game.tick - current.tick >= price_signals.UPDATE_TICKS
+  local stale = not current or game.tick - current.tick >= telecom.period(game.forces[force_index])
   if stale and not state.builders[force_index] then
     state.builders[force_index] = {
       tick = game.tick, index = 1, items = storage.tradeable_items, fluids = storage.tradeable_fluids,

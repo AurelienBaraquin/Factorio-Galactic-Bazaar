@@ -82,4 +82,33 @@ data:extend({
       time = 20,
     },
   },
+  {
+    type = "technology",
+    name = "gb-telecommunications-1",
+    icons = { { icon = "__base__/graphics/icons/radar.png", icon_size = 64 } },
+    prerequisites = { "gb-galactic-bazaar", "logistic-science-pack" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-telecommunications-1" } },
+    },
+    unit = {
+      count = 100,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 15,
+    },
+  },
+  {
+    type = "technology",
+    name = "gb-telecommunications-2",
+    icons = { { icon = "__base__/graphics/icons/radar.png", icon_size = 64 } },
+    prerequisites = { "gb-telecommunications-1", "advanced-circuit" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-telecommunications-2" } },
+      { type = "nothing", effect_description = { "technology-effect.gb-telecommunications-history" } },
+    },
+    unit = {
+      count = 200,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 30,
+    },
+  },
 })
