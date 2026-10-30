@@ -64,4 +64,26 @@ function hubs.nearest(entity, range, powered_only)
   return best and best.unit_number or nil
 end
 
+--- Attaches a module ({entity, hub}) to the nearest hub of its force within `range`, or to none.
+function hubs.attach(module, range)
+  if module.entity.valid then module.hub = hubs.nearest(module.entity, range) end
+end
+
+--- The hub a module ({entity, hub}) trades through: its attached hub while it has power and belongs
+--- to the module's force; otherwise the nearest powered hub of its force in range, which it attaches
+--- to. nil when none; a module without any hub in range waits for one to be built (no search).
+function hubs.trading_hub(module, range)
+  if not module.hub then return nil end
+  local entity = module.entity
+  local hub = hubs.get(module.hub)
+  if hub and hub.force == entity.force and hubs.has_power(hub) then return hub end
+  local powered = hubs.nearest(entity, range, true)
+  if powered then
+    module.hub = powered
+    return hubs.get(powered)
+  end
+  if not (hub and hub.force == entity.force) then hubs.attach(module, range) end
+  return nil
+end
+
 return hubs

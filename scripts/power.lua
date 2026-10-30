@@ -62,7 +62,7 @@ function power.on_built(entity)
 end
 
 local function attach(module)
-  if module.entity.valid then module.hub = hubs.nearest(module.entity, power.HUB_RANGE) end
+  hubs.attach(module, power.HUB_RANGE)
 end
 
 --- A hub appeared: substations in its range move to it if it is now their nearest hub.
@@ -107,23 +107,6 @@ function power.watts(force)
   return watts
 end
 
--- The hub a substation trades through: its attached hub while it has power and belongs to the
--- substation's force; otherwise the nearest powered hub of its force in range, which it attaches to.
--- nil when none; a substation without any hub in range waits for one to be built (no search).
-local function trading_hub(module)
-  if not module.hub then return nil end
-  local entity = module.entity
-  local hub = hubs.get(module.hub)
-  if hub and hub.force == entity.force and hubs.has_power(hub) then return hub end
-  local powered = hubs.nearest(entity, power.HUB_RANGE, true)
-  if powered then
-    module.hub = powered
-    return hubs.get(powered)
-  end
-  if not (hub and hub.force == entity.force) then attach(module) end
-  return nil
-end
-
 -- The substations that can trade now, grouped by force and direction, neutralised and with their
 -- buffers sized for the force's level.
 local function trading_groups()
@@ -131,7 +114,7 @@ local function trading_groups()
   local buffers = {}
   for _, module in pairs(storage.power.modules) do
     local entity = module.entity
-    if entity.valid and trading_hub(module) then
+    if entity.valid and hubs.trading_hub(module, power.HUB_RANGE) then
       neutralise(entity)
       local force = entity.force
       buffers[force.index] = buffers[force.index] or power.watts(force) * power.SETTLE_TICKS / 60
