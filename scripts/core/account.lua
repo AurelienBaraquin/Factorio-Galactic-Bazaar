@@ -16,17 +16,15 @@ local function is_finite(n)
   return type(n) == "number" and n == n and n > -math.huge and n < math.huge
 end
 
--- Recent entries searched for one to merge a recurring transaction into.
-account.MERGE_WINDOW = 16
-
--- The recent entry a recurring transaction merges into: same kind and key, also mergeable, and
--- started less than `merge_ticks` before it.
+-- The position of the entry a recurring transaction merges into: same kind and key, also mergeable,
+-- and started less than `merge_ticks` before it. The whole journal is searched (JOURNAL_SIZE entries
+-- at most), so any number of recurring transactions keep merging.
 local function merge_target(journal, entry)
-  for i = #journal, math.max(1, #journal - account.MERGE_WINDOW + 1), -1 do
+  for i = #journal, 1, -1 do
     local candidate = journal[i]
     if candidate.merge_ticks and candidate.kind == entry.kind and candidate.key == entry.key
       and entry.tick - candidate.first_tick < entry.merge_ticks then
-      return candidate
+      return i
     end
   end
   return nil
@@ -36,16 +34,18 @@ end
 --- {tick, kind, key, quantity}) with the amount and the resulting balance. An entry with
 --- `merge_ticks` (a recurring transaction, such as power settlements) is added to a recent entry of
 --- the same kind and key started less than `merge_ticks` before, which then holds the totals, its
---- last tick and the balance after it. Atomic: when it refuses (`invalid-amount`,
---- `insufficient-funds`), the state is unchanged.
+--- last tick and the balance after it, and moves to the end so the journal stays in tick order.
+--- Atomic: when it refuses (`invalid-amount`, `insufficient-funds`), the state is unchanged.
 function account.apply(state, amount, entry)
   if not is_finite(amount) then return false, "invalid-amount" end
   local balance = state.balance + amount
   if balance < 0 then return false, "insufficient-funds" end
   local journal = state.journal
-  local target = entry.merge_ticks and merge_target(journal, entry)
+  local position = entry.merge_ticks and merge_target(journal, entry)
   state.balance = balance
-  if target then
+  if position then
+    local target = table.remove(journal, position)
+    journal[#journal + 1] = target
     target.amount = target.amount + amount
     target.quantity = (target.quantity or 0) + (entry.quantity or 0)
     target.tick = entry.tick
