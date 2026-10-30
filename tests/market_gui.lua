@@ -125,6 +125,16 @@ describe("market window", function()
     force_state().markets["fluid/crude-oil"] = nil
   end)
 
+  test("shows the force's reputation and its effects", function()
+    local saved = force_state().reputation
+    force_state().reputation = 20
+    market_gui.open(player, hub)
+    local reputation = data().elements.reputation
+    force_state().reputation = saved
+    assert.are.same({ "gb-gui.reputation", 20 }, { reputation.caption[1], tonumber(reputation.caption[2]) })
+    assert.are.same({ 50, 300 }, { tonumber(reputation.tooltip[2]), tonumber(reputation.tooltip[3]) })
+  end)
+
   test("previews exactly what the purchase then costs", function()
     place("gb-import-chest", 5, 0)
     market_gui.open(player, hub)

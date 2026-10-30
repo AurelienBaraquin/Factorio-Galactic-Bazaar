@@ -49,13 +49,14 @@ end
 
 --- A contract spec from `recipe` = {energy, ingredients = {{kind, name, count}}, products =
 --- {{kind, name, count}}} and base `values` by key, with the counterparty picked by `draw` (a number
---- in (0, 1)); nil when a good has no value or crafting adds no value.
-function contract_offers.offer(recipe, values, draw)
+--- in (0, 1)), its products worth TARGET_VALUE × `scale` (optional, 1 by default: the force's
+--- reputation, core/reputation.lua); nil when a good has no value or crafting adds no value.
+function contract_offers.offer(recipe, values, draw, scale)
   local product_value = value_of(recipe.products, values)
   local ingredient_value = value_of(recipe.ingredients, values)
   if not (product_value and ingredient_value) or product_value <= ingredient_value then return nil end
   local batch = math.max(1, math.min(contract_offers.MAX_BATCH,
-    math.ceil(contract_offers.TARGET_VALUE / product_value)))
+    math.ceil(contract_offers.TARGET_VALUE * (scale or 1) / product_value)))
   local counterparties = contract_offers.COUNTERPARTIES
   return {
     kind = "incoming",

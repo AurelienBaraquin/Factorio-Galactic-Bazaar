@@ -37,7 +37,7 @@ end
 --- Folds the state of `source_index` into `destination_index`, then removes the source.
 --- Each field added to the force state must define here how two values combine. Markets and feed:
 --- the destination keeps its own; the source's are dropped with it. Contracts: the source's open
---- contracts carry on in the destination's book; reputations add up.
+--- contracts carry on in the destination's book; only a reputation debt follows.
 function force_registry.merge(forces, source_index, destination_index)
   local destination = force_registry.ensure(forces, destination_index)
   local source = forces[source_index]

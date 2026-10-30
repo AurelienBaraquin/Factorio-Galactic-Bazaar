@@ -57,6 +57,17 @@ describe("orbital capsule", function()
     assert.are.equal("buy", journal[#journal - 1].kind)
   end)
 
+  test("scales the freight fee with the force's reputation", function()
+    local saved = player_state().reputation
+    player_state().reputation = 0
+    local cost, plain = freight.preview(game.forces.player.index, GEAR, 50)
+    player_state().reputation = 20
+    local _, trusted = freight.preview(game.forces.player.index, GEAR, 50)
+    player_state().reputation = saved
+    assert.is_true(math.abs(trusted - plain / 2) < 1e-9)
+    assert.is_true(math.abs(plain - cost * freight.TIERS.capsule.fee_rate) < 1e-9)
+  end)
+
   test("lands in the import chests after the delay, not before", function()
     local _, _, _, arrival = freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
     assert.are.equal(game.tick + freight.TIERS.capsule.delay_ticks, arrival)

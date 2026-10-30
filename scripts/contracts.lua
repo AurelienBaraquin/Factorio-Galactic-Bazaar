@@ -6,6 +6,7 @@
 -- contracts.
 local account = require("scripts.core.account")
 local core = require("scripts.core.contracts")
+local reputation = require("scripts.core.reputation")
 
 local contracts = {}
 
@@ -87,7 +88,7 @@ end
 -- too, with nothing back: the guarantee is kept) and its reputation; then files the contract away.
 local function apply(state, id, outcome)
   if outcome.state ~= core.EXPIRED then move(state, outcome.credits, "contract-" .. outcome.state, id) end
-  state.reputation = state.reputation + outcome.reputation
+  state.reputation = reputation.add(state.reputation, outcome.reputation)
   core.close(state, id)
 end
 

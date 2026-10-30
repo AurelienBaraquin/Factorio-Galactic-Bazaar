@@ -101,5 +101,7 @@ them with the **Contracts** button of the market window.
   abandoned**: the guarantee is lost, and −1 reputation. The guarantee is set at acceptance above
   what the ingredients sell for then, so keeping them does not pay.
 - The reward is the value your crafting adds, so recipes that add little value pay little.
+- **Reputation** (from −20 to 20, shown in the market window) lowers your freight fees, down to half
+  at 20, and makes offers larger, up to three times at 20. Below zero, fees rise and offers shrink.
 - At most 8 contracts are open at a time, offers and active ones together.
 - An offer not accepted within 5 minutes expires; **Decline** removes it at once.

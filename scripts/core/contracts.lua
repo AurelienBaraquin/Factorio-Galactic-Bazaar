@@ -6,6 +6,8 @@
 -- plus the `penalty` — so a failure always costs what it says. When every required unit is
 -- delivered in time it gets the guarantee back with the `reward`; when the deadline passes first it
 -- loses the guarantee. An offer not accepted by `accept_by` expires; one can be declined.
+local reputation = require("scripts.core.reputation")
+
 local contracts = {}
 
 contracts.OFFERED, contracts.ACTIVE = "offered", "active"
@@ -199,12 +201,12 @@ function contracts.close(state, id)
 end
 
 --- Folds a merged force's book into the destination's: its open contracts carry on under the same
---- ids, its reputation adds up; its history is dropped.
+--- ids, only a reputation debt follows it (core/reputation.lua); its history is dropped.
 function contracts.merge_books(destination, source)
   contracts.init_book(destination)
   contracts.init_book(source)
   for id, contract in pairs(source.contracts.open) do destination.contracts.open[id] = contract end
-  destination.reputation = destination.reputation + source.reputation
+  destination.reputation = reputation.merge(destination.reputation, source.reputation)
 end
 
 return contracts

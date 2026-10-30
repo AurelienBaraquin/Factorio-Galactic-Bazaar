@@ -12,6 +12,7 @@ local hubs = require("scripts.hubs")
 local market = require("scripts.market")
 local offers = require("scripts.core.contract_offers")
 local random = require("scripts.core.random")
+local reputation = require("scripts.core.reputation")
 
 local incoming = {}
 
@@ -177,10 +178,12 @@ local function has_hub(force)
   return false
 end
 
---- Makes one offer to a force from a recipe it can craft; returns its id, or nil.
+--- Makes one offer to a force from a recipe it can craft, sized by its reputation; returns its id,
+--- or nil.
 function incoming.make_offer(force)
   local recipe = offers.pick(candidates(force), draw(force.index))
-  local spec = recipe and offers.offer(recipe, storage.base_values, draw(force.index))
+  local scale = reputation.contract_scale(storage.forces[force.index].reputation)
+  local spec = recipe and offers.offer(recipe, storage.base_values, draw(force.index), scale)
   return spec and contracts.offer(force.index, spec)
 end
 

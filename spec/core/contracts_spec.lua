@@ -129,16 +129,16 @@ describe("contract books", function()
     assert.are.equal(6, state.contracts.history[1].id)
   end)
 
-  it("carry a merged force's open contracts over under the same ids, and add up reputations", function()
+  it("carry a merged force's open contracts over under the same ids, and carry only a reputation debt", function()
     local destination, source = {}, {}
     contracts.init_book(destination)
     contracts.init_book(source)
     contracts.file(destination, contracts.new(spec(), 0), 1)
     local carried = contracts.new(spec(), 0)
     contracts.file(source, carried, 7)
-    destination.reputation, source.reputation = 2, 3
+    destination.reputation, source.reputation = 2, -3
     contracts.merge_books(destination, source)
     assert.are.equal(carried, destination.contracts.open[7])
-    assert.are.equal(5, destination.reputation)
+    assert.are.equal(-1, destination.reputation)
   end)
 end)

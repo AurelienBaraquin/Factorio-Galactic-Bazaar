@@ -23,7 +23,7 @@ logic in `scripts/core/catalog.lua`.
 
 | Part | Behaviour |
 |---|---|
-| Status | the force's balance, whether the hub has power, and its capsules queued out of `max_capsules` |
+| Status | the force's balance, its reputation (tooltip: its freight fee and contract size factors, [contracts.md](contracts.md)), whether the hub has power, and its capsules queued out of `max_capsules` |
 | List | tradeable items then fluids (`storage.tradeable_items`, `storage.tradeable_fluids`, built with the base values; keys `item/<name>` and `fluid/<name>`), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price as the force sees them (`telecom.quote`, at most its telecommunications period old, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)), and with telecommunications 2 the trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
 | Detail | for the selected item: with telecommunications 2, a history line (sparkline of the last 30 NPC steps); a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee. A purchase is exactly the preview; a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
 | Buy | needs a powered hub with an import chest of its force (items) or an import manifold of its force that is empty or already holds the fluid (fluids); pays the market cost plus the freight fee at once and queues the units in orbital capsules (`freight.order`, see below); the printed result says when the last capsule lands |
@@ -100,7 +100,7 @@ other back. The market window's status line shows the tier and its queue; a purc
 refused (`tier-changed`) when the tier changed since the window showed it. The rows below describe the capsule; the
 other tiers differ only by their parameters.
 
-| Payment | at order time: the market cost plus `fee_rate` (5 %) of it, journaled as a `buy` and a `freight` entry; refused whole if the balance does not cover both. Each capsule records the force that paid and the market price paid per unit |
+| Payment | at order time: the market cost plus `fee_rate` (5 %) of it, scaled by the force's reputation (×0.5 to ×1.5, [contracts.md](contracts.md)), journaled as a `buy` and a `freight` entry; refused whole if the balance does not cover both. Each capsule records the force that paid and the market price paid per unit |
 | Capsules | an order is split into capsules of at most `capacity_stacks` (10) stacks of the item |
 | Throughput | each hub launches one capsule every `launch_interval_ticks` (600, 10 s), so at most 1 stack a second per hub |
 | Latency | a capsule lands `delay_ticks` (1800, 30 s) after its launch |

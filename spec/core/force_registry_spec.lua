@@ -64,13 +64,13 @@ describe("force_registry.merge", function()
     assert.are.same({ [1] = new_state() }, forces)
   end)
 
-  it("carries the source's open contracts and reputation into the destination", function()
+  it("carries the source's open contracts and reputation debt into the destination", function()
     local forces = { [1] = new_state(), [2] = new_state() }
     forces[2].contracts.open[9] = { id = 9 }
-    forces[1].reputation, forces[2].reputation = 1, 2
+    forces[1].reputation, forces[2].reputation = 1, -2
     force_registry.merge(forces, 2, 1)
     assert.are.same({ id = 9 }, forces[1].contracts.open[9])
-    assert.are.equal(3, forces[1].reputation)
+    assert.are.equal(-1, forces[1].reputation)
   end)
 end)
 

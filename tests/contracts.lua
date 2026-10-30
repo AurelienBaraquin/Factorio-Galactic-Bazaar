@@ -48,6 +48,15 @@ describe("contracts", function()
     assert.are.equal(core.FULFILLED, state().contracts.history[#state().contracts.history].state)
   end)
 
+  test("keep the reputation within its bounds", function()
+    state().reputation = 20
+    local id = contracts.offer(force_index(), spec())
+    contracts.accept(force_index(), id)
+    contracts.deliver(force_index(), id, "item/iron-gear-wheel", 5)
+    contracts.on_settle_tick({ tick = game.tick })
+    assert.are.equal(20, state().reputation)
+  end)
+
   test("refuse an acceptance the force cannot guarantee, changing nothing", function()
     state().balance = 250
     local id = contracts.offer(force_index(), spec())
@@ -88,12 +97,15 @@ describe("contracts", function()
     local source = game.create_force("gb-test-contracts")
     local source_state = storage.forces[source.index]
     source_state.balance = 1000
+    source_state.reputation = 5
+    state().reputation = 2
     local id = contracts.offer(source.index, spec())
     contracts.accept(source.index, id)
     game.merge_forces(source, "player")
     after_ticks(1, function()
       local carried = contracts.get(force_index(), id)
       assert.are.equal(core.ACTIVE, carried and carried.state)
+      assert.are.equal(2, state().reputation)
     end)
   end)
 

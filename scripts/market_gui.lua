@@ -8,6 +8,7 @@ local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local reputation = require("scripts.core.reputation")
 local telecom = require("scripts.telecom")
 local telecom_core = require("scripts.core.telecom")
 
@@ -58,8 +59,12 @@ end
 
 local function refresh_status(player, data)
   local elements = data.elements
-  local balance = storage.forces[player.force_index].balance
-  elements.balance.caption = { "gb-gui.balance", catalog.format_credits(balance) }
+  local state = storage.forces[player.force_index]
+  elements.balance.caption = { "gb-gui.balance", catalog.format_credits(state.balance) }
+  elements.reputation.caption = { "gb-gui.reputation", state.reputation }
+  elements.reputation.tooltip = { "gb-gui.reputation-effects",
+    string.format("%.0f", reputation.fee_factor(state.reputation) * 100),
+    string.format("%.0f", reputation.contract_scale(state.reputation) * 100) }
   local hub = usable_hub(player, data)
   elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
   local tier = freight.tier(data.hub)
@@ -196,6 +201,7 @@ local function build(player)
   local status = body.add({ type = "flow", direction = "horizontal" })
   local elements = { window = window }
   elements.balance = status.add({ type = "label", style = "bold_label" })
+  elements.reputation = status.add({ type = "label" })
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })
   status.add({ type = "button", caption = { "gb-contracts.open" }, tags = { gb_action = "contracts" } })
