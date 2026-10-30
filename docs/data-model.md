@@ -136,6 +136,14 @@ manifold, the import manifolds attached to each hub and the round-robin order of
 removal, force merge and `on_object_destroyed`; invalid entries are dropped, the indexes rebuilt and
 the others re-attached on `on_configuration_changed`.
 
+## `storage.docking_bays`
+
+`{modules = {[unit_number] = {entity, hub, fuel_mj}}, by_hub = {[hub unit_number] = {[unit_number] =
+true}}}` — every docking bay, the fuel it has burnt beyond what shipments needed, and the bays
+attached to each hub ([terminal.md](terminal.md)). Written by `scripts/docking_bay.lua`
+on build events, hub build and removal, force merge, orders and `on_object_destroyed`; invalid
+entries are dropped and the others re-attached on `on_configuration_changed`.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market

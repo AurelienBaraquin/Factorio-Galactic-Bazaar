@@ -12,10 +12,16 @@ end
 local function player_state() return storage.forces[game.forces.player.index] end
 local GEAR = "iron-gear-wheel"
 
--- A tier provider for tests: storage.gb_test_tiers[hub unit number] = tier name.
-freight.register_tier_provider(function(hub_unit_number)
-  return storage.gb_test_tiers and storage.gb_test_tiers[hub_unit_number]
-end)
+-- Tier providers for tests: storage.gb_test_tiers[hub unit number] = tier name. They stay registered
+-- for the test files run after this one, and answer only while a test sets that table.
+for name in pairs(freight.TIERS) do
+  freight.register_tier_provider({
+    tier = name,
+    available = function(hub_unit_number)
+      return storage.gb_test_tiers ~= nil and storage.gb_test_tiers[hub_unit_number] == name
+    end,
+  })
+end
 
 describe("orbital capsule", function()
   local saved_balance, hub, chest

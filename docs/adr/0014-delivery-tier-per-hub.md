@@ -24,10 +24,12 @@ parameters be carried by the tier and that a hub choose the tier it has, the win
 
 Option 3. Tiers are a table of parameters with a rank (`scripts/core/freight.lua`: capsule,
 shuttle, teleporter). Modules that provide a tier register a provider with
-`freight.register_tier_provider(fn)` at file scope: given a hub, it returns the tier its building
-gives that hub now (attached, fuelled or powered), or nil, with no side effect (it is asked on every
-preview and refresh). A hub ships by the highest-ranked tier any provider returns, the orbital
-capsule otherwise. An order is scheduled, priced (fee) and bounded with the tier at order time, and
+`freight.register_tier_provider` at file scope (amended 2026-10-30 with #65): a provider names its
+tier and answers, with no side effect (it is asked on every preview and refresh), whether a hub has
+it now (`available`) and whether it can carry N shipments (`can_supply`, e.g. fuel); `supply`
+consumes what the shipments of a paid order need. A hub ships by the highest-ranked available tier,
+the orbital capsule otherwise; an order a tier cannot supply, or whose queue is full, falls back to
+the next one, and the window plans and shows the tier for the quantity typed. An order is scheduled, priced (fee) and bounded with the tier at order time, and
 each shipment records its tier. Each tier has its own launch schedule and its own queue bound in the
 hub's single queue, and unloading takes every landed shipment, so a fast tier never waits behind a
 slow one and a better tier never locks a hub out. The market window shows the tier and its queue;
@@ -39,5 +41,4 @@ a purchase from it is refused (`tier-changed`) if the tier changed since it was 
   combinators and the window follow the hub's tier without change.
 - Trade-offs accepted: a hub uses one tier for new orders at a time; shipments queued on a slower
   tier keep their schedule after an upgrade.
-- Follow-up: the shuttle's fuel per rotation (#65) needs a hook called when shipments are committed
-  (providers only answer yes or no); the teleporter's power (#66) fits the yes-or-no provider.
+- Follow-up: the teleporter's power (#66) only needs `available`.
