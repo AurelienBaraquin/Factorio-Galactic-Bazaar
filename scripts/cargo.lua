@@ -140,12 +140,14 @@ end
 
 --- The hub entity a module works for: its hub if it is valid, of the module's force and powered;
 --- otherwise the nearest powered hub of its force in range, which it then attaches to; nil when
---- there is none.
+--- there is none, the module then staying attached to its nearest hub, powered or not.
 function cargo.powered_hub(module)
   local hub = module.hub and hubs.get(module.hub)
   if hub and hub.force == module.entity.force and has_power(hub) then return hub end
   attach(module, true)
-  return module.hub and hubs.get(module.hub)
+  if module.hub then return hubs.get(module.hub) end
+  attach(module)
+  return nil
 end
 
 -- A stack worth exactly its base value: no extra data (equipment grid, inventory, blueprint, tags),
