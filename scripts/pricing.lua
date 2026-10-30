@@ -62,6 +62,12 @@ function pricing.init()
     if name and prototypes.item[name] then table.insert(storage.tradeable_items, name) end
   end
   table.sort(storage.tradeable_items)
+  storage.tradeable_fluids = {}
+  for key in pairs(values) do
+    local name = key:match("^fluid/(.+)$")
+    if name and prototypes.fluid[name] then table.insert(storage.tradeable_fluids, name) end
+  end
+  table.sort(storage.tradeable_fluids)
   -- "normal" is hidden when no quality mod is active, but it is always the quality of plain items.
   storage.quality_levels = { [quality.NORMAL] = 0 }
   for name, prototype in pairs(prototypes.quality) do

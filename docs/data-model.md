@@ -106,6 +106,17 @@ build events, hub build and removal, force merge and `on_object_destroyed`; inva
 dropped and every substation re-attached on `on_configuration_changed`. `hub` is a hint, re-checked
 at each settlement.
 
+## `storage.price_signals`
+
+`{modules = {[unit_number] = {entity, side = "buy"|"sell", hub, order_index, written, force_index}},
+order = {unit_number...}, cursor, snapshots = {[force_index] = {tick, version, buy, sell}},
+builders = {[force_index] = {tick, index, buy, sell}}}` — the price signal combinators, their
+visiting order, each force's last complete snapshot of filters and the snapshot being built
+([terminal.md](terminal.md), ADR-0010). Written by `scripts/price_signals.lua`. Invariants: `order`
+lists exactly the modules and `modules[order[i]].order_index == i`; `written` is the snapshot
+version last written into the combinator. Snapshots and builders are dropped on
+`on_configuration_changed`.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market
@@ -115,6 +126,11 @@ search text and its cached results, the page, the selected item and references t
 value lives here (ADR-0001). Written by `scripts/market_gui.lua`; an entry exists only while the
 window is open, is removed when the player leaves, changes force or is removed, and every window
 is closed on `on_configuration_changed`.
+
+## `storage.tradeable_fluids`
+
+Sorted names of the fluids that have a base value, rebuilt with them by `scripts/pricing.lua`; read
+by the price signal combinators.
 
 ## `storage.tradeable_items`
 

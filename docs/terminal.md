@@ -97,3 +97,20 @@ Code: `scripts/power.lua`; prototypes: `prototypes/power.lua`.
 Energy prepaid into an import substation is lost when it is mined. The substations share the
 tertiary tier with accumulators: on a shortage they discharge alongside the player's accumulators,
 and on a surplus they take a share of the charge.
+
+## Price signal combinators (`gb-buy-price-combinator`, `gb-sell-price-combinator`)
+
+Constant combinators whose signals the script writes ([ADR-0010](adr/0010-price-signals-from-script-written-combinators.md));
+the player-facing explanation is [player-guide.md](player-guide.md). Code: `scripts/price_signals.lua`,
+scaling in `scripts/core/signals.lua`; prototypes: `prototypes/signals.lua`.
+
+| | |
+|---|---|
+| Prototypes | copies of the constant combinator, tinted green (buy) and orange (sell); the virtual signal `gb-credits` |
+| Recipe | 1 constant combinator + 5 electronic circuits, 2 s |
+| Technology | `gb-market-signals` (after the Galactic Bazaar and circuit network; 100 × red and green) |
+| Hub | attached like the power substations: nearest hub of the force within `price_signals.HUB_RANGE` (10 tiles), re-checked at each visit; silent (`enabled = false`) without a powered one |
+| Signals | buy or sell price of every item in `storage.tradeable_items` and fluid in `storage.tradeable_fluids`, normal quality, in milli-credits, then the balance on `gb-credits` in credits (`signals.price`, `signals.balance`: rounded, clamped to int32, zero values left out) |
+| Snapshot | per force, taken again when older than `price_signals.UPDATE_TICKS` (600, 10 s), quoting `SNAPSHOT_CHUNK` (40) keys per pass; combinators keep the last complete snapshot |
+| Writing | every `PASS_TICKS` (6), the next `BATCH` (1) combinator is visited in turn and its single section's `filters` rewritten only when its force's snapshot version changed; players cannot open it (`operable = false`) |
+| Budget | per pass during a rebuild: 0.14 ms in vanilla, 0.24 ms with Space Age (2.1.24) — budget 0.3 ms |
