@@ -9,7 +9,8 @@ the same in short; this page gives the details and examples. Developer details a
 The prices listed in the market window and emitted by price combinators are read at most once per
 period: 30 s without research, 10 s with **Galactic telecommunications 1**, 2 s with **level 2**,
 which also shows the trend column and a price history line for the selected item. What you pay or
-receive is always the live price, shown in the window's preview.
+receive is always the live price, shown in the window's preview. With many price combinators,
+the last ones get new prices a little later: about 0.1 s per combinator.
 
 ## Price signal combinators
 

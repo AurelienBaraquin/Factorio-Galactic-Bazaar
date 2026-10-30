@@ -55,8 +55,10 @@ local function advance(force_index, builder)
       local previous = storage.price_signals.snapshots[force_index]
       local unchanged = previous and same_filters(previous.buy, builder.buy)
         and same_filters(previous.sell, builder.sell)
+      -- The period runs from the end of the build, so a long build does not leave every snapshot
+      -- stale on arrival.
       storage.price_signals.snapshots[force_index] = {
-        tick = builder.tick, buy = builder.buy, sell = builder.sell,
+        tick = game.tick, buy = builder.buy, sell = builder.sell,
         version = previous and (unchanged and previous.version or previous.version + 1) or 1,
       }
       storage.price_signals.builders[force_index] = nil

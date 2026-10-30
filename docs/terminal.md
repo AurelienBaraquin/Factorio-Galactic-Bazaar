@@ -145,6 +145,14 @@ Code: `scripts/telecom.lua`, levels and sparkline in `scripts/core/telecom.lua`.
 | 1 | `gb-telecommunications-1` (after the Galactic Bazaar and logistic science; 100 × red and green) | at most 10 s old | |
 | 2 | `gb-telecommunications-2` (after level 1 and advanced circuits; 200 × red and green) | at most 2 s old | trend column and history line in the market window |
 
-`telecom.quote(force_index, kind, name)` returns `{buy, sell, history}` from the force's feed
-(`storage.forces[i].feed[key]`), quoted again when older than the period. Trade previews and
-executions always use live prices (`market.quote`, `market.preview`).
+`telecom.quote(force_index, kind, name, period)` returns `{buy, sell, history}` from the force's
+feed (`storage.forces[i].feed[key]`), quoted again when older than the period; the feed is cleared
+whenever base values are rebuilt. Trade previews and executions always use live prices
+(`market.quote`, `market.preview`). Below level 2 the trend column stays in place with empty cells
+(hiding table cells would shift the others); the history line appears once the item's market has
+two history points.
+
+A price combinator snapshot's period runs from the end of its build. At level 2, a force's
+snapshot is rebuilt every 2 s and, while prices move, its combinators are rewritten one per pass:
+prices reach the last of `n` combinators within 2 s plus about `n` × 0.1 s. Measured with 30
+combinators and moving prices: 0.04–0.05 ms per tick on average (2.1.24) — budget 0.06 ms.

@@ -107,6 +107,8 @@ end
 function market.rebase_all(old_values, old_levels)
   if not (old_values and storage.forces) then return end
   for _, state in pairs(storage.forces) do
+    -- Prices a force saw before the change are no longer right (ADR-0012).
+    state.feed = nil
     local gone = {}
     for key, entry in pairs(state.markets) do
       local old, old_ratio = pricing.key_value(key, old_values, old_levels)

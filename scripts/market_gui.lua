@@ -54,8 +54,11 @@ end
 -- before it still finds its button (multiplayer latency).
 local function refresh_list(player, data)
   local elements = data.elements
+  -- Below telecommunications 2 the trend column stays in place, empty: hiding its cells would shift
+  -- every later cell of the table into the wrong column.
   local history = telecom.shows_history(player.force)
-  elements.trend_header.visible = history
+  local period = telecom.period(player.force)
+  elements.trend_header.caption = history and { "gb-gui.column-trend" } or ""
   local shown = catalog.page(data.matches, data.page)
   data.page = shown.page
   elements.page.caption = { "gb-gui.page", shown.page, shown.pages }
@@ -63,9 +66,8 @@ local function refresh_list(player, data)
     local name = shown.names[i]
     -- The list is taken when the window opens: an item whose value another mod removes since then
     -- is hidden, and one that gains a value appears on the next opening.
-    local quote = name and telecom.quote(player.force_index, "item", name)
+    local quote = name and telecom.quote(player.force_index, "item", name, period)
     for _, cell in pairs(row) do cell.visible = quote ~= nil end
-    row.trend.visible = quote ~= nil and history
     if quote then
       row.icon.sprite = "item/" .. name
       row.icon.tags = { gb_action = "select", item = name }
@@ -74,7 +76,7 @@ local function refresh_list(player, data)
       row.name.tooltip = item_label(name)
       row.buy.caption = catalog.format_credits(quote.buy)
       row.sell.caption = catalog.format_credits(quote.sell)
-      if history then row.trend.caption = TREND_CAPTIONS[catalog.trend(quote.history)] end
+      row.trend.caption = history and TREND_CAPTIONS[catalog.trend(quote.history)] or ""
     end
   end
 end
@@ -87,6 +89,8 @@ local function refresh_detail(player, data)
   elements.detail_icon.sprite = "item/" .. name
   elements.detail_name.caption = item_label(name)
   local seen = telecom.shows_history(player.force) and telecom.quote(player.force_index, "item", name)
+  -- A market entry has no history for its first NPC steps: nothing to draw yet.
+  seen = seen and #seen.history >= 2 and seen
   elements.history.visible = seen and true or false
   if seen then elements.history.caption = { "gb-gui.history", telecom_core.sparkline(seen.history, HISTORY_WIDTH) } end
   local quantity = catalog.parse_quantity(elements.quantity.text)

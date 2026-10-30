@@ -33,6 +33,7 @@ so the feed never creates or loses money.
 - Positive: research has a clear economic value (react faster); no arbitrage between seen and real
   prices; the feed caps how often the window and combinators quote the market.
 - Trade-offs accepted: early on, the list can differ from the preview by up to 30 s of market
-  movement; at level 2, price combinators rebuild their snapshot every 2 s (a chunk of quotes every
-  pass while combinators exist).
+  movement; at level 2, price combinators rebuild their snapshot every 2 s after the previous build
+  ends and rewrite one combinator per pass, so with many combinators the last ones lag about 0.1 s
+  each (0.04–0.05 ms per tick with 30 combinators); the feed is cleared when base values change.
 - Follow-up: higher levels (contracts, M4) may add forecast or other planets' prices.

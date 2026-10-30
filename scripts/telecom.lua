@@ -29,15 +29,16 @@ function telecom.shows_history(force)
   return core.shows_history(telecom.level(force))
 end
 
---- Prices of `kind`/`name` as the force sees them: {buy, sell, history}, at most its period old;
---- nil when it is not tradeable.
-function telecom.quote(force_index, kind, name)
+--- Prices of `kind`/`name` as the force sees them: {buy, sell, history}, at most its period old
+--- (`period`, optional, saves reading the force's research on every call); nil when it is not
+--- tradeable. `history` is the market entry's own history table, live, not a copy.
+function telecom.quote(force_index, kind, name, period)
   local state = storage.forces[force_index]
   if not state then return nil end
   state.feed = state.feed or {}
   local key = pricing.key(kind, name)
   local seen = state.feed[key]
-  if seen and game.tick - seen.tick < telecom.period(game.forces[force_index]) then return seen end
+  if seen and game.tick - seen.tick < (period or telecom.period(game.forces[force_index])) then return seen end
   local quote = market.quote(force_index, kind, name)
   if not quote then
     state.feed[key] = nil
