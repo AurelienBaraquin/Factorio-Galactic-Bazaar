@@ -60,6 +60,7 @@ local function refresh_list(player, data)
       row.icon.tags = { gb_action = "select", item = name }
       row.icon.toggled = name == data.selected
       row.name.caption = item_label(name)
+      row.name.tooltip = item_label(name)
       row.buy.caption = catalog.format_credits(quote.buy)
       row.sell.caption = catalog.format_credits(quote.sell)
       row.trend.caption = TREND_CAPTIONS[catalog.trend(quote.history)]
@@ -103,20 +104,37 @@ local function add_title_bar(window)
     tags = { gb_action = "close" } })
 end
 
+-- Fixed column widths, so the price columns stay aligned whatever the length of the item names; a
+-- name too long for its column is clipped and shown whole in its tooltip.
+local COLUMNS = {
+  { key = "icon" },
+  { key = "name", header = "item", width = 260 },
+  { key = "buy", header = "buy", width = 70, align = "middle-right" },
+  { key = "sell", header = "sell", width = 70, align = "middle-right" },
+  { key = "trend", header = "trend", width = 60, align = "middle-center" },
+}
+
+local function add_cell(list, column, element)
+  local cell = list.add(element)
+  if column.width then cell.style.width = column.width end
+  return cell
+end
+
 local function add_list(body, elements)
-  local list = body.add({ type = "table", column_count = 5 })
-  for _, header in ipairs({ "", "item", "buy", "sell", "trend" }) do
-    list.add({ type = "label", caption = header == "" and "" or { "gb-gui.column-" .. header }, style = "bold_label" })
+  local list = body.add({ type = "table", column_count = #COLUMNS })
+  for i, column in ipairs(COLUMNS) do
+    if column.align then list.style.column_alignments[i] = column.align end
+    add_cell(list, column, { type = "label", style = "bold_label",
+      caption = column.header and { "gb-gui.column-" .. column.header } or "" })
   end
   elements.rows = {}
   for i = 1, catalog.PAGE_SIZE do
-    elements.rows[i] = {
-      icon = list.add({ type = "sprite-button", style = "slot_button" }),
-      name = list.add({ type = "label" }),
-      buy = list.add({ type = "label" }),
-      sell = list.add({ type = "label" }),
-      trend = list.add({ type = "label" }),
-    }
+    local row = {}
+    for _, column in ipairs(COLUMNS) do
+      local element = column.key == "icon" and { type = "sprite-button", style = "slot_button" } or { type = "label" }
+      row[column.key] = add_cell(list, column, element)
+    end
+    elements.rows[i] = row
   end
 end
 
