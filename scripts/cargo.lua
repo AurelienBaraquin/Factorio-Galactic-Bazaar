@@ -136,21 +136,34 @@ local function is_plain(stack)
   return true
 end
 
-local function export_from(module)
-  if not (module.entity.valid and cargo.powered_hub(module)) then return end
-  local force_index = module.entity.force.index
-  local inventory = module.entity.get_inventory(defines.inventory.chest)
+--- Sells the plain stacks of `inventory` for a force while each unit fetches at least
+--- `min_price_ratio` × its base value; only stacks of `name` when given, at most `limit` units when
+--- given. The sale goes first: a stack only shrinks for units the market has paid for. Returns the
+--- units sold and the credits received.
+function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit)
+  local sold, revenue = 0, 0
   for slot = 1, #inventory do
+    if limit and sold >= limit then break end
     local stack = inventory[slot]
-    if stack.valid_for_read and is_plain(stack) then
-      local units = math.min(stack.count,
-        math.floor(market.sellable(force_index, "item", stack.name, module.min_price_ratio)))
-      -- The sale goes first: the stack only shrinks for units the market has paid for.
-      if units > 0 and market.sell(force_index, "item", stack.name, units) then
-        stack.count = stack.count - units
+    if stack.valid_for_read and (not name or stack.name == name) and is_plain(stack) then
+      local units = math.min(stack.count, limit and limit - sold or math.huge,
+        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio)))
+      if units > 0 then
+        local ok, credits = market.sell(force_index, "item", stack.name, units)
+        if ok then
+          stack.count = stack.count - units
+          sold, revenue = sold + units, revenue + credits
+        end
       end
     end
   end
+  return sold, revenue
+end
+
+local function export_from(module)
+  if not (module.entity.valid and cargo.powered_hub(module)) then return end
+  cargo.sell_stacks(module.entity.get_inventory(defines.inventory.chest), module.entity.force.index,
+    module.min_price_ratio)
 end
 
 --- on_nth_tick(EXPORT_INTERVAL): sells the content of the next EXPORT_BATCH export chests.
@@ -165,17 +178,32 @@ function cargo.on_export_tick()
   end
 end
 
+local function import_inventories(hub_unit_number)
+  local inventories = {}
+  for _, module in pairs(storage.cargo.modules) do
+    if module.kind == "import" and module.hub == hub_unit_number and module.entity.valid then
+      inventories[#inventories + 1] = module.entity.get_inventory(defines.inventory.chest)
+    end
+  end
+  return inventories
+end
+
+--- How many `name` items (normal quality) the import chests of a hub can still take.
+function cargo.import_capacity(hub_unit_number, name)
+  local capacity = 0
+  for _, inventory in ipairs(import_inventories(hub_unit_number)) do
+    capacity = capacity + inventory.get_insertable_count({ name = name, quality = "normal" })
+  end
+  return capacity
+end
+
 --- Puts purchased items into the import chests of a hub. Returns how many were stored; the rest
 --- did not fit.
 function cargo.deliver(hub_unit_number, name, count)
   local stored = 0
-  for _, module in pairs(storage.cargo.modules) do
+  for _, inventory in ipairs(import_inventories(hub_unit_number)) do
     if stored >= count then break end
-    if module.kind == "import" and module.hub == hub_unit_number and module.entity.valid then
-      stored = stored + module.entity.get_inventory(defines.inventory.chest).insert({
-        name = name, count = count - stored, quality = "normal",
-      })
-    end
+    stored = stored + inventory.insert({ name = name, count = count - stored, quality = "normal" })
   end
   return stored
 end

@@ -53,6 +53,17 @@ local function trade(force_index, kind, name, quantity, side)
   return true, credits
 end
 
+--- What trading `quantity` units would bring (`side` "sell") or cost (`side` "buy") right now,
+--- without trading: the credits, or nil and a reason.
+function market.preview(force_index, kind, name, side, quantity)
+  local entry, base_value = current_entry(force_index, pricing.key(kind, name))
+  if not entry then return nil, "not-tradeable" end
+  local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
+  local credits, reason = quote(base_value, entry.displacement, quantity, MARKET_PARAMS)
+  if not credits then return nil, reason end
+  return credits
+end
+
 --- Units of `kind`/`name` the force can sell while each unit still sells for at least
 --- `min_price_ratio` × its base value; 0 when it is not tradeable.
 function market.sellable(force_index, kind, name, min_price_ratio)

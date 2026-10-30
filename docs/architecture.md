@@ -15,7 +15,7 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 ```
 info.json       mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
 data.lua        prototype stage entry point: requires one file per prototype family
-prototypes/     prototype definitions (trading hub, cargo chests, technologies)
+prototypes/     prototype definitions (trading hub, cargo chests, technologies, custom inputs)
 control.lua     runtime stage entry point: registers every event handler
 locale/         in-game text, one folder per language (en, fr)
 scripts/        runtime adapters between the game API and the pure logic
@@ -56,6 +56,9 @@ Only the first eight entries ship in the mod: `.gitattributes` marks everything 
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
+- **Market window**: the `gb-open-hub` input opens it; `on_gui_click` and `on_gui_text_changed`
+  dispatch on the element's `gb_action` tag; `on_gui_closed` and `on_player_removed` drop it;
+  `script.on_nth_tick(market_gui.REFRESH_INTERVAL)` refreshes open windows.
 - **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md));
   after a merge, every cargo chest is re-attached.
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's

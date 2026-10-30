@@ -66,4 +66,13 @@ Invariants: `exports` lists exactly the export modules and `modules[exports[i]].
 works through a valid, powered hub of its own force; invalid entries are dropped and every module
 re-attached on `on_configuration_changed`.
 
+## `storage.players`
+
+`storage.players[player_index] = {hub, filter, page, selected, elements}` — the market window of a
+player who has it open ([terminal.md](terminal.md)): the hub it trades through, the search text,
+the page, the selected item and references to its GUI elements. Interface state only: no economy
+value lives here (ADR-0001). Written by `scripts/market_gui.lua`; an entry exists only while the
+window is open, is removed on `on_player_removed`, and every window is closed on
+`on_configuration_changed`.
+
 Personal data: none. Backups: `storage` lives inside the save file.

@@ -14,6 +14,7 @@ how they move on their own, and how a force trades. The reasoning is in
 | `market.buy(force_index, kind, name, quantity)` | debits the account and moves the market; `true, cost` or `false, reason` |
 | `market.sell(force_index, kind, name, quantity)` | credits the account and moves the market; `true, revenue` or `false, reason` |
 | `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
+| `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
 
 A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
 `insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving

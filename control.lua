@@ -3,6 +3,7 @@
 local cargo = require("scripts.cargo")
 local forces = require("scripts.forces")
 local hubs = require("scripts.hubs")
+local market_gui = require("scripts.market_gui")
 local pricing = require("scripts.pricing")
 
 local function init()
@@ -10,6 +11,7 @@ local function init()
   pricing.init()
   hubs.init()
   cargo.init()
+  market_gui.init()
 end
 
 script.on_init(init)
@@ -57,9 +59,17 @@ end)
 
 script.on_nth_tick(cargo.EXPORT_INTERVAL, cargo.on_export_tick)
 
+script.on_event(market_gui.INPUT, market_gui.on_open_input)
+script.on_event(defines.events.on_gui_click, market_gui.on_gui_click)
+script.on_event(defines.events.on_gui_text_changed, market_gui.on_gui_text_changed)
+script.on_event(defines.events.on_gui_closed, market_gui.on_gui_closed)
+script.on_event(defines.events.on_player_removed, market_gui.on_player_removed)
+script.on_nth_tick(market_gui.REFRESH_INTERVAL, market_gui.on_refresh_tick)
+
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/market", "tests/hubs", "tests/cargo" },
+    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/market", "tests/hubs", "tests/cargo",
+      "tests/market_gui" },
     { load_luassert = true }
   )
 end
