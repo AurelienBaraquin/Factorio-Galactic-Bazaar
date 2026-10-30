@@ -26,14 +26,18 @@ Option 2. Prices are emitted in **milli-credits** (credits × 1000), so goods as
 (0.001 credit) read 1 and items up to 2.1 million credits fit; the balance is emitted in **whole
 credits**; values are rounded and clamped to int32 (`scripts/core/signals.lua`). Normal quality
 only; electricity has no signal. A force's prices are snapshot every 10 s, quoted 40 per pass
-(every 6 ticks) so that no tick pays for all of them; combinators keep the last complete snapshot,
-are rewritten one per pass with a full `filters` write and only when their snapshot changed, are
-not operable by players, and stay silent without a powered hub of their force in range (ADR-0005).
+(every 6 ticks) from the key lists captured at the start, so that no tick pays for all of them; a
+snapshot's version changes only when a price changed. A combinator has two script-owned sections:
+the prices, rewritten with a full `filters` write when the version changed (at most one such write
+per pass, up to ten combinators visited per pass), and the balance, one slot set live at each visit.
+Combinators are not operable by players, foreign sections are replaced, and they stay silent without
+a powered hub of their force in range (ADR-0005).
 
 ## Consequences
 
-- Positive: any circuit design can read every price and the balance; the cost is bounded per tick
-  (0.14 ms vanilla, 0.24 ms Space Age per pass during a rebuild, measured on 2.1.24).
-- Trade-offs accepted: prices are up to 10 s old plus the time to visit every combinator; prices
-  above 2.1 million credits are capped; the balance is capped at 2.1 billion credits.
+- Positive: any circuit design can read every price and the balance; the cost is bounded per pass
+  (at most 0.5 ms for a rewrite, 0.3 ms on average during a rebuild, measured on 2.1.24).
+- Trade-offs accepted: prices are up to 10 s old plus 0.1 s per combinator to rewrite; prices above
+  2.1 million credits are capped; the balance is capped at 2.1 billion credits; reading every price
+  keeps every market entry of a force with a combinator up to date in storage.
 - Follow-up: the telecommunications research (#25) sets the freshness; quality prices if needed.

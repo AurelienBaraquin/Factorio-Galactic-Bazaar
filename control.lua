@@ -98,6 +98,7 @@ for ticks, handlers in pairs(periodic) do
 end
 
 script.on_event(market_gui.INPUT, market_gui.on_open_input)
+script.on_event(defines.events.on_entity_settings_pasted, price_signals.on_settings_pasted)
 script.on_event(defines.events.on_gui_click, market_gui.on_gui_click)
 script.on_event(defines.events.on_gui_text_changed, market_gui.on_gui_text_changed)
 script.on_event(defines.events.on_gui_closed, market_gui.on_gui_closed)

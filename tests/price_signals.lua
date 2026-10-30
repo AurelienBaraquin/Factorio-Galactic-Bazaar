@@ -3,6 +3,7 @@
 local market = require("scripts.market")
 local price_signals = require("scripts.price_signals")
 local signals = require("scripts.core.signals")
+local value_overrides = require("scripts.value_overrides")
 
 local surface, created
 local function place(name, x, y, force)
@@ -90,17 +91,93 @@ describe("price signal combinators", function()
     assert.is_false(combinator.get_control_behavior().enabled)
   end)
 
-  test("refresh after the update period, and only rewrite when the snapshot changed", function()
+  local function expire()
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    update_all()
+    update_all()
+  end
+
+  test("refresh after the update period, rewriting prices only when one changed", function()
     local combinator = place("gb-sell-price-combinator", 3)
     update_all()
     local module = storage.price_signals.modules[combinator.unit_number]
     local version = module.written
-    update_all()
+    expire()
     assert.are.equal(version, module.written)
-    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
-    update_all()
-    update_all()
+    market.sell(game.forces.player.index, "item", "iron-gear-wheel", 5000)
+    expire()
     assert.are.equal(version + 1, module.written)
+    player_state().markets["item/iron-gear-wheel"] = nil
+  end)
+
+  test("show the balance at each visit, without waiting for a snapshot", function()
+    local combinator = place("gb-sell-price-combinator", 3)
+    local pole = reader(combinator)
+    update_all()
+    player_state().balance = 777
+    update_all()
+    after_ticks(2, function()
+      assert.are.equal(777, pole.get_circuit_network(W.circuit_red).get_signal(CREDITS))
+    end)
+  end)
+
+  test("register a combinator only once, even when built twice", function()
+    local combinator = place("gb-sell-price-combinator", 3)
+    local count = #storage.price_signals.order
+    price_signals.on_built(combinator)
+    assert.are.equal(count, #storage.price_signals.order)
+  end)
+
+  test("replace sections a blueprint or another mod put on them", function()
+    local combinator = place("gb-sell-price-combinator", 3)
+    update_all()
+    local behavior = combinator.get_control_behavior()
+    behavior.get_section(1).active = false
+    behavior.add_section().set_slot(1, { value = { type = "item", name = "coal", quality = "normal",
+      comparator = "=" }, min = 999 })
+    update_all()
+    assert.are.equal(2, behavior.sections_count)
+    assert.is_true(behavior.get_section(1).active)
+    assert.is_true(behavior.get_section(1).filters_count > 100)
+  end)
+
+  test("finish a snapshot from the lists it started with when an override replaces them", function()
+    place("gb-sell-price-combinator", 3)
+    update_all()
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    price_signals.on_pass_tick()
+    price_signals.on_pass_tick()
+    local builder = storage.price_signals.builders[game.forces.player.index]
+    assert.is_true(builder.index > 1)
+    remote.call("galactic-bazaar", "scale_value", "item", "iron-plate", 2)
+    assert.are_not.equal(builder.items, storage.tradeable_items)
+    update_all()
+    local seen = {}
+    for _, entry in ipairs(storage.price_signals.snapshots[game.forces.player.index].sell) do
+      local key = entry.value.type .. "/" .. entry.value.name
+      assert.is_nil(seen[key], key)
+      seen[key] = true
+    end
+    storage.value_overrides = {}
+    value_overrides.rebuild()
+  end)
+
+  test("drop a merged force's snapshot", function()
+    local source = game.create_force("gb-test-signals")
+    local index = source.index
+    storage.price_signals.snapshots[index] = { tick = game.tick, version = 1, buy = {}, sell = {} }
+    game.merge_forces(source, "player")
+    after_ticks(1, function()
+      assert.is_nil(storage.price_signals.snapshots[index])
+    end)
+  end)
+
+  test("start over on a configuration change", function()
+    local combinator = place("gb-sell-price-combinator", 3)
+    update_all()
+    price_signals.init()
+    assert.is_nil(storage.price_signals.modules[combinator.unit_number].written)
+    assert.are.same({}, storage.price_signals.snapshots)
   end)
 
   test("keep visiting every combinator after one is removed", function()
@@ -110,6 +187,21 @@ describe("price signal combinators", function()
     first.destroy()
     update_all()
     assert.is_true(second.get_control_behavior().enabled)
+  end)
+
+  test("measures the costliest pass: one combinator's prices rewritten", function()
+    place("gb-sell-price-combinator", 3)
+    update_all()
+    market.sell(game.forces.player.index, "item", "iron-gear-wheel", 5000)
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    update_all()
+    local module = storage.price_signals.modules[storage.price_signals.order[1]]
+    local profiler = helpers.create_profiler()
+    module.written = nil
+    price_signals.on_pass_tick()
+    profiler.stop()
+    log({ "", "[galactic-bazaar] price signal pass rewriting one combinator: ", profiler })
+    player_state().markets["item/iron-gear-wheel"] = nil
   end)
 
   test("measures a pass while a force's snapshot is rebuilt", function()
@@ -129,6 +221,8 @@ describe("price signal combinators", function()
   end).after_reload_mods(function()
     local module = storage.price_signals.modules[storage.gb_test_signals.combinator]
     assert.are.equal("sell", module.side)
+    update_all()
+    assert.is_true(module.entity.get_control_behavior().enabled)
     module.entity.destroy()
     storage.hubs[storage.gb_test_signals.hub].entity.destroy()
     storage.gb_test_signals = nil

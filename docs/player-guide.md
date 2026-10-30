@@ -29,14 +29,16 @@ Circuit signals are whole numbers, so:
 
 ### Freshness
 
-Prices and balance are taken once every **10 seconds** per force; a combinator shows the last
-complete reading. Without a powered hub in range, it emits nothing.
+Prices are read once every **10 seconds** per force; a combinator shows the last complete reading.
+After a reading in which prices changed, combinators are rewritten one after another, about ten a
+second, so with many combinators the last ones lag a few seconds more. The balance is updated at
+every visit, within a few seconds. Without a powered hub in range, a combinator emits nothing.
 
 ### Example: sell iron plates only when they fetch a good price
 
 1. Place a sell price combinator next to your hub and wire it (red) to a decider combinator.
-2. Decider condition: `Iron plate > 1500` (1.5 credits), output: `signal-check = 1`.
+2. Decider condition: `Iron plate > 1500` (1.5 credits), output: the check mark signal (✓), set to 1.
 3. Wire the decider's output to an inserter that feeds an export chest, with the enable condition
-   `signal-check = 1`.
+   `✓ = 1`.
 
 The inserter then only loads the export chest while plates sell for more than 1.5 credits.

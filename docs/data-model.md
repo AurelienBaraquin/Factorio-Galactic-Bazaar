@@ -108,14 +108,15 @@ at each settlement.
 
 ## `storage.price_signals`
 
-`{modules = {[unit_number] = {entity, side = "buy"|"sell", hub, order_index, written, force_index}},
-order = {unit_number...}, cursor, snapshots = {[force_index] = {tick, version, buy, sell}},
-builders = {[force_index] = {tick, index, buy, sell}}}` — the price signal combinators, their
-visiting order, each force's last complete snapshot of filters and the snapshot being built
-([terminal.md](terminal.md), ADR-0010). Written by `scripts/price_signals.lua`. Invariants: `order`
-lists exactly the modules and `modules[order[i]].order_index == i`; `written` is the snapshot
-version last written into the combinator. Snapshots and builders are dropped on
-`on_configuration_changed`.
+`{modules = {[unit_number] = {entity, side = "buy"|"sell", hub, order_index, written,
+written_balance, force_index}}, order = {unit_number...}, cursor, snapshots = {[force_index] =
+{tick, version, buy, sell}}, builders = {[force_index] = {tick, index, items, fluids, buy, sell}}}` —
+the price signal combinators, their visiting order, each force's last complete snapshot of price
+filters and the snapshot being built with the key lists it started from ([terminal.md](terminal.md),
+ADR-0010). Written by `scripts/price_signals.lua`. Invariants: `order` lists exactly the modules,
+once each, and `modules[order[i]].order_index == i`; `written` is the snapshot version and
+`written_balance` the balance last written into the combinator. Snapshots and builders are dropped
+on `on_configuration_changed`, and a merged force's on `on_forces_merged`.
 
 ## `storage.players`
 
