@@ -29,6 +29,7 @@ logic in `scripts/core/catalog.lua`.
 | Buy | needs a powered hub with an import chest of its force (items) or an import manifold of its force that is empty or already holds the fluid (fluids); pays the market cost plus the freight fee at once and queues the units in orbital capsules (`freight.order`, see below); the printed result says when the last capsule lands |
 | Sell | items only (fluids are sold by export manifolds); needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
 | Refresh | once a second per open window of a connected player, spread over `SLOTS` (10) slots of `SLOT_TICKS` (6) ticks by player index; a window whose hub is gone, foreign or out of reach is closed. Measured on 2.1.24: 0.18 ms per window refresh in vanilla (196 items), 0.40 ms with Space Age (284) — budget 0.5 ms per window |
+| Contracts | a button opens the contracts window at this hub: offers to accept or decline, active contracts with their progress, deadline and an abandon button, the force's reputation; refreshed every second ([contracts.md](contracts.md)) |
 | Closing | close button, E/Esc or another window (`on_gui_closed`), hub destroyed, player leaves, changes force or is removed, out of reach on refresh, configuration change |
 
 Every action re-checks the hub (exists, same force, within reach, powered), the item and the
@@ -62,6 +63,7 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
 ├── gb-market-signals (red, green) ── gb-market-orders (red, green)
 ├── gb-telecommunications-1 (red, green) ── gb-telecommunications-2 (red, green, after advanced circuits)
 ├── gb-fluid-trading (red, green) ── fluid manifolds
+├── gb-contracts (red, green) ── contract chest, incoming contract offers
 └── [space logistics branch]
     └── gb-cargo-shuttle (red, green, blue) ── docking bay
         ├── gb-catapult (red, green, blue) ── electromagnetic catapult
@@ -249,3 +251,16 @@ Bulk exports (#67). Code: `scripts/catapult.lua`; prototypes: `prototypes/catapu
 | Budget | a shot of 48 full stacks: 0.44–0.48 ms with 4 kinds, 0.65 ms with 48 different items (2.1.24); one shot per pass — budget 0.8 ms |
 | Throughput | at most one shot per pass for the whole map (10 a second): with more than 20 loaded catapults, each waits about `n` × 0.1 s rather than 2 s |
 | Lifecycle | a catapult whose capacitor is gone (another mod destroyed it) gets a new one at its next shot or on configuration change |
+
+## Contract chest (`gb-contract-chest`)
+
+Hands products over to incoming contracts (#76). Code: `scripts/incoming_contracts.lua`;
+prototypes: `prototypes/contract_chest.lua`.
+
+| | |
+|---|---|
+| Prototypes | a copy of the steel chest, tinted gold |
+| Recipe | 1 steel chest, 5 electronic circuits |
+| Technology | `gb-contracts` (after the Galactic Bazaar and logistic science; 100 × red and green) |
+| Hub | attached like the other modules (`incoming.HUB_RANGE`, 10 tiles); hands nothing over without a hub, powered or not |
+| Delivery | every second, the normal-quality items active incoming contracts still need leave the chest, oldest contract first ([contracts.md](contracts.md)) |

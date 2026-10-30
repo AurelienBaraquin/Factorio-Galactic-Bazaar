@@ -92,12 +92,12 @@ re-attached on `on_configuration_changed`.
 
 ## `storage.freight`
 
-`{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier}...}}}}`
-— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10) ([terminal.md](terminal.md), ADR-0006). Written by
+`{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract}...}}}}`
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the incoming contract whose ingredients it carries, with `unit_cost` 0, nil for purchases) ([terminal.md](terminal.md), ADR-0006). Written by
 `scripts/freight.lua`. Invariants: `capsules` is in ordering order (tiers land on their own schedules: every landed shipment is unloaded, none holds back another); `launches[tier]` is that tier's next free launch tick (`next_launch`, from before 0.1.10, is the capsule's) and holds at most
 `max_capsules` entries per tier; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
-queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back; on
+queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back (contract capsules are dropped instead); on
 `on_configuration_changed`, capsules of items that no longer exist are refunded and dropped, and
 the queues of hubs that no longer exist are sold back.
 
@@ -162,6 +162,21 @@ in visiting order ([terminal.md](terminal.md)). Written by `scripts/catapult.lua
 hub build and removal, force merge, shots and `on_object_destroyed` (which also removes the
 capacitor). Invariants: `order` lists exactly the modules and `modules[order[i]].order_index == i`;
 invalid entries are dropped and missing capacitors replaced on `on_configuration_changed`.
+
+## `storage.incoming_contracts`
+
+`{chests = {[unit_number] = {entity, hub}}, rng = {[force_index] = state}}` — every contract chest
+and the hub it is attached to, and each force's random state for drawing offers
+([contracts.md](contracts.md)). Written by `scripts/incoming_contracts.lua` on build events, hub
+build and removal, force merge, `on_object_destroyed` and offer ticks. Invalid chests are dropped
+on `on_configuration_changed`. A force's random state starts from its index.
+
+## `storage.contracts_gui`
+
+`storage.contracts_gui[player_index] = {hub, elements}` — the contracts window of a player who has
+it open: the hub it was opened from and references to its GUI elements (8 fixed rows). Interface
+state only. Written by `scripts/contracts_gui.lua`; removed when the window closes, the player
+leaves, changes force or is removed, and every window is closed on `on_configuration_changed`.
 
 ## `storage.players`
 

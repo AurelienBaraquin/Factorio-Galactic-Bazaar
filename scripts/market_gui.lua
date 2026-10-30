@@ -4,6 +4,7 @@
 -- stays per force. Every action is re-validated, since GUI events are player input.
 local cargo = require("scripts.cargo")
 local catalog = require("scripts.core.catalog")
+local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
@@ -197,6 +198,7 @@ local function build(player)
   elements.balance = status.add({ type = "label", style = "bold_label" })
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })
+  status.add({ type = "button", caption = { "gb-contracts.open" }, tags = { gb_action = "contracts" } })
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
   controls.add({ type = "label", caption = { "gb-gui.search" } })
@@ -266,6 +268,10 @@ local actions = {}
 
 function actions.close(player)
   market_gui.close(player.index)
+end
+
+function actions.contracts(player, data)
+  contracts_gui.open(player, data.hub)
 end
 
 function actions.select(player, data, tags)

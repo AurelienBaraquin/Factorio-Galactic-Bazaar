@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.16
+Date: 2026-10-30
+  Features:
+    - Incoming contracts: counterparties offer to have you craft for them, ship the ingredients, and pay a reward for the products handed over in a contract chest before the deadline.
+    - Contracts window, opened from the market window.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.15
 Date: 2026-10-30
   Features:
