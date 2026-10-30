@@ -75,6 +75,20 @@ describe("market window", function()
     assert.are.equal(15, #shown_items())
   end)
 
+  test("gives every row the same column widths, whatever the item name", function()
+    market_gui.open(player, hub)
+    local rows = data().elements.rows
+    assert.is_true(rows[1].name.style.minimal_width > 0)
+    assert.are.equal(rows[1].name.style.minimal_width, rows[1].name.style.maximal_width)
+    for _, row in ipairs(rows) do
+      assert.are.equal(rows[1].name.style.minimal_width, row.name.style.minimal_width)
+      assert.are.equal(rows[1].name.style.maximal_width, row.name.style.maximal_width)
+      assert.are.equal(rows[1].buy.style.maximal_width, row.buy.style.maximal_width)
+      assert.are.same(row.name.caption, row.name.tooltip)
+    end
+    assert.are.equal("middle-right", rows[1].buy.parent.style.column_alignments[3])
+  end)
+
   test("does not open on another force's hub", function()
     local foreign = place("gb-hub", -3, 0, "enemy")
     market_gui.open(player, foreign)
