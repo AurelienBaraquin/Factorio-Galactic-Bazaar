@@ -19,10 +19,13 @@ freight.TIERS = core.TIERS
 
 -- Modules that give hubs a better tier through a building of theirs (ADR-0014). A provider is
 -- {tier = name, available = fn(hub) -> bool, can_supply = fn(hub, shipments) -> bool (optional),
--- supply = fn(hub, shipments) (optional)}: `available` says whether the hub has the tier now and
--- `can_supply` whether it can ship that many shipments (fuel...), both without side effect, since
--- they are asked on every read (previews, window refreshes); `supply` consumes what the shipments
--- of a paid order need, and is called only after `can_supply` said yes in the same tick. Providers
+-- supply = fn(hub, shipments) (optional), delivers = fn(hub) -> bool (optional)}: `available` says
+-- whether the hub has the tier now and `can_supply` whether it can ship that many shipments (fuel...),
+-- both without side effect, since they are asked on every read (previews, window refreshes); `supply`
+-- consumes what the shipments of a paid order need, and is called only after `can_supply` said yes
+-- in the same tick; `delivers` says whether shipments of the tier already queued can land at the hub
+-- now: true, false (a teleporter without power holds them) or nil when the provider has no building
+-- at that hub. Providers
 -- are registered at file scope when their module loads, the same on every peer, never from an event
 -- handler.
 local tier_providers = {}
@@ -30,6 +33,22 @@ local tier_providers = {}
 --- Registers a tier provider (see above).
 function freight.register_tier_provider(provider)
   tier_providers[#tier_providers + 1] = provider
+end
+
+-- Whether shipments of `tier_name` can land at a hub now. Only a provider with `delivers` can hold
+-- its tier's shipments, and only when it has a building at that hub that cannot deliver (a teleporter
+-- without power); they land when any provider of the tier delivers, or when none holds them (a
+-- shuttle's fuel was paid with the order; the orbital capsule always lands).
+local function delivers(hub_unit_number, tier_name)
+  local held = false
+  for _, provider in ipairs(tier_providers) do
+    if provider.tier == tier_name and provider.delivers then
+      local answer = provider.delivers(hub_unit_number)
+      if answer == true then return true end
+      held = held or answer == false
+    end
+  end
+  return not held
 end
 
 -- The tiers a hub can ship by now, best first, each with its provider; the orbital capsule last.
@@ -208,11 +227,12 @@ local function unload(hub_unit_number, queue, tick)
   while capsules[index] do
     local capsule = capsules[index]
     local remaining = capsule.count
-    if capsule.arrival <= tick then
+    local landed = capsule.arrival <= tick and delivers(hub_unit_number, capsule.tier or core.DEFAULT_TIER)
+    if landed then
       remaining = remaining - CARGO[capsule.kind or "item"].deliver(hub_unit_number, capsule.name, remaining)
       capsule.count = remaining
     end
-    if capsule.arrival <= tick and remaining <= DELIVERED_EPSILON then
+    if landed and remaining <= DELIVERED_EPSILON then
       table.remove(capsules, index)
     else
       index = index + 1

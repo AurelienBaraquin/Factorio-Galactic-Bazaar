@@ -9,6 +9,7 @@ local manifold = require("scripts.manifold")
 local market_gui = require("scripts.market_gui")
 local circuit_orders = require("scripts.circuit_orders")
 local power = require("scripts.power")
+local teleporter = require("scripts.teleporter")
 local price_signals = require("scripts.price_signals")
 local value_overrides = require("scripts.value_overrides")
 
@@ -20,6 +21,7 @@ local function init()
   manifold.init()
   freight.init()
   docking_bay.init()
+  teleporter.init()
   power.init()
   price_signals.init()
   circuit_orders.init()
@@ -40,6 +42,7 @@ script.on_event(defines.events.on_forces_merged, function(event)
   power.on_forces_merged(event)
   manifold.on_forces_merged(event)
   docking_bay.on_forces_merged(event)
+  teleporter.on_forces_merged(event)
   price_signals.on_forces_merged(event)
   circuit_orders.on_forces_merged(event)
 end)
@@ -55,7 +58,7 @@ local BUILT_EVENTS = {
 }
 local BUILDING_FILTER = {
   { filter = "name", name = hubs.NAME }, { filter = "name", name = circuit_orders.NAME, mode = "or" },
-  { filter = "name", name = docking_bay.NAME, mode = "or" },
+  { filter = "name", name = docking_bay.NAME, mode = "or" }, { filter = "name", name = teleporter.NAME, mode = "or" },
 }
 for _, kinds in ipairs({ cargo.KINDS, power.KINDS, price_signals.KINDS, manifold.KINDS }) do
   for name in pairs(kinds) do
@@ -71,10 +74,11 @@ local function on_built(event)
     power.on_hub_built(entity)
     manifold.on_hub_built(entity)
     docking_bay.on_hub_built(entity)
+    teleporter.on_hub_built(entity)
     price_signals.on_hub_built(entity)
     circuit_orders.on_hub_built(entity)
   elseif not (power.on_built(entity) or price_signals.on_built(entity) or circuit_orders.on_built(entity)
-    or manifold.on_built(entity) or docking_bay.on_built(entity)) then
+    or manifold.on_built(entity) or docking_bay.on_built(entity) or teleporter.on_built(entity)) then
     cargo.on_built(entity)
   end
 end
@@ -90,13 +94,14 @@ script.on_event(defines.events.on_object_destroyed, function(event)
     power.on_hub_removed(event.useful_id)
     manifold.on_hub_removed(event.useful_id)
     docking_bay.on_hub_removed(event.useful_id)
+    teleporter.on_hub_removed(event.useful_id)
     price_signals.on_hub_removed(event.useful_id)
     circuit_orders.on_hub_removed(event.useful_id)
     freight.on_hub_removed(event.useful_id)
     market_gui.on_hub_removed(event.useful_id)
   elseif not (power.forget(event.useful_id) or price_signals.forget(event.useful_id)
     or circuit_orders.forget(event.useful_id) or manifold.forget(event.useful_id)
-    or docking_bay.forget(event.useful_id)) then
+    or docking_bay.forget(event.useful_id) or teleporter.forget(event.useful_id)) then
     cargo.forget(event.useful_id)
   end
 end)
@@ -135,8 +140,8 @@ script.on_event({
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
     { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market",
-      "tests/hubs", "tests/cargo", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/power",
-      "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/market_gui" },
+      "tests/hubs", "tests/cargo", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter",
+      "tests/power", "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/market_gui" },
     { load_luassert = true }
   )
 end

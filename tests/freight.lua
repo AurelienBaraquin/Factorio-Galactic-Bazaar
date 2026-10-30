@@ -15,12 +15,12 @@ local GEAR = "iron-gear-wheel"
 -- Tier providers for tests: storage.gb_test_tiers[hub unit number] = tier name. They stay registered
 -- for the test files run after this one, and answer only while a test sets that table.
 for name in pairs(freight.TIERS) do
-  freight.register_tier_provider({
-    tier = name,
-    available = function(hub_unit_number)
+  if name ~= "capsule" then
+    local function available(hub_unit_number)
       return storage.gb_test_tiers ~= nil and storage.gb_test_tiers[hub_unit_number] == name
-    end,
-  })
+    end
+    freight.register_tier_provider({ tier = name, available = available })
+  end
 end
 
 describe("orbital capsule", function()

@@ -144,4 +144,23 @@ data:extend({
       time = 30,
     },
   },
+  {
+    type = "technology",
+    name = "gb-teleporter",
+    icons = data.raw.item["gb-teleporter"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-cargo-shuttle", "processing-unit", "low-density-structure", "production-science-pack",
+      "utility-science-pack" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-teleporter" },
+    },
+    unit = {
+      count = 500,
+      ingredients = {
+        { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 },
+        { "production-science-pack", 1 }, { "utility-science-pack", 1 },
+      },
+      time = 60,
+    },
+  },
 })
