@@ -11,6 +11,9 @@ cargo.KINDS = { ["gb-export-chest"] = "export", ["gb-import-chest"] = "import" }
 cargo.HUB_RANGE = 10
 -- An export chest sells while each unit fetches at least this fraction of its base value.
 cargo.DEFAULT_MIN_PRICE_RATIO = 0.5
+-- The market window sells while each unit fetches at least this fraction of its base value, so
+-- nearly spoiled stock cannot be dumped to push a price down for almost nothing (ADR-0013).
+cargo.WINDOW_MIN_PRICE_RATIO = 0.05
 -- Ticks between two export batches, and export chests visited per batch: 20 chests a second,
 -- spread thinly so that no single tick pays for many.
 cargo.EXPORT_INTERVAL = 6
@@ -136,17 +139,17 @@ function cargo.powered_hub(module)
   return nil
 end
 
--- Item types whose stacks can carry data of their own (equipment grid, inventory, blueprint, label,
--- tags, entity data).
-local DATA_ITEM_TYPES = {
-  ["armor"] = true, ["item-with-entity-data"] = true, ["item-with-inventory"] = true,
-  ["item-with-label"] = true, ["item-with-tags"] = true, ["blueprint"] = true, ["blueprint-book"] = true,
-  ["deconstruction-item"] = true, ["upgrade-item"] = true, ["selection-tool"] = true, ["copy-paste-tool"] = true,
+-- Item types whose stacks carry no data of their own beyond spoilage (no equipment grid, inventory,
+-- blueprint, label, tags or entity data). An allowlist: a type it does not name, from a later game
+-- version or a mod, is treated as carrying data and is not sold.
+local DATALESS_ITEM_TYPES = {
+  ["item"] = true, ["tool"] = true, ["capsule"] = true, ["ammo"] = true, ["module"] = true, ["gun"] = true,
+  ["rail-planner"] = true, ["repair-tool"] = true, ["space-platform-starter-pack"] = true,
 }
 
 -- Whether a stack's LuaItem holds only its spoilage: every stack of a spoilable item has one.
 local function has_only_spoilage(stack)
-  return stack.prototype.get_spoil_ticks(stack.quality) > 0 and not DATA_ITEM_TYPES[stack.prototype.type]
+  return DATALESS_ITEM_TYPES[stack.prototype.type] and stack.prototype.get_spoil_ticks(stack.quality) > 0
 end
 
 -- A stack worth its base value at its quality, scaled by its freshness: no extra data (equipment
@@ -184,6 +187,21 @@ function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit,
     end
   end
   return sold, revenue
+end
+
+--- Average freshness (1 - spoil_percent) of the first `limit` plain units of `name` and
+--- `quality_name` in `inventory`, in the order `sell_stacks` sells them; 1 when there are none.
+function cargo.sale_freshness(inventory, name, limit, quality_name)
+  local units, fresh = 0, 0
+  for slot = 1, #inventory do
+    if units >= limit then break end
+    local stack = inventory[slot]
+    if stack.valid_for_read and stack.name == name and stack.quality.name == quality_name and is_plain(stack) then
+      local taken = math.min(stack.count, limit - units)
+      units, fresh = units + taken, fresh + taken * (1 - stack.spoil_percent)
+    end
+  end
+  return units > 0 and fresh / units or 1
 end
 
 local function export_from(module)

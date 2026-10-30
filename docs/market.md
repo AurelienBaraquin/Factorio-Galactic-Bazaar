@@ -12,7 +12,7 @@ how they move on their own, and how a force trades. The reasoning is in
 |---|---|
 | `market.quote(force_index, kind, name)` | `{buy, sell, mid, history}` for `"item"`/`"fluid"` `name`, or `nil` if not tradeable |
 | `market.buy(force_index, kind, name, quantity, quality_name, merge_ticks)` | debits the account and moves the market; `true, cost` or `false, reason` |
-| `market.sell(force_index, kind, name, quantity, quality_name, merge_ticks, value_factor)` | credits the account and moves the market by `quantity`; `true, revenue` or `false, reason`. `value_factor` (default 1) scales the revenue only: the freshness of spoiled goods ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)) |
+| `market.sell(force_index, kind, name, quantity, quality_name, merge_ticks, value_factor)` | credits the account and moves the market by `quantity`; `true, revenue` or `false, reason`. `value_factor` (default 1, refused outside 0 to 1) scales the revenue only: the freshness of spoiled goods ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)) |
 | `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
 | `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
 | `market.buyable(force_index, kind, name, quality_name)` | units buyable before the shortage bound (funds not checked) |

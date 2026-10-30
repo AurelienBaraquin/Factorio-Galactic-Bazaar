@@ -32,16 +32,23 @@ nothing stays fresh.
 Option 1. `cargo.sell_stacks` passes the stack's freshness to `market.sell`, which multiplies the
 revenue by it (`value_factor`) and moves the market by the units sold. The price floor of an export
 chest keeps its meaning — each unit must fetch at least `min_price_ratio` × its base value — so it
-is compared with the freshness-scaled price: a chest with the default floor (0.5) keeps a stack
-fresher than about half, and the stack spoils in the chest after that. The market window's Sell has
-no floor and always sells. A stack's `LuaItem` is ignored when the item spoils and its type carries
-no data of its own (grid, inventory, label, tags, blueprint, entity data).
+is compared with the freshness-scaled price: a chest with the default floor (0.5) sells a stack
+fresher than about half, and the stack spoils in the chest after that. The market window's Sell
+has a floor of 0.05 (`cargo.WINDOW_MIN_PRICE_RATIO`), so nearly spoiled stock cannot be dumped to
+push a price down for almost nothing and then buy fresh goods cheaply; its preview scales the
+revenue by the average freshness of the stacks the sale would take. A stack's `LuaItem` is ignored
+when the item spoils and its type is on an allowlist of types that carry no data of their own
+(`item`, `tool`, `capsule`, `ammo`, `module`, `gun`, `rail-planner`, `repair-tool`,
+`space-platform-starter-pack`); any other type, including one a later version or a mod adds, is
+not sold. `market.sell` refuses a `value_factor` outside 0 to 1.
 
 ## Consequences
 
 - Positive: no overpayment at any quality; spoilable goods are tradeable; non-spoiling goods are
   unchanged (freshness 1).
-- Trade-offs accepted: the window's preview prices fresh goods, the printed result gives the real
-  revenue; a stale stack below an export floor stays in the chest until it spoils; purchases are
-  delivered fresh.
+- Trade-offs accepted: each unit still moves the market by a full unit, so selling half-spoiled
+  stock lowers the price as much as fresh stock for less revenue (bounded by the floors and the
+  spread); a stale stack below an export floor stays in the chest until it spoils; purchases are
+  delivered fresh, and cargo waiting in a capsule does not spoil (a refund on hub removal pays it
+  as fresh, at the market's sell price).
 - Follow-up: the export floor's interface (#19) lets the player sell stale goods automatically.
