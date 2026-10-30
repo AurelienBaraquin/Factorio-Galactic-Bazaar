@@ -61,7 +61,11 @@ local function refresh_status(player, data)
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(balance) }
   local hub = usable_hub(player, data)
   elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
-  elements.freight.caption = { "gb-gui.capsules", freight.queued(data.hub), freight.TIER.max_capsules }
+  -- The tier shown is the one a purchase from this window will ship by, or be refused (tier-changed).
+  local tier = freight.tier(data.hub)
+  data.tier = tier.name
+  elements.freight.caption = { "gb-gui.delivery", { "gb-gui.tier-" .. tier.name },
+    freight.queued(data.hub, tier.name), tier.max_capsules }
 end
 
 -- Updates the fixed rows in place: elements are never destroyed by a refresh, so a click sent just
@@ -117,7 +121,7 @@ local function refresh_detail(player, data)
     elements.preview.caption = { "gb-gui.enter-quantity" }
     return
   end
-  local cost, fee = freight.preview(player.force_index, item, quantity, kind)
+  local cost, fee = freight.preview(player.force_index, item, quantity, kind, data.hub)
   -- What selling from the inventory would bring: the market price of the units, scaled by the
   -- freshness of the stacks the sale would take (ADR-0013). Fluids are sold by export manifolds.
   local revenue = kind == "item" and market.preview(player.force_index, kind, item, "sell", quantity)
@@ -294,7 +298,8 @@ function actions.buy(player, data)
   local hub = trading_hub(player, data)
   if not hub then return end
   local kind, name = split(key)
-  local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity, nil, nil, kind)
+  local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity, nil, nil, kind,
+    data.tier)
   if not ok then return notify(player, { "gb-gui.refused-" .. cost }) end
   notify(player, { "gb-gui.ordered", quantity, label(key), catalog.format_credits(cost),
     catalog.format_credits(fee), math.ceil((arrival - game.tick) / 60) })

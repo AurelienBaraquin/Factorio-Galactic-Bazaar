@@ -57,14 +57,28 @@ The export price floor is per chest; its interface comes with #19.
 
 Defined in `prototypes/technologies.lua`. The orbital capsule is added to it when it exists (#20). Research itself always happens in the player's labs.
 
-## Orbital capsule (delivery tier 1)
+## Delivery tiers (orbital capsule, cargo shuttle, teleporter)
 
-Purchases are delivered by logistics tier ([ADR-0006](adr/0006-deliveries-by-logistics-tier.md)).
-The orbital capsule is the tier unlocked with the hub. Code: `scripts/freight.lua`, with the pure
-scheduling in `scripts/core/freight.lua`; parameters in `freight.TIERS.capsule`.
+Purchases are delivered by logistics tier ([ADR-0006](adr/0006-deliveries-by-logistics-tier.md));
+each hub ships by the best tier its buildings provide, the orbital capsule otherwise
+([ADR-0014](adr/0014-delivery-tier-per-hub.md)). Code: `scripts/freight.lua`, with the pure
+scheduling and the tier parameters in `scripts/core/freight.lua` (`freight.TIERS`).
 
-| | |
-|---|---|
+| Tier | Rank | Delay | One shipment every | Capacity | Fee | Queue bound | Provided by |
+|---|---|---|---|---|---|---|---|
+| `capsule` | 1 | 1800 ticks (30 s) | 600 ticks (10 s) | 10 stacks | 5 % | 20 | always |
+| `shuttle` | 2 | 1200 ticks (20 s) | 300 ticks (5 s) | 40 stacks | 3 % | 20 | a fuelled docking bay (#65) |
+| `teleporter` | 3 | 60 ticks (1 s) | 60 ticks (1 s) | 20 stacks | 1 % | 20 | a powered teleporter (#66) |
+
+A module providing a tier registers `freight.register_tier_provider(fn)` at file scope,
+`fn(hub_unit_number)` returning a tier name or nil with no side effect; `freight.tier(hub_unit_number)`
+gives the hub's tier. An order is scheduled, charged and bounded with the tier at order time and each
+shipment records it. Each tier launches on its own schedule and has its own queue bound
+(`freight.queued(hub, tier)`), and unloading takes every landed shipment, so tiers never hold each
+other back. The market window's status line shows the tier and its queue; a purchase from it is
+refused (`tier-changed`) when the tier changed since the window showed it. The rows below describe the capsule; the
+other tiers differ only by their parameters.
+
 | Payment | at order time: the market cost plus `fee_rate` (5 %) of it, journaled as a `buy` and a `freight` entry; refused whole if the balance does not cover both. Each capsule records the force that paid and the market price paid per unit |
 | Capsules | an order is split into capsules of at most `capacity_stacks` (10) stacks of the item |
 | Throughput | each hub launches one capsule every `launch_interval_ticks` (600, 10 s), so at most 1 stack a second per hub |

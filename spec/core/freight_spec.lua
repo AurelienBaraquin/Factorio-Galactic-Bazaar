@@ -60,3 +60,18 @@ describe("freight.schedule", function()
     end
   end)
 end)
+
+describe("freight.best", function()
+  it("picks the highest-ranked available tier, the capsule by default", function()
+    assert.are.equal("capsule", freight.best({}).name)
+    assert.are.equal("shuttle", freight.best({ "shuttle", "unknown" }).name)
+    assert.are.equal("teleporter", freight.best({ "shuttle", "teleporter", "capsule" }).name)
+  end)
+
+  it("ranks tiers by throughput: each one ships more stacks per minute than the one below", function()
+    local function stacks_per_minute(t) return t.capacity_stacks * 3600 / t.launch_interval_ticks end
+    assert.is_true(stacks_per_minute(freight.TIERS.shuttle) > stacks_per_minute(freight.TIERS.capsule))
+    assert.is_true(stacks_per_minute(freight.TIERS.teleporter) > stacks_per_minute(freight.TIERS.shuttle))
+    assert.is_true(freight.TIERS.teleporter.delay_ticks < freight.TIERS.shuttle.delay_ticks)
+  end)
+end)

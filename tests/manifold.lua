@@ -94,7 +94,7 @@ describe("manifold module", function()
     tank.insert_fluid({ name = "water", amount = 100 })
     local chest = place("gb-import-chest", -3)
     assert.is_true(freight.order(game.forces.player.index, hub.unit_number, "iron-gear-wheel", 10))
-    freight.on_unload_tick({ tick = arrival + freight.TIER.launch_interval_ticks })
+    freight.on_unload_tick({ tick = arrival + freight.TIERS.capsule.launch_interval_ticks })
     assert.are.equal(10, chest.get_item_count("iron-gear-wheel"))
     assert.are.equal(1, freight.queued(hub.unit_number))
     player_state().markets["item/iron-gear-wheel"] = nil
