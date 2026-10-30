@@ -45,8 +45,9 @@ end
 --- Buys `units` × `name` for a force and queues them at a hub. Pays the market cost and the freight
 --- fee, or changes nothing. Returns true, the cost, the fee and the landing tick of the last
 --- capsule; or false and a reason (no-import-chest, queue-full, invalid-quantity, a market refusal,
---- insufficient-funds). `merge_ticks` (optional) merges the journal entries of recurring orders.
-function freight.order(force_index, hub_unit_number, name, units, merge_ticks)
+--- insufficient-funds, over-budget). `merge_ticks` (optional) merges the journal entries of recurring
+--- orders; `max_cost` (optional) refuses an order whose cost and fee exceed it.
+function freight.order(force_index, hub_unit_number, name, units, merge_ticks, max_cost)
   local item = prototypes.item[name]
   if not item then return false, "not-tradeable" end
   if not cargo.has_import(hub_unit_number) then return false, "no-import-chest" end
@@ -56,6 +57,7 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks)
   if not capsules then return false, next_launch end
   local cost, fee = freight.preview(force_index, name, units)
   if not cost then return false, fee end
+  if max_cost and cost + fee > max_cost then return false, "over-budget" end
   local state = storage.forces[force_index]
   if state.balance < cost + fee then return false, "insufficient-funds" end
   local bought, paid = market.buy(force_index, "item", name, units, nil, merge_ticks)

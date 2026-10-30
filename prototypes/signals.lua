@@ -22,6 +22,14 @@ data:extend({
     subgroup = "virtual-signal",
     order = "z[galactic-bazaar]-a[credits]",
   },
+  {
+    type = "virtual-signal",
+    name = "gb-budget",
+    icon = "__base__/graphics/icons/coin.png",
+    icon_size = 64,
+    subgroup = "virtual-signal",
+    order = "z[galactic-bazaar]-b[budget]",
+  },
 })
 
 for _, spec in ipairs(COMBINATORS) do

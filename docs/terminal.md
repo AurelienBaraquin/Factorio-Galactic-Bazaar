@@ -128,6 +128,8 @@ parsing and budget in `scripts/core/orders.lua`; prototype in `prototypes/signal
 | Recipe | 1 constant combinator + 5 electronic circuits, 2 s |
 | Technology | `gb-market-orders` (after market signals; 150 × red and green) |
 | Hub | attached like the other modules (`circuit_orders.HUB_RANGE`, 10 tiles); orders only through a powered hub of its force |
-| Reading | every `circuit_orders.ORDER_TICKS` (600, 10 s), its red and green inputs: each positive normal-quality item signal asks to buy that many units; the `gb-credits` virtual signal, when positive, is the period's budget |
-| Orders | in name order, each placed with `freight.order` (capsule delivery, freight fee) only if its cost and fee fit in what is left of the budget: the Credits signal, otherwise `orders.BUDGET_SHARE` (10 %) of the balance, never more than the balance; refused orders (queue full, no import chest, not tradeable) are skipped |
+| Reading | every `circuit_orders.ORDER_TICKS` (600, 10 s), spread over `SLOTS` (10) passes of `PASS_TICKS` (60) by unit number: its red and green inputs, after removing any section or output put on it (a combinator that had to be silenced skips that reading); each positive normal-quality item signal asks to buy that many units |
+| Budget | nothing is bought without a positive `gb-budget` signal; its value caps what the force spends through order combinators in the period (`storage.circuit_orders.spent`), within the balance; an input carrying `gb-credits` (a price combinator's balance) is refused whole |
+| Orders | in name order, each placed with `freight.order` (capsule delivery, freight fee, refused when it exceeds what is left of the budget: `over-budget`); a full capsule queue or a hub without import chest stops the combinator's orders for the period |
+| Budget (UPS) | a pass with 50 combinators asking for 5 items each: 0.09 ms in vanilla, 0.13 ms with Space Age (2.1.24) — budget 0.2 ms |
 | Journal | `buy` and `freight` entries merged per item and minute (`circuit_orders.JOURNAL_MERGE_TICKS`) |

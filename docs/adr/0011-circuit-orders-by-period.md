@@ -23,19 +23,25 @@ persist from tick to tick; an entity that acted on every tick would buy sixty ti
 ## Decision
 
 Option 2. An order combinator (a copy of the constant combinator that the script only reads: it
-emits nothing and players cannot open it) reads its red and green inputs every 10 s. Each positive
-normal-quality item signal buys that many units through the orbital capsule (ADR-0006) of the
-nearest powered hub of its force in range (ADR-0005), in name order, each order only if it fits in
-the period's budget: the value of the Credits signal on its input when present, otherwise a tenth of
-the balance, never more than the balance. Untradeable, negative, fluid and quality signals are
-ignored. Recurring orders merge their journal entries per item and minute.
+emits nothing, players cannot open it, and signals pasted or blueprinted onto it are removed before
+it is read) reads its red and green inputs every 10 s, the combinators of a force spread over ten
+passes. Each positive normal-quality item signal buys that many units through the orbital capsule
+(ADR-0006) of the nearest powered hub of its force in range (ADR-0005), in name order. **Nothing is
+bought without a positive Budget signal** (`gb-budget`, a signal of its own): its value caps what
+the force spends through all its order combinators in the period, never more than the balance, and
+a zero or negative value pauses buying. An input that carries the Credits signal of price
+combinators (ADR-0010) is refused whole: its item signals are prices, not orders. Untradeable,
+negative, fluid and quality signals are ignored. Recurring orders merge their journal entries per
+item and minute.
 
 ## Consequences
 
-- Positive: no order can repeat faster than every 10 s; spending per period is capped by default
-  and adjustable by circuit; the capsule queue bound (20 per hub) stops runaway buying when the
-  import chests fill up.
+- Positive: no order can repeat faster than every 10 s; spending per period is capped per force by
+  an explicit signal, so a miswired network buys nothing; the capsule queue bound (20 per hub) stops
+  runaway buying when the import chests fill up; a pass costs 0.09–0.13 ms with 50 combinators.
 - Trade-offs accepted: an order waits up to 10 s; a signal left on keeps buying every period until
-  its budget or the capsule queue stops it; selling by circuit stays with export chests gated by
+  its budget or the capsule queue stops it; goods in flight are not counted, so stock-keeping
+  designs overshoot by what lands within 30 s; removing a hub sells its queued capsules back
+  (ADR-0006); selling by circuit stays with export chests gated by
   inserters (price combinators give the information).
 - Follow-up: fluids and electricity once their modules exist.

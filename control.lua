@@ -99,7 +99,7 @@ every(market_gui.SLOT_TICKS, market_gui.on_refresh_tick)
 every(freight.UNLOAD_INTERVAL, freight.on_unload_tick)
 every(power.SETTLE_TICKS, power.on_settle_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
-every(circuit_orders.ORDER_TICKS, circuit_orders.on_order_tick)
+every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 for ticks, handlers in pairs(periodic) do
   script.on_nth_tick(ticks, function(event)
     for _, handler in ipairs(handlers) do handler(event) end
@@ -107,7 +107,10 @@ for ticks, handlers in pairs(periodic) do
 end
 
 script.on_event(market_gui.INPUT, market_gui.on_open_input)
-script.on_event(defines.events.on_entity_settings_pasted, price_signals.on_settings_pasted)
+script.on_event(defines.events.on_entity_settings_pasted, function(event)
+  price_signals.on_settings_pasted(event)
+  circuit_orders.on_settings_pasted(event)
+end)
 script.on_event(defines.events.on_gui_click, market_gui.on_gui_click)
 script.on_event(defines.events.on_gui_text_changed, market_gui.on_gui_text_changed)
 script.on_event(defines.events.on_gui_closed, market_gui.on_gui_closed)
