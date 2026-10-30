@@ -68,11 +68,11 @@ scheduling and the tier parameters in `scripts/core/freight.lua` (`freight.TIERS
 |---|---|---|---|---|---|---|---|
 | `capsule` | 1 | 1800 ticks (30 s) | 600 ticks (10 s) | 10 stacks | 5 % | 20 | always |
 | `shuttle` | 2 | 1200 ticks (20 s) | 300 ticks (5 s) | 40 stacks | 3 % | 20 | a docking bay holding fuel (100 MJ per shipment) |
-| `teleporter` | 3 | 60 ticks (1 s) | 60 ticks (1 s) | 20 stacks | 1 % | 20 | a powered teleporter (#66) |
+| `teleporter` | 3 | 60 ticks (1 s) | 60 ticks (1 s) | 20 stacks | 1 % | 20 | a powered teleporter (20 MW) |
 
 A module providing a tier registers `freight.register_tier_provider({tier, available, can_supply,
 supply})` at file scope (`available(hub)` and `can_supply(hub, shipments)` without side effect,
-`supply(hub, shipments)` after payment); an order a tier cannot supply, or whose queue is full, falls back to the next tier (`freight.tier_for(hub, name, units, kind)` gives the tier an order would ship by); `freight.tier(hub_unit_number)`
+`supply(hub, shipments)` after payment, `delivers(hub)` true, false or nil to hold queued shipments); an order a tier cannot supply, or whose queue is full, falls back to the next tier (`freight.tier_for(hub, name, units, kind)` gives the tier an order would ship by); `freight.tier(hub_unit_number)`
 gives the hub's tier. An order is scheduled, charged and bounded with the tier at order time and each
 shipment records it. Each tier launches on its own schedule and has its own queue bound
 (`freight.queued(hub, tier)`), and unloading takes every landed shipment, so tiers never hold each
@@ -201,3 +201,17 @@ Gives its hub the cargo shuttle tier (#65, [ADR-0014](adr/0014-delivery-tier-per
 | Tier | the hub has the shuttle while its bays hold at least `FUEL_MJ_PER_SHIPMENT` (100 MJ, one rocket fuel); an order needing more shipments than the fuel covers, or finding the shuttle's queue full, goes by the next tier (orbital capsule), burning nothing. The market window plans the tier for the quantity typed and names it in the preview |
 | Budget | a tier read of a hub with 5 bays among 50: 0.06 ms (2.1.24) — budget 0.1 ms |
 | Burning | when a shuttle order is paid, `shipments × 100 MJ` are burnt from the bays in unit-number order: each bay's buffer first, then whole items in name order; what the last item gives beyond the need goes to the bay's buffer (lost if the bay is removed) |
+
+## Teleporter (`gb-teleporter`)
+
+Gives its hub the teleporter tier (#66, [ADR-0014](adr/0014-delivery-tier-per-hub.md)). Code:
+`scripts/teleporter.lua`; prototype: `prototypes/teleporter.lua`.
+
+| | |
+|---|---|
+| Prototype | an `electric-energy-interface` derived from the base one, tinted violet, drawing 20 MW (`secondary-input`, 40 MJ buffer) |
+| Recipe | 100 processing units, 50 low density structures, 200 steel plates, 30 s |
+| Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × the five vanilla packs) |
+| Hub | attached like the other modules (`teleporter.HUB_RANGE`, 10 tiles), indexed per hub (`storage.teleporters.by_hub`) |
+| Tier | the hub has the teleporter while one of its teleporters of its force holds at least `POWERED_SHARE` (half) of its buffer |
+| Without power | the hub's teleporter shipments already queued do not land until a teleporter is powered again (`delivers`) |

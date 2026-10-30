@@ -55,7 +55,7 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   exist, re-attaches the others) and `freight.init` (settles the queues of hubs that no longer
   exist).
 - **Building events**: `control.lua` routes every way an entity can appear (filtered to the mod's
-  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, `manifold.on_built` for a fluid manifold, `docking_bay.on_built` for a docking bay, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
+  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, `manifold.on_built` for a fluid manifold, `docking_bay.on_built` for a docking bay, `teleporter.on_built` for a teleporter, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.

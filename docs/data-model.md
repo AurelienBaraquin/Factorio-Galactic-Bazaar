@@ -144,6 +144,14 @@ attached to each hub ([terminal.md](terminal.md)). Written by `scripts/docking_b
 on build events, hub build and removal, force merge, orders and `on_object_destroyed`; invalid
 entries are dropped and the others re-attached on `on_configuration_changed`.
 
+## `storage.teleporters`
+
+`{modules = {[unit_number] = {entity, hub}}, by_hub = {[hub unit_number] = {[unit_number] = true}}}`
+— every teleporter and the teleporters attached to each hub ([terminal.md](terminal.md)). Written by
+`scripts/teleporter.lua` (through `hubs.attach_indexed`) on build events, hub build and removal,
+force merge and `on_object_destroyed`; invalid entries are dropped and the index rebuilt on
+`on_configuration_changed`.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market
