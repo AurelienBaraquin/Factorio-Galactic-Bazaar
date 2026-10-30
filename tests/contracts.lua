@@ -19,22 +19,26 @@ end
 
 describe("contracts", function()
   before_each(function()
-    storage.gb_test_contracts = { balance = state().balance, reputation = state().reputation }
+    storage.gb_test_contracts = {
+      balance = state().balance, reputation = state().reputation, history = #state().contracts.history,
+    }
     state().balance = 1000
   end)
   after_each(function()
     local saved = storage.gb_test_contracts
     if saved then
       state().balance, state().reputation = saved.balance, saved.reputation
+      local history = state().contracts.history
+      while #history > saved.history do table.remove(history) end
       storage.gb_test_contracts = nil
     end
     state().contracts.open = {}
   end)
 
-  test("hold the deposit on acceptance, and pay reward and deposit once fulfilled", function()
+  test("hold deposit and penalty on acceptance, and give them back with the reward once fulfilled", function()
     local id = contracts.offer(force_index(), spec())
     assert.is_true(contracts.accept(force_index(), id))
-    assert.are.equal(900, state().balance)
+    assert.are.equal(700, state().balance)
     assert.are.equal(5, contracts.deliver(force_index(), id, "item/iron-gear-wheel", 7))
     local reputation = state().reputation
     contracts.on_settle_tick({ tick = game.tick })
@@ -44,23 +48,31 @@ describe("contracts", function()
     assert.are.equal(core.FULFILLED, state().contracts.history[#state().contracts.history].state)
   end)
 
-  test("refuse an acceptance the force cannot pay for, changing nothing", function()
-    state().balance = 50
+  test("refuse an acceptance the force cannot guarantee, changing nothing", function()
+    state().balance = 250
     local id = contracts.offer(force_index(), spec())
     assert.are.same({ false, "insufficient-funds" }, { contracts.accept(force_index(), id) })
     assert.are.equal(core.OFFERED, contracts.get(force_index(), id).state)
-    assert.are.equal(50, state().balance)
+    assert.are.equal(250, state().balance)
   end)
 
-  test("fail a late contract: the deposit is lost and the penalty taken, at most the balance", function()
+  test("fail a late contract: the guarantee is kept even if the force spent everything else", function()
     local id = contracts.offer(force_index(), spec())
     contracts.accept(force_index(), id)
-    state().balance = 150
+    state().balance = 0
     local reputation = state().reputation
     contracts.on_settle_tick({ tick = game.tick + 601 })
     assert.are.equal(0, state().balance)
     assert.are.equal(reputation - 1, state().reputation)
     assert.is_nil(state().contracts.open[id])
+    local journal = state().journal
+    assert.are.equal("contract-failed", journal[#journal].kind)
+  end)
+
+  test("let an offer be declined", function()
+    local id = contracts.offer(force_index(), spec())
+    assert.is_true(contracts.decline(force_index(), id))
+    assert.is_nil(contracts.get(force_index(), id))
   end)
 
   test("expire an offer nobody accepted, and fail an abandoned contract", function()
@@ -80,11 +92,8 @@ describe("contracts", function()
     contracts.accept(source.index, id)
     game.merge_forces(source, "player")
     after_ticks(1, function()
-      local carried = 0
-      for _, contract in pairs(state().contracts.open) do
-        if contract.state == core.ACTIVE then carried = carried + 1 end
-      end
-      assert.are.equal(1, carried)
+      local carried = contracts.get(force_index(), id)
+      assert.are.equal(core.ACTIVE, carried and carried.state)
     end)
   end)
 
