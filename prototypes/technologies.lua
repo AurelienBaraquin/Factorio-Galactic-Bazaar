@@ -51,4 +51,20 @@ data:extend({
       time = 30,
     },
   },
+  {
+    type = "technology",
+    name = "gb-market-signals",
+    icons = data.raw.item["gb-sell-price-combinator"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-galactic-bazaar", "circuit-network" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-buy-price-combinator" },
+      { type = "unlock-recipe", recipe = "gb-sell-price-combinator" },
+    },
+    unit = {
+      count = 100,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 15,
+    },
+  },
 })

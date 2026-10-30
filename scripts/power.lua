@@ -42,9 +42,7 @@ function power.init()
     if not module.entity.valid then gone[#gone + 1] = unit_number end
   end
   for _, unit_number in ipairs(gone) do storage.power.modules[unit_number] = nil end
-  for _, module in pairs(storage.power.modules) do
-    module.hub = hubs.nearest(module.entity, power.HUB_RANGE)
-  end
+  for _, module in pairs(storage.power.modules) do hubs.attach(module, power.HUB_RANGE) end
 end
 
 --- Registers a newly built substation; returns true when the entity was one.
@@ -54,15 +52,11 @@ function power.on_built(entity)
   neutralise(entity)
   -- A new substation starts empty; a clone would otherwise copy energy that could then be sold.
   entity.energy = 0
-  storage.power.modules[entity.unit_number] = {
-    entity = entity, kind = kind, hub = hubs.nearest(entity, power.HUB_RANGE),
-  }
+  local module = { entity = entity, kind = kind }
+  hubs.attach(module, power.HUB_RANGE)
+  storage.power.modules[entity.unit_number] = module
   script.register_on_object_destroyed(entity)
   return true
-end
-
-local function attach(module)
-  if module.entity.valid then module.hub = hubs.nearest(module.entity, power.HUB_RANGE) end
 end
 
 --- A hub appeared: substations in its range move to it if it is now their nearest hub.
@@ -74,20 +68,20 @@ function power.on_hub_built(hub)
   })
   for _, entity in ipairs(nearby) do
     local module = storage.power.modules[entity.unit_number]
-    if module then attach(module) end
+    if module then hubs.attach(module, power.HUB_RANGE) end
   end
 end
 
 --- A hub disappeared: its substations look for another hub in range.
 function power.on_hub_removed(hub_unit_number)
   for _, module in pairs(storage.power.modules) do
-    if module.hub == hub_unit_number then attach(module) end
+    if module.hub == hub_unit_number then hubs.attach(module, power.HUB_RANGE) end
   end
 end
 
 --- on_forces_merged: substations now belong to the merged force and may use its hubs.
 function power.on_forces_merged()
-  for _, module in pairs(storage.power.modules) do attach(module) end
+  for _, module in pairs(storage.power.modules) do hubs.attach(module, power.HUB_RANGE) end
 end
 
 --- Forgets a destroyed substation; returns true when the unit number was one.
@@ -107,23 +101,6 @@ function power.watts(force)
   return watts
 end
 
--- The hub a substation trades through: its attached hub while it has power and belongs to the
--- substation's force; otherwise the nearest powered hub of its force in range, which it attaches to.
--- nil when none; a substation without any hub in range waits for one to be built (no search).
-local function trading_hub(module)
-  if not module.hub then return nil end
-  local entity = module.entity
-  local hub = hubs.get(module.hub)
-  if hub and hub.force == entity.force and hubs.has_power(hub) then return hub end
-  local powered = hubs.nearest(entity, power.HUB_RANGE, true)
-  if powered then
-    module.hub = powered
-    return hubs.get(powered)
-  end
-  if not (hub and hub.force == entity.force) then attach(module) end
-  return nil
-end
-
 -- The substations that can trade now, grouped by force and direction, neutralised and with their
 -- buffers sized for the force's level.
 local function trading_groups()
@@ -131,7 +108,7 @@ local function trading_groups()
   local buffers = {}
   for _, module in pairs(storage.power.modules) do
     local entity = module.entity
-    if entity.valid and trading_hub(module) then
+    if entity.valid and hubs.trading_hub(module, power.HUB_RANGE) then
       neutralise(entity)
       local force = entity.force
       buffers[force.index] = buffers[force.index] or power.watts(force) * power.SETTLE_TICKS / 60

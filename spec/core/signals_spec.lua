@@ -1,0 +1,21 @@
+local signals = require("scripts.core.signals")
+
+describe("signals", function()
+  it("emits prices in milli-credits, rounded", function()
+    assert.are.equal(1320, signals.price(1.32))
+    assert.are.equal(1, signals.price(0.001))
+    assert.are.equal(0, signals.price(0.0004))
+  end)
+
+  it("emits the balance in whole credits", function()
+    assert.are.equal(1234, signals.balance(1234.4))
+    assert.are.equal(-5, signals.balance(-5.2))
+  end)
+
+  it("clamps to the 32-bit range and maps NaN to zero", function()
+    assert.are.equal(signals.INT32_MAX, signals.price(1e9))
+    assert.are.equal(signals.INT32_MAX, signals.balance(1e12))
+    assert.are.equal(signals.INT32_MIN, signals.balance(-1e12))
+    assert.are.equal(0, signals.balance(0 / 0))
+  end)
+end)

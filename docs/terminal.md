@@ -97,3 +97,21 @@ Code: `scripts/power.lua`; prototypes: `prototypes/power.lua`.
 Energy prepaid into an import substation is lost when it is mined. The substations share the
 tertiary tier with accumulators: on a shortage they discharge alongside the player's accumulators,
 and on a surplus they take a share of the charge.
+
+## Price signal combinators (`gb-buy-price-combinator`, `gb-sell-price-combinator`)
+
+Constant combinators whose signals the script writes ([ADR-0010](adr/0010-price-signals-from-script-written-combinators.md));
+the player-facing explanation is [player-guide.md](player-guide.md). Code: `scripts/price_signals.lua`,
+scaling in `scripts/core/signals.lua`; prototypes: `prototypes/signals.lua`.
+
+| | |
+|---|---|
+| Prototypes | copies of the constant combinator, tinted green (buy) and orange (sell); the virtual signal `gb-credits` |
+| Recipe | 1 constant combinator + 5 electronic circuits, 2 s |
+| Technology | `gb-market-signals` (after the Galactic Bazaar and circuit network; 100 × red and green) |
+| Hub | attached like the power substations: nearest hub of the force within `price_signals.HUB_RANGE` (10 tiles), re-checked at each visit; silent (`enabled = false`) without a powered one |
+| Signals | section 1: buy or sell price of every item in `storage.tradeable_items` and fluid in `storage.tradeable_fluids`, normal quality, in milli-credits; section 2: the balance on `gb-credits` in credits, read live at each visit (`signals.price`, `signals.balance`: rounded, clamped to int32, zero values left out) |
+| Snapshot | per force, taken again when older than `price_signals.UPDATE_TICKS` (600, 10 s), quoting `SNAPSHOT_CHUNK` (40) keys per pass from the item and fluid lists captured when it started; combinators keep the last complete snapshot; its version changes only when a price changed. Reading every price keeps a market entry per key and force up to date (`storage.forces[i].markets`) |
+| Writing | every `PASS_TICKS` (6), up to `VISITS` (10) combinators are visited in turn, the pass stopping after one price rewrite (a whole `filters` write); the balance slot is set when it changed. Prices thus reach every combinator within 10 s plus 0.1 s per combinator to rewrite |
+| Integrity | players cannot open it (`operable = false`); a combinator is registered once; any section that is not one of the script's two plain sections (blueprint, pasted settings, another mod: a group, inactive, a multiplier) is replaced at the next visit; pasted settings force a rewrite |
+| Budget | costliest pass (one price rewrite): 0.2–0.5 ms; average pass during a rebuild: 0.17–0.29 ms (2.1.24, vanilla and Space Age) — budgets 0.6 ms and 0.3 ms |

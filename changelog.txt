@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.5
+Date: 2026-10-30
+  Features:
+    - Buy and sell price combinators: every market price (in milli-credits) and the balance (in credits) on the circuit network.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.4
 Date: 2026-10-30
   Features:
