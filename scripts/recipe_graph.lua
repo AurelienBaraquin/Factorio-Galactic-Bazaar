@@ -107,17 +107,38 @@ local function tradeable_keys()
   return keys
 end
 
--- Items burnt as chemical fuel (boilers, furnaces), with their energy in joules.
+-- Items burnt as chemical fuel (boilers, furnaces), with their energy in joules. A fuel that leaves a
+-- burnt result is left out: its by-product would make electricity look cheaper than it is.
 local function copy_fuels()
   local fuels = {}
   for name, item in pairs(prototypes.item) do
     local chemical = false
     for _, category in ipairs(item.fuel_categories or {}) do chemical = chemical or category == "chemical" end
-    if chemical and item.fuel_value > 0 and recipe_graph.is_tradeable("item", name) then
+    if chemical and item.fuel_value > 0 and not item.burnt_result and recipe_graph.is_tradeable("item", name) then
       fuels[#fuels + 1] = { item = name, joules = item.fuel_value }
     end
   end
   return fuels
+end
+
+-- Electricity made from one joule of chemical fuel with the best equipment available: the most
+-- efficient visible chemical burner that makes steam or heat (boiler 1, Space Age heating tower 2.5,
+-- burner generator) times the most efficient steam generator.
+local function fuel_to_electricity()
+  local burner_efficiency, generator_efficiency = 0, 0
+  local burners = prototypes.get_entity_filtered({
+    { filter = "type", type = { "boiler", "reactor", "burner-generator" } },
+  })
+  for _, entity in pairs(burners) do
+    local burner = entity.burner_prototype
+    if not entity.hidden and burner and burner.fuel_categories.chemical then
+      burner_efficiency = math.max(burner_efficiency, burner.effectivity)
+    end
+  end
+  for _, entity in pairs(prototypes.get_entity_filtered({ { filter = "type", type = "generator" } })) do
+    if not entity.hidden then generator_efficiency = math.max(generator_efficiency, entity.effectivity) end
+  end
+  return burner_efficiency * generator_efficiency
 end
 
 -- Items that yield something when launched in a rocket, with the rocket parts one launch needs: the
@@ -151,6 +172,7 @@ function recipe_graph.extract()
     tile_fluids = copy_tile_fluids(),
     launches = copy_launches(),
     fuels = copy_fuels(),
+    fuel_to_electricity = fuel_to_electricity(),
     keys = tradeable_keys(),
   }
 end

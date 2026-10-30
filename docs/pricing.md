@@ -83,10 +83,12 @@ script.on_configuration_changed(set_values)
 ## Electricity
 
 Electricity is the key `energy/electricity`, in megajoules ([ADR-0009](adr/0009-power-trading-by-tertiary-substations.md)).
-Each tradeable chemical fuel gets a main-tier recipe `burn/<fuel>` giving its fuel value in MJ times
-`recipe_graph.ELECTRICITY_PER_FUEL_MJ` (1: boilers and steam engines have an efficiency of 1 in
-2.1), so electricity is worth the cheapest chemical fuel per megajoule: 0.050 credit/MJ in vanilla,
-0.033 with Space Age (2.1.24). Nuclear fuel is left out. Remote overrides do not take `energy` keys;
+Each tradeable chemical fuel without a burnt result gets a main-tier recipe `burn/<fuel>` giving
+its fuel value in MJ times the best fuel-to-electricity efficiency available (`raw.fuel_to_electricity`:
+the most efficient visible chemical boiler, reactor or burner generator times the most efficient
+steam generator — 1 in vanilla, 2.5 with Space Age's heating tower), so electricity is worth the
+cheapest chemical fuel per megajoule at that efficiency: 0.050 credit/MJ in vanilla, 0.013 with
+Space Age (2.1.24). Nuclear fuel is left out. Remote overrides do not take `energy` keys;
 the multiplier and fuel overrides reach electricity.
 
 ## Quality

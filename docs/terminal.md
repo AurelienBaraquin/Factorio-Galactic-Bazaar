@@ -87,9 +87,13 @@ Code: `scripts/power.lua`; prototypes: `prototypes/power.lua`.
 | Prototypes | two 2×2 `electric-energy-interface`s, tinted orange (export) and green (import), `tertiary` priority like accumulators: export charges only from the network's surplus (input 40 MW, output 0), import discharges only on shortage (input 0, output 40 MW) |
 | Recipe | 10 steel plates, 10 electronic circuits, 20 copper cables, 5 s |
 | Technology | `gb-power-trading` (after the Galactic Bazaar and electric energy distribution 1; 150 × red and green) unlocks both, at 10 MW each; `gb-power-trading-2` (after electric energy distribution 2; 300 × red, green, blue) raises them to 40 MW |
-| Hub | a powered hub of the same force within `power.HUB_RANGE` (10 tiles), looked up at each settlement; without one the substation does not trade |
+| Hub | the nearest hub of the same force within `power.HUB_RANGE` (10 tiles), attached when the substation is built, when a hub is built or removed nearby, on force merge and on configuration change; at a settlement, a substation whose hub has no power or another force switches to the nearest powered hub in range; without a hub in range it does not trade, and costs no search until a hub is built |
 | Settlement | every `power.SETTLE_TICKS` (300, 5 s): per force, the export buffers are sold in one trade while electricity fetches at least `power.MIN_PRICE_RATIO` (0.5) × its base value (unsold energy stays), and the import buffers are refilled in one trade, scaled down to what the force can pay and the market can supply |
 | Throughput | the buffer size, set at each settlement to the level's power × 5 s (`power.LEVEL_WATTS`: 10 MW, 40 MW); runtime flow limits cannot be changed in 2.1, so the prototype's are the highest level's |
-| Journal | one `sell` and one `buy` entry of `energy/electricity` per force per settlement, quantity in MJ |
+| Journal | per force, one `sell` and one `buy` entry of `energy/electricity` per minute (`power.JOURNAL_MERGE_TICKS`), the settlements of that minute merged into it, quantity in MJ |
+| Integrity | production and usage settings zeroed when built and at each settlement; a new or cloned substation starts empty |
+| Budget | 0.35–0.8 ms per settlement of 199 substations (40 around one hub), measured on 2.1.24 — budget 1 ms every 5 s |
 
-Energy prepaid into an import substation is lost when it is mined.
+Energy prepaid into an import substation is lost when it is mined. The substations share the
+tertiary tier with accumulators: on a shortage they discharge alongside the player's accumulators,
+and on a surplus they take a share of the charge.

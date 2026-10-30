@@ -27,7 +27,10 @@ script.on_event(defines.events.on_forces_merging, function(event)
   freight.on_forces_merging(event)
   forces.on_forces_merging(event)
 end)
-script.on_event(defines.events.on_forces_merged, cargo.on_forces_merged)
+script.on_event(defines.events.on_forces_merged, function(event)
+  cargo.on_forces_merged(event)
+  power.on_forces_merged(event)
+end)
 
 -- Every way an entity can appear, filtered to the mod's buildings.
 local BUILT_EVENTS = {
@@ -50,6 +53,7 @@ local function on_built(event)
   if not (entity and entity.valid) then return end
   if hubs.on_built(entity) then
     cargo.on_hub_built(entity)
+    power.on_hub_built(entity)
   elseif not power.on_built(entity) then
     cargo.on_built(entity)
   end
@@ -63,6 +67,7 @@ script.on_event(defines.events.on_object_destroyed, function(event)
   if event.type ~= defines.target_type.entity then return end
   if hubs.forget(event.useful_id) then
     cargo.on_hub_removed(event.useful_id)
+    power.on_hub_removed(event.useful_id)
     freight.on_hub_removed(event.useful_id)
     market_gui.on_hub_removed(event.useful_id)
   elseif not power.forget(event.useful_id) then

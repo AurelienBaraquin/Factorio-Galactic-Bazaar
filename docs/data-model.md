@@ -12,7 +12,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | Field | Type | Meaning |
 |---|---|---|
 | `balance` | number | credits held by the force; never negative |
-| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance` |
+| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into a recent entry of the same kind and key, which then holds the totals, its last tick and the balance after it |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
@@ -100,10 +100,11 @@ the queues of hubs that no longer exist are sold back.
 
 ## `storage.power`
 
-`{modules = {[unit_number] = {entity, kind = "export"|"import"}}}` — every power substation
-([terminal.md](terminal.md), ADR-0009). Written by `scripts/power.lua` on build events and
-`on_object_destroyed`; invalid entries are dropped on `on_configuration_changed`. The hub a
-substation trades through is looked up at each settlement, not stored.
+`{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil}}}` —
+every power substation ([terminal.md](terminal.md), ADR-0009). Written by `scripts/power.lua` on
+build events, hub build and removal, force merge and `on_object_destroyed`; invalid entries are
+dropped and every substation re-attached on `on_configuration_changed`. `hub` is a hint, re-checked
+at each settlement.
 
 ## `storage.players`
 

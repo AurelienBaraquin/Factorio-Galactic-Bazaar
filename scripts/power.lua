@@ -1,10 +1,13 @@
 -- The power module (ADR-0009): substations that sell the network's surplus electricity to the
 -- market and buy what it lacks. Each works through the nearest powered hub of its force in range
--- (ADR-0005). Every SETTLE_TICKS, the export substations' buffers are sold and the import
--- substations' buffers refilled, one trade per force and direction. The buffer size, set from the
--- force's research level, caps the throughput. State lives in storage.power.
+-- (ADR-0005): attached when built, when a hub appears or disappears and when forces merge, and
+-- searched again at a settlement only when its hub can no longer trade. Every SETTLE_TICKS,
+-- the export substations' buffers are sold and the import substations' buffers refilled, one trade
+-- per force and direction, journaled as one entry per direction and minute. The buffer size, set
+-- from the force's research level, caps the throughput. State lives in storage.power.
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local settlement = require("scripts.core.power_settlement")
 
 local power = {}
 
@@ -17,10 +20,21 @@ power.MIN_PRICE_RATIO = 0.5
 power.LEVEL_WATTS = { 10e6, 40e6 }
 power.LEVEL_TECHNOLOGIES = { "gb-power-trading", "gb-power-trading-2" }
 
+-- Ticks over which a force's power trades share one journal entry per direction.
+power.JOURNAL_MERGE_TICKS = 3600
+
 local KIND, NAME = "energy", "electricity"
 local JOULES_PER_UNIT = 1e6
 
---- on_init and on_configuration_changed: creates the state and drops substations that no longer exist.
+-- An electric-energy-interface makes or destroys energy by itself when these are set (a blueprint
+-- or another mod could set them): the substations' only energy is what the network exchanges.
+local function neutralise(entity)
+  if entity.power_production ~= 0 then entity.power_production = 0 end
+  if entity.power_usage ~= 0 then entity.power_usage = 0 end
+end
+
+--- on_init and on_configuration_changed: creates the state, drops substations that no longer exist
+--- and re-attaches the others (hubs may have been dropped, or the range changed).
 function power.init()
   storage.power = storage.power or { modules = {} }
   local gone = {}
@@ -28,15 +42,52 @@ function power.init()
     if not module.entity.valid then gone[#gone + 1] = unit_number end
   end
   for _, unit_number in ipairs(gone) do storage.power.modules[unit_number] = nil end
+  for _, module in pairs(storage.power.modules) do
+    module.hub = hubs.nearest(module.entity, power.HUB_RANGE)
+  end
 end
 
 --- Registers a newly built substation; returns true when the entity was one.
 function power.on_built(entity)
   local kind = power.KINDS[entity.name]
   if not kind then return false end
-  storage.power.modules[entity.unit_number] = { entity = entity, kind = kind }
+  neutralise(entity)
+  -- A new substation starts empty; a clone would otherwise copy energy that could then be sold.
+  entity.energy = 0
+  storage.power.modules[entity.unit_number] = {
+    entity = entity, kind = kind, hub = hubs.nearest(entity, power.HUB_RANGE),
+  }
   script.register_on_object_destroyed(entity)
   return true
+end
+
+local function attach(module)
+  if module.entity.valid then module.hub = hubs.nearest(module.entity, power.HUB_RANGE) end
+end
+
+--- A hub appeared: substations in its range move to it if it is now their nearest hub.
+function power.on_hub_built(hub)
+  local names = {}
+  for name in pairs(power.KINDS) do names[#names + 1] = name end
+  local nearby = hub.surface.find_entities_filtered({
+    name = names, force = hub.force, position = hub.position, radius = power.HUB_RANGE,
+  })
+  for _, entity in ipairs(nearby) do
+    local module = storage.power.modules[entity.unit_number]
+    if module then attach(module) end
+  end
+end
+
+--- A hub disappeared: its substations look for another hub in range.
+function power.on_hub_removed(hub_unit_number)
+  for _, module in pairs(storage.power.modules) do
+    if module.hub == hub_unit_number then attach(module) end
+  end
+end
+
+--- on_forces_merged: substations now belong to the merged force and may use its hubs.
+function power.on_forces_merged()
+  for _, module in pairs(storage.power.modules) do attach(module) end
 end
 
 --- Forgets a destroyed substation; returns true when the unit number was one.
@@ -56,14 +107,32 @@ function power.watts(force)
   return watts
 end
 
--- The substations that can trade now, grouped by force and direction, with their buffers sized
--- for the force's level.
+-- The hub a substation trades through: its attached hub while it has power and belongs to the
+-- substation's force; otherwise the nearest powered hub of its force in range, which it attaches to.
+-- nil when none; a substation without any hub in range waits for one to be built (no search).
+local function trading_hub(module)
+  if not module.hub then return nil end
+  local entity = module.entity
+  local hub = hubs.get(module.hub)
+  if hub and hub.force == entity.force and hubs.has_power(hub) then return hub end
+  local powered = hubs.nearest(entity, power.HUB_RANGE, true)
+  if powered then
+    module.hub = powered
+    return hubs.get(powered)
+  end
+  if not (hub and hub.force == entity.force) then attach(module) end
+  return nil
+end
+
+-- The substations that can trade now, grouped by force and direction, neutralised and with their
+-- buffers sized for the force's level.
 local function trading_groups()
   local groups = {}
   local buffers = {}
   for _, module in pairs(storage.power.modules) do
     local entity = module.entity
-    if entity.valid and hubs.nearest(entity, power.HUB_RANGE, true) then
+    if entity.valid and trading_hub(module) then
+      neutralise(entity)
       local force = entity.force
       buffers[force.index] = buffers[force.index] or power.watts(force) * power.SETTLE_TICKS / 60
       if entity.electric_buffer_size ~= buffers[force.index] then
@@ -81,10 +150,9 @@ end
 local function settle_exports(force_index, entities)
   local joules = 0
   for _, entity in ipairs(entities) do joules = joules + entity.energy end
-  if joules <= 0 then return end
-  local units = math.min(joules / JOULES_PER_UNIT, market.sellable(force_index, KIND, NAME, power.MIN_PRICE_RATIO))
-  if units <= 0 or not market.sell(force_index, KIND, NAME, units) then return end
-  local kept = 1 - units * JOULES_PER_UNIT / joules
+  local sellable = joules > 0 and market.sellable(force_index, KIND, NAME, power.MIN_PRICE_RATIO) or 0
+  local units, kept = settlement.export(joules, sellable, JOULES_PER_UNIT)
+  if units <= 0 or not market.sell(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then return end
   for _, entity in ipairs(entities) do entity.energy = entity.energy * kept end
 end
 
@@ -92,20 +160,17 @@ end
 -- the energy bought is shared out in proportion to what each lacks.
 local function settle_imports(force_index, entities)
   local missing = {}
-  local joules = 0
-  for i, entity in ipairs(entities) do
-    missing[i] = math.max(0, entity.electric_buffer_size - entity.energy)
-    joules = joules + missing[i]
-  end
-  local units = math.min(joules / JOULES_PER_UNIT, market.buyable(force_index, KIND, NAME))
-  if units <= 0 then return end
+  for i, entity in ipairs(entities) do missing[i] = math.max(0, entity.electric_buffer_size - entity.energy) end
+  local units, total_missing = settlement.wanted_units(missing, market.buyable(force_index, KIND, NAME),
+    JOULES_PER_UNIT)
+  if not units or units <= 0 then return end
   local cost = market.preview(force_index, KIND, NAME, "buy", units)
-  local balance = storage.forces[force_index].balance
-  -- The cost is convex in the units, so scaling them by balance / cost keeps the cost within it.
-  if cost and cost > balance then units = units * balance / cost end
-  if units <= 0 or not market.buy(force_index, KIND, NAME, units) then return end
-  local share = units * JOULES_PER_UNIT / joules
-  for i, entity in ipairs(entities) do entity.energy = entity.energy + missing[i] * share end
+  if not cost then return end
+  units = settlement.affordable(units, cost, storage.forces[force_index].balance)
+  if units <= 0 or not market.buy(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then return end
+  for i, joules in ipairs(settlement.shares(missing, total_missing, units, JOULES_PER_UNIT)) do
+    entities[i].energy = entities[i].energy + joules
+  end
 end
 
 --- on_nth_tick(SETTLE_TICKS): settles every substation that has a powered hub in range.

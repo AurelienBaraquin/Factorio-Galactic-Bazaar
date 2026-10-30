@@ -4,8 +4,10 @@ local power = require("scripts.power")
 local pricing = require("scripts.pricing")
 
 local surface, created
-local function place(name, x, y)
-  local entity = surface.create_entity({ name = name, position = { x, y or 60 }, force = "player", raise_built = true })
+local function place(name, x, y, force)
+  local entity = surface.create_entity({
+    name = name, position = { x, y or 60 }, force = force or "player", raise_built = true,
+  })
   created[#created + 1] = entity
   return entity
 end
@@ -75,7 +77,7 @@ describe("power module", function()
   test("buys only what the force can pay", function()
     local substation = place("gb-power-import", 3)
     substation.energy = 0
-    player_state().balance = 1
+    player_state().balance = 0.01
     power.on_settle_tick()
     assert.is_true(player_state().balance >= 0)
     assert.is_true(substation.energy > 0 and substation.energy < substation.electric_buffer_size)
@@ -100,16 +102,104 @@ describe("power module", function()
     assert.are.equal(power.LEVEL_WATTS[2] * power.SETTLE_TICKS / 60, substation.electric_buffer_size)
   end)
 
-  test("charges an export substation only from the network's surplus", function()
-    local generator = place("electric-energy-interface", 8)
-    generator.electric_interface_mode = defines.electric_interface_mode.primary_output
-    generator.power_production = 5 * MJ / 60
-    generator.electric_buffer_size = 10 * MJ
+  local function generator(watts)
+    local entity = place("electric-energy-interface", 8)
+    entity.electric_interface_mode = defines.electric_interface_mode.primary_output
+    entity.power_production = watts / 60
+    entity.electric_buffer_size = watts / 60
+    return entity
+  end
+
+  test("charges an export substation from the network's surplus", function()
+    generator(5 * MJ)
     place("medium-electric-pole", 5)
     local substation = place("gb-power-export", 3)
     after_ticks(30, function()
       assert.is_true(substation.energy > 0)
     end)
+  end)
+
+  test("does not charge an export substation while the network lacks power", function()
+    generator(0.05 * MJ)
+    place("medium-electric-pole", 5)
+    place("radar", 11)
+    place("medium-electric-pole", 9)
+    local substation = place("gb-power-export", 3)
+    after_ticks(30, function()
+      assert.are.equal(0, substation.energy)
+    end)
+  end)
+
+  test("does not let an import substation feed an export substation", function()
+    place("medium-electric-pole", 5)
+    local import = place("gb-power-import", 7)
+    local export = place("gb-power-export", 3)
+    import.energy = import.electric_buffer_size
+    after_ticks(30, function()
+      assert.are.equal(0, export.energy)
+      assert.are.equal(import.electric_buffer_size, import.energy)
+    end)
+  end)
+
+  test("neutralises energy made by the substation itself, and starts clones empty", function()
+    local substation = place("gb-power-export", 3)
+    substation.power_production = 10 * MJ / 60
+    substation.energy = 5 * MJ
+    local clone = substation.clone({ position = { 3, 70 } })
+    created[#created + 1] = clone
+    assert.are.equal(0, clone.energy)
+    power.on_settle_tick()
+    assert.are.equal(0, substation.power_production)
+  end)
+
+  test("ignores the hubs of another force", function()
+    hub.destroy()
+    local foreign = place("gb-hub", 0, 60, "enemy")
+    foreign.energy = foreign.electric_buffer_size
+    local substation = place("gb-power-export", 3)
+    substation.energy = 20 * MJ
+    power.on_settle_tick()
+    assert.are.equal(20 * MJ, substation.energy)
+  end)
+
+  test("trades for the destination force after a force merge", function()
+    local source = game.create_force("gb-test-power")
+    local substation = place("gb-power-export", 3, 60, source)
+    substation.energy = 20 * MJ
+    game.merge_forces(source, "player")
+    after_ticks(1, function()
+      power.on_settle_tick()
+      assert.is_true(substation.energy < 1)
+      assert.is_true(player_state().balance > 1e6)
+    end)
+  end)
+
+  test("journals a minute of settlements as one entry per direction", function()
+    local substation = place("gb-power-export", 3)
+    local saved_journal = player_state().journal
+    player_state().journal = {}
+    substation.energy = 20 * MJ
+    power.on_settle_tick()
+    substation.energy = 20 * MJ
+    power.on_settle_tick()
+    local journal = player_state().journal
+    player_state().journal = saved_journal
+    assert.are.equal(1, #journal)
+    assert.is_true(math.abs(journal[1].quantity - 40) < 1e-6)
+  end)
+
+  test("measures a settlement of 200 substations around one hub", function()
+    for i = 0, 199 do
+      local x, y = -6 + (i % 7) * 2, 50 + math.floor(i / 7) * 2
+      if not (x >= -1 and x <= 1 and y >= 59 and y <= 61) then
+        place(i % 2 == 0 and "gb-power-export" or "gb-power-import", x, y).energy = MJ
+      end
+    end
+    power.on_settle_tick()
+    local profiler = helpers.create_profiler()
+    power.on_settle_tick()
+    profiler.stop()
+    log({ "", "[galactic-bazaar] power settlement of ", table_size(storage.power.modules), " substations: ", profiler })
   end)
 
   test("keeps its substations across a save and reload", function()

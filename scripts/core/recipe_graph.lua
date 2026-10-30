@@ -9,6 +9,7 @@
 --   launches    = { {item, products = {Amount...}, part, parts} ... }: what launching `item` in a rocket
 --                 of `parts` × `part` yields
 --   fuels       = { {item, joules} ... }: chemical fuels and the energy one item gives when burnt
+--   fuel_to_electricity = electricity made from one joule of chemical fuel (best equipment); default 1
 --   keys        = sorted array of every item and fluid key that should have a value
 --   Amount      = {type = "item"|"fluid", name, amount | amount_min + amount_max,
 --                  independent_probability, shared_probability = {min, max}, extra_count_fraction}
@@ -35,10 +36,9 @@ recipe_graph.TILE_FLUID_COST = 0.001
 -- Tile fluids pumped everywhere: their pump is part of the main graph. Other tile fluids (lava, a
 -- heavy-oil sea) belong to one place and are fallback sources.
 recipe_graph.PRIMARY_TILE_FLUIDS = { water = true }
--- Electricity, traded in megajoules (ADR-0009). A boiler and a steam engine both have an efficiency
--- of 1 in 2.1, so burning a chemical fuel makes its fuel value in electricity.
+-- Electricity, traded in megajoules (ADR-0009): burning a chemical fuel makes its fuel value times
+-- raw.fuel_to_electricity (boiler and steam engine: 1; Space Age heating tower: 2.5).
 recipe_graph.ELECTRICITY_KEY = "energy/electricity"
-recipe_graph.ELECTRICITY_PER_FUEL_MJ = 1
 -- The game counts a resource's fluid_amount per 10 mining operations (uranium ore: 10 sulfuric acid
 -- per 10 ore, https://wiki.factorio.com/Uranium_ore), although the API describes it per operation.
 local MINING_OPERATIONS_PER_FLUID_AMOUNT = 10
@@ -164,7 +164,7 @@ function recipe_graph.build(raw)
       name = "burn/" .. fuel.item,
       cost = 0,
       inputs = { ["item/" .. fuel.item] = 1 },
-      outputs = { [recipe_graph.ELECTRICITY_KEY] = fuel.joules / 1e6 * recipe_graph.ELECTRICITY_PER_FUEL_MJ },
+      outputs = { [recipe_graph.ELECTRICITY_KEY] = fuel.joules / 1e6 * (raw.fuel_to_electricity or 1) },
     }
   end
   if raw.fuels and #raw.fuels > 0 and keys then
