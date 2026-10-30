@@ -86,4 +86,28 @@ function hubs.trading_hub(module, range)
   return nil
 end
 
+
+--- Attaches a module ({entity, hub}) like `hubs.attach`, keeping `by_hub` ({[hub unit_number] =
+--- {[module unit_number] = true}}) in step, so that a hub's modules are found without a scan.
+function hubs.attach_indexed(module, range, by_hub)
+  if not module.entity.valid then return end
+  local previous = module.hub
+  hubs.attach(module, range)
+  if module.hub == previous then return end
+  local unit_number = module.entity.unit_number
+  hubs.unindex(by_hub, previous, unit_number)
+  if module.hub then
+    by_hub[module.hub] = by_hub[module.hub] or {}
+    by_hub[module.hub][unit_number] = true
+  end
+end
+
+--- Removes a module from `by_hub` (see `hubs.attach_indexed`).
+function hubs.unindex(by_hub, hub_unit_number, unit_number)
+  local modules = hub_unit_number and by_hub[hub_unit_number]
+  if not modules then return end
+  modules[unit_number] = nil
+  if next(modules) == nil then by_hub[hub_unit_number] = nil end
+end
+
 return hubs

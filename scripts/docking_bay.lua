@@ -18,24 +18,10 @@ local MJ = 1e6
 -- Below this, fuel still needed counts as burnt (float residue of non-binary fuel values).
 local RESIDUE_MJ = 1e-9
 
--- storage.docking_bays.by_hub[hub unit_number] = {[bay unit_number] = true}.
-local function index_bay(hub_unit_number, unit_number, present)
-  if not hub_unit_number then return end
-  local by_hub = storage.docking_bays.by_hub
-  by_hub[hub_unit_number] = by_hub[hub_unit_number] or {}
-  by_hub[hub_unit_number][unit_number] = present or nil
-  if next(by_hub[hub_unit_number]) == nil then by_hub[hub_unit_number] = nil end
-end
-
--- Attaches a bay to the nearest hub of its force in range, keeping the index in step.
+-- Attaches a bay to the nearest hub of its force in range, keeping storage.docking_bays.by_hub in
+-- step.
 local function attach(module)
-  if not module.entity.valid then return end
-  local previous = module.hub
-  hubs.attach(module, docking_bay.HUB_RANGE)
-  if module.hub ~= previous then
-    index_bay(previous, module.entity.unit_number, false)
-    index_bay(module.hub, module.entity.unit_number, true)
-  end
+  hubs.attach_indexed(module, docking_bay.HUB_RANGE, storage.docking_bays.by_hub)
 end
 
 -- The fuel value in MJ of one `name` item when it is a chemical fuel, nil otherwise.
@@ -82,7 +68,7 @@ function docking_bay.forget(unit_number)
   local module = storage.docking_bays.modules[unit_number]
   if not module then return false end
   storage.docking_bays.modules[unit_number] = nil
-  index_bay(module.hub, unit_number, false)
+  hubs.unindex(storage.docking_bays.by_hub, module.hub, unit_number)
   return true
 end
 
