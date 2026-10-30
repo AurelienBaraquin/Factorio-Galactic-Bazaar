@@ -90,9 +90,9 @@ re-attached on `on_configuration_changed`.
 
 ## `storage.freight`
 
-`{hubs = {[hub unit_number] = {next_launch, capsules = {{force_index, name, count, unit_cost, arrival}...}}}}`
-— the delivery queue of each hub ([terminal.md](terminal.md), ADR-0006). Written by
-`scripts/freight.lua`. Invariants: `capsules` is in landing order and holds at most
+`{hubs = {[hub unit_number] = {next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival}...}}}}`
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item") ([terminal.md](terminal.md), ADR-0006). Written by
+`scripts/freight.lua`. Invariants: `capsules` is in landing order (a landed capsule that does not fit does not hold back the others) and holds at most
 `max_capsules` entries; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
 queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back; on
@@ -126,6 +126,15 @@ order combinator, and what each force has spent through them in the current 10 s
 ([terminal.md](terminal.md), ADR-0011). Written by `scripts/circuit_orders.lua` on build events, hub build and removal, force
 merge and `on_object_destroyed`; invalid entries are dropped and the others re-attached on
 `on_configuration_changed`.
+
+## `storage.manifold`
+
+`{modules = {[unit_number] = {entity, kind = "export"|"import", hub, export_index}}, imports =
+{[hub unit_number] = {[unit_number] = true}}, exports = {unit_number...}, cursor}` — every fluid
+manifold, the import manifolds attached to each hub and the round-robin order of export manifolds
+([terminal.md](terminal.md)). Written by `scripts/manifold.lua` on build events, hub build and
+removal, force merge and `on_object_destroyed`; invalid entries are dropped, the indexes rebuilt and
+the others re-attached on `on_configuration_changed`.
 
 ## `storage.players`
 

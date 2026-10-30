@@ -31,7 +31,8 @@ bought without a positive Budget signal** (`gb-budget`, a signal of its own): it
 the force spends through all its order combinators in the period, never more than the balance, and
 a zero or negative value pauses buying. An input that carries the Credits signal of price
 combinators (ADR-0010) is refused whole: its item signals are prices, not orders. Untradeable,
-negative, fluid and quality signals are ignored. Recurring orders merge their journal entries per
+negative and quality signals are ignored (fluid signals too until 2026-10-30: since #63 they buy
+fluids into import manifolds). Recurring orders merge their journal entries per
 item and minute.
 
 ## Consequences
@@ -44,4 +45,4 @@ item and minute.
   designs overshoot by what lands within 30 s; removing a hub sells its queued capsules back
   (ADR-0006); selling by circuit stays with export chests gated by
   inserters (price combinators give the information).
-- Follow-up: fluids and electricity once their modules exist.
+- Follow-up: electricity orders; fluids were added with the manifold module (#63).

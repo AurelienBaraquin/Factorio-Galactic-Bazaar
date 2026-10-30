@@ -23,8 +23,22 @@ local TREND_CAPTIONS = { up = "▲", down = "▼", flat = "–" }
 -- Price history points shown in the detail panel (telecommunications level 2).
 local HISTORY_WIDTH = 30
 
-local function item_label(name)
-  return prototypes.item[name].localised_name
+-- The list shows keys: "item/<name>" and "fluid/<name>" (fluids are bought into import manifolds).
+local function split(key)
+  return key:match("^(%a+)/(.+)$")
+end
+
+local function label(key)
+  local kind, name = split(key)
+  return prototypes[kind][name].localised_name
+end
+
+-- Every tradeable item, then every tradeable fluid, as keys.
+local function tradeable_keys()
+  local keys = {}
+  for _, name in ipairs(storage.tradeable_items) do keys[#keys + 1] = "item/" .. name end
+  for _, name in ipairs(storage.tradeable_fluids) do keys[#keys + 1] = "fluid/" .. name end
+  return keys
 end
 
 local function window_of(player_index)
@@ -66,14 +80,18 @@ local function refresh_list(player, data)
     local name = shown.names[i]
     -- The list is taken when the window opens: an item whose value another mod removes since then
     -- is hidden, and one that gains a value appears on the next opening.
-    local quote = name and telecom.quote(player.force_index, "item", name, period)
+    local quote
+    if name then
+      local kind, item = split(name)
+      quote = telecom.quote(player.force_index, kind, item, period)
+    end
     for _, cell in pairs(row) do cell.visible = quote ~= nil end
     if quote then
-      row.icon.sprite = "item/" .. name
-      row.icon.tags = { gb_action = "select", item = name }
+      row.icon.sprite = name
+      row.icon.tags = { gb_action = "select", key = name }
       row.icon.toggled = name == data.selected
-      row.name.caption = item_label(name)
-      row.name.tooltip = item_label(name)
+      row.name.caption = label(name)
+      row.name.tooltip = label(name)
       row.buy.caption = catalog.format_credits(quote.buy)
       row.sell.caption = catalog.format_credits(quote.sell)
       row.trend.caption = history and TREND_CAPTIONS[catalog.trend(quote.history)] or ""
@@ -86,9 +104,10 @@ local function refresh_detail(player, data)
   local name = data.selected
   elements.detail.visible = name ~= nil
   if not name then return end
-  elements.detail_icon.sprite = "item/" .. name
-  elements.detail_name.caption = item_label(name)
-  local seen = telecom.shows_history(player.force) and telecom.quote(player.force_index, "item", name)
+  local kind, item = split(name)
+  elements.detail_icon.sprite = name
+  elements.detail_name.caption = label(name)
+  local seen = telecom.shows_history(player.force) and telecom.quote(player.force_index, kind, item)
   -- A market entry has no history for its first NPC steps: nothing to draw yet.
   seen = seen and #seen.history >= 2 and seen
   elements.history.visible = seen and true or false
@@ -98,12 +117,12 @@ local function refresh_detail(player, data)
     elements.preview.caption = { "gb-gui.enter-quantity" }
     return
   end
-  local cost, fee = freight.preview(player.force_index, name, quantity)
+  local cost, fee = freight.preview(player.force_index, item, quantity, kind)
   -- What selling from the inventory would bring: the market price of the units, scaled by the
-  -- freshness of the stacks the sale would take (ADR-0013).
-  local revenue = market.preview(player.force_index, "item", name, "sell", quantity)
+  -- freshness of the stacks the sale would take (ADR-0013). Fluids are sold by export manifolds.
+  local revenue = kind == "item" and market.preview(player.force_index, kind, item, "sell", quantity)
   local inventory = player.get_main_inventory()
-  if revenue and inventory then revenue = revenue * cargo.sale_freshness(inventory, name, quantity, "normal") end
+  if revenue and inventory then revenue = revenue * cargo.sale_freshness(inventory, item, quantity, "normal") end
   elements.preview.caption = { "gb-gui.preview", quantity,
     cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee) }
       or { "gb-gui.unavailable" },
@@ -204,7 +223,7 @@ end
 function market_gui.open(player, hub)
   if hub.force ~= player.force or not player.can_reach_entity(hub) then return end
   market_gui.close(player.index)
-  local data = { hub = hub.unit_number, filter = "", page = 1, matches = catalog.search(storage.tradeable_items, "") }
+  local data = { hub = hub.unit_number, filter = "", page = 1, matches = catalog.search(tradeable_keys(), "") }
   data.elements = build(player)
   storage.players[player.index] = data
   refresh(player, data)
@@ -243,14 +262,14 @@ function actions.close(player)
 end
 
 function actions.select(player, data, tags)
-  data.selected = tags.item
+  data.selected = tags.key
   refresh_list(player, data)
   refresh_detail(player, data)
 end
 
 function actions.search(player, data)
   data.filter = data.elements.search.text
-  data.matches = catalog.search(storage.tradeable_items, data.filter)
+  data.matches = catalog.search(tradeable_keys(), data.filter)
   data.page = 1
   refresh_list(player, data)
 end
@@ -270,26 +289,29 @@ function actions.quantity(player, data)
 end
 
 function actions.buy(player, data)
-  local name, quantity = data.selected, catalog.parse_quantity(data.elements.quantity.text)
-  if not (name and quantity) then return end
+  local key, quantity = data.selected, catalog.parse_quantity(data.elements.quantity.text)
+  if not (key and quantity) then return end
   local hub = trading_hub(player, data)
   if not hub then return end
-  local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity)
+  local kind, name = split(key)
+  local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity, nil, nil, kind)
   if not ok then return notify(player, { "gb-gui.refused-" .. cost }) end
-  notify(player, { "gb-gui.ordered", quantity, item_label(name), catalog.format_credits(cost),
+  notify(player, { "gb-gui.ordered", quantity, label(key), catalog.format_credits(cost),
     catalog.format_credits(fee), math.ceil((arrival - game.tick) / 60) })
   refresh(player, data)
 end
 
 function actions.sell(player, data)
-  local name, quantity = data.selected, catalog.parse_quantity(data.elements.quantity.text)
+  local key, quantity = data.selected, catalog.parse_quantity(data.elements.quantity.text)
   local inventory = player.get_main_inventory()
-  if not (name and quantity and inventory) then return end
+  if not (key and quantity and inventory) then return end
+  local kind, name = split(key)
+  if kind ~= "item" then return notify(player, { "gb-gui.sell-fluid" }) end
   if not trading_hub(player, data) then return end
   local sold, revenue = cargo.sell_stacks(inventory, player.force_index, cargo.WINDOW_MIN_PRICE_RATIO, name, quantity,
     "normal")
   if sold == 0 then return notify(player, { "gb-gui.sold-nothing" }) end
-  notify(player, { "gb-gui.sold", sold, item_label(name), catalog.format_credits(revenue) })
+  notify(player, { "gb-gui.sold", sold, label(key), catalog.format_credits(revenue) })
   refresh(player, data)
 end
 

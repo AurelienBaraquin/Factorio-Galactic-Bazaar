@@ -9,7 +9,7 @@ local function virtual(name, count)
 end
 
 describe("orders.requests", function()
-  it("keeps positive normal-quality item signals, sorted, and reads the budget signal", function()
+  it("keeps positive normal-quality item signals and fluid signals, sorted, and reads the budget signal", function()
     local requests, budget, refused = orders.requests({
       item("iron-plate", 100), item("coal", 50), item("stone", -5), item("copper-plate", 10, "rare"),
       { signal = { type = "fluid", name = "water" }, count = 1000 },
@@ -17,7 +17,8 @@ describe("orders.requests", function()
       { signal = { type = "item", name = "wood", quality = "normal" }, count = 3 },
     }, "gb-budget", "gb-credits")
     assert.are.same({
-      { name = "coal", units = 50 }, { name = "iron-plate", units = 100 }, { name = "wood", units = 3 },
+      { kind = "fluid", name = "water", units = 1000 }, { kind = "item", name = "coal", units = 50 },
+      { kind = "item", name = "iron-plate", units = 100 }, { kind = "item", name = "wood", units = 3 },
     }, requests)
     assert.are.equal(500, budget)
     assert.is_false(refused)

@@ -122,7 +122,7 @@ describe("order combinator", function()
     end)
   end)
 
-  test("ignores negative, fluid and untradeable signals", function()
+  test("ignores negative and untradeable signals, and fluids without an import manifold", function()
     local combinator = place("gb-order-combinator", 3)
     emit({ combinator }, { { name = GEAR, count = -50 }, { type = "fluid", name = "water", count = 100 },
       { name = "blueprint", count = 1 }, budget(1e5) })
@@ -130,6 +130,18 @@ describe("order combinator", function()
       run_period(1)
       assert.are.equal(0, freight.queued(hub.unit_number))
       assert.are.equal(1e6, player_state().balance)
+    end)
+  end)
+
+  test("buys fluids into an import manifold", function()
+    place("gb-fluid-import", 5, 110)
+    local combinator = place("gb-order-combinator", 3)
+    emit({ combinator }, { { type = "fluid", name = "crude-oil", count = 1000 }, budget(1e5) })
+    after_ticks(2, function()
+      run_period(1)
+      assert.are.equal(1, freight.queued(hub.unit_number))
+      assert.are.equal("fluid", freight.capsules(hub.unit_number)[1].kind)
+      player_state().markets["fluid/crude-oil"] = nil
     end)
   end)
 

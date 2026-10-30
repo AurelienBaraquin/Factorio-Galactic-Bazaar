@@ -112,8 +112,9 @@ local function spending(force_index, tick)
   return spent
 end
 
--- Places the orders a combinator's input asks for, in name order, while each fits in what its
--- budget leaves for the force this period; stops when the hub's capsule queue is full.
+-- Places the orders a combinator's input asks for, fluids then items, each in name order, while
+-- each fits in what its budget leaves for the force this period; stops when the hub's capsule queue
+-- is full.
 local function place_orders(module, tick)
   local entity = module.entity
   if silence(entity) then return end
@@ -129,10 +130,10 @@ local function place_orders(module, tick)
     local allowance = orders.allowance(budget, spent.credits, state.balance)
     if allowance <= 0 then return end
     local ok, paid, fee = freight.order(force_index, hub.unit_number, request.name, request.units,
-      circuit_orders.JOURNAL_MERGE_TICKS, allowance)
+      circuit_orders.JOURNAL_MERGE_TICKS, allowance, request.kind)
     if ok then
       spent.credits = spent.credits + paid + fee
-    elseif paid == "no-import-chest" or paid == "queue-full" then
+    elseif paid == "queue-full" then
       return
     end
   end
