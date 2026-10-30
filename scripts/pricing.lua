@@ -12,6 +12,12 @@ function pricing.init()
   local graph = recipe_graph.build(raw_graph.extract())
   local result = valuation.compute(graph, graph.keys)
   storage.base_values = result.values
+  storage.tradeable_items = {}
+  for key in pairs(result.values) do
+    local name = key:match("^item/(.+)$")
+    if name and prototypes.item[name] then table.insert(storage.tradeable_items, name) end
+  end
+  table.sort(storage.tradeable_items)
   if #result.unpriced > 0 then
     log("[galactic-bazaar] no base value (not tradeable): " .. table.concat(result.unpriced, ", "))
   end

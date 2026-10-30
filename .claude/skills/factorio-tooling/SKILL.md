@@ -220,7 +220,9 @@ Also: `test.each({...})("name %s", fn)`, `test.todo`, `tags("slow")`,
 multi-step `.step("label", fn)`. **Save/load safety:** chain
 `test(...).after_reload_mods(fn)` (**for a mod, always this one**: `game.reload_mods` "acts like saving and loading" for mods, whereas `after_reload_script` calls `game.reload_script`, which reloads the *scenario* script and fails a mod test with "Reload was requested but did not happen" - verified 2026-10-29 on 2.1.24) - the reload reruns all files,
 so it proves state lives in `storage` and that `on_load` re-registers handlers. Use it for
-every per-force economy state test.
+every per-force economy state test. **The reload re-runs the test file, so its locals start empty
+afterwards**: in `after_each`, re-fetch players and entities (`game.get_player(1)`) and guard values
+captured before the reload instead of writing them back blindly.
 
 Run:
 ```bash

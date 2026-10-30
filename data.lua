@@ -2,3 +2,4 @@
 require("prototypes.hub")
 require("prototypes.cargo")
 require("prototypes.technologies")
+require("prototypes.inputs")

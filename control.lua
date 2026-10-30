@@ -3,6 +3,7 @@
 local cargo = require("scripts.cargo")
 local forces = require("scripts.forces")
 local hubs = require("scripts.hubs")
+local market_gui = require("scripts.market_gui")
 local pricing = require("scripts.pricing")
 
 local function init()
@@ -10,6 +11,7 @@ local function init()
   pricing.init()
   hubs.init()
   cargo.init()
+  market_gui.init()
 end
 
 script.on_init(init)
@@ -50,16 +52,38 @@ script.on_event(defines.events.on_object_destroyed, function(event)
   if event.type ~= defines.target_type.entity then return end
   if hubs.forget(event.useful_id) then
     cargo.on_hub_removed(event.useful_id)
+    market_gui.on_hub_removed(event.useful_id)
   else
     cargo.forget(event.useful_id)
   end
 end)
 
-script.on_nth_tick(cargo.EXPORT_INTERVAL, cargo.on_export_tick)
+-- One handler per tick interval is kept by Factorio, so handlers sharing an interval are composed.
+local periodic = {}
+local function every(ticks, handler)
+  periodic[ticks] = periodic[ticks] or {}
+  table.insert(periodic[ticks], handler)
+end
+every(cargo.EXPORT_INTERVAL, cargo.on_export_tick)
+every(market_gui.SLOT_TICKS, market_gui.on_refresh_tick)
+for ticks, handlers in pairs(periodic) do
+  script.on_nth_tick(ticks, function(event)
+    for _, handler in ipairs(handlers) do handler(event) end
+  end)
+end
+
+script.on_event(market_gui.INPUT, market_gui.on_open_input)
+script.on_event(defines.events.on_gui_click, market_gui.on_gui_click)
+script.on_event(defines.events.on_gui_text_changed, market_gui.on_gui_text_changed)
+script.on_event(defines.events.on_gui_closed, market_gui.on_gui_closed)
+script.on_event({
+  defines.events.on_player_left_game, defines.events.on_player_changed_force, defines.events.on_player_removed,
+}, market_gui.on_player_event)
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/market", "tests/hubs", "tests/cargo" },
+    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/market", "tests/hubs", "tests/cargo",
+      "tests/market_gui" },
     { load_luassert = true }
   )
 end
