@@ -12,7 +12,8 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | Field | Type | Meaning |
 |---|---|---|
 | `balance` | number | credits held by the force; never negative |
-| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance` |
+| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into the journal's entry of the same kind and key started less than `merge_ticks` before, which then holds the totals, its last tick and the balance after it, and moves to the end, so the journal stays in tick order |
+| `feed` | table or nil | `[key] = {tick, buy, sell, history}`: the prices this force last saw for each key read through `telecom.quote`, quoted again when older than its telecommunications period; `history` is the market entry's own table (live, not a copy); created on first read, cleared whenever base values are rebuilt |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
@@ -98,6 +99,34 @@ queue is dropped once empty and past its `next_launch`; the queue of a removed h
 `on_configuration_changed`, capsules of items that no longer exist are refunded and dropped, and
 the queues of hubs that no longer exist are sold back.
 
+## `storage.power`
+
+`{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil}}}` —
+every power substation ([terminal.md](terminal.md), ADR-0009). Written by `scripts/power.lua` on
+build events, hub build and removal, force merge and `on_object_destroyed`; invalid entries are
+dropped and every substation re-attached on `on_configuration_changed`. `hub` is a hint, re-checked
+at each settlement.
+
+## `storage.price_signals`
+
+`{modules = {[unit_number] = {entity, side = "buy"|"sell", hub, order_index, written,
+written_balance, force_index}}, order = {unit_number...}, cursor, snapshots = {[force_index] =
+{tick, version, buy, sell}}, builders = {[force_index] = {tick, index, items, fluids, buy, sell}}}` —
+the price signal combinators, their visiting order, each force's last complete snapshot of price
+filters and the snapshot being built with the key lists it started from ([terminal.md](terminal.md),
+ADR-0010). Written by `scripts/price_signals.lua`. Invariants: `order` lists exactly the modules,
+once each, and `modules[order[i]].order_index == i`; `written` is the snapshot version and
+`written_balance` the balance last written into the combinator. Snapshots and builders are dropped
+on `on_configuration_changed`, and a merged force's on `on_forces_merged`.
+
+## `storage.circuit_orders`
+
+`{modules = {[unit_number] = {entity, hub}}, spent = {[force_index] = {period, credits}}}` — every
+order combinator, and what each force has spent through them in the current 10 s period
+([terminal.md](terminal.md), ADR-0011). Written by `scripts/circuit_orders.lua` on build events, hub build and removal, force
+merge and `on_object_destroyed`; invalid entries are dropped and the others re-attached on
+`on_configuration_changed`.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market
@@ -107,6 +136,11 @@ search text and its cached results, the page, the selected item and references t
 value lives here (ADR-0001). Written by `scripts/market_gui.lua`; an entry exists only while the
 window is open, is removed when the player leaves, changes force or is removed, and every window
 is closed on `on_configuration_changed`.
+
+## `storage.tradeable_fluids`
+
+Sorted names of the fluids that have a base value, rebuilt with them by `scripts/pricing.lua`; read
+by the price signal combinators.
 
 ## `storage.tradeable_items`
 

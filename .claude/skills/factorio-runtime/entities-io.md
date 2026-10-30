@@ -89,10 +89,16 @@ Runtime members (`LuaEntity`, EEI-specific where noted):
 | `input_flow_limit`, `output_flow_limit` | RW, 2.1 | per-entity flow limits |
 | `electric_network`, `electric_network_id`, `is_connected_to_electric_network()` | R | connectivity checks |
 
-Units: prototype `Energy` strings are converted to **joules per tick** (W / 60). The runtime
-`power_production` / `power_usage` attributes are documented without a unit; treat them as **J/tick**
-(consistent with the prototype) — **UNVERIFIED, confirm in game** with `/measured-command` or by reading
-`energy` deltas before balancing prices.
+Units: prototype `Energy` strings are converted to **joules per tick** (W / 60): a `"10MW"`
+`input_flow_limit` reads back as 166666.67. Verified in game on 2.1.24 (Galactic Bazaar probes):
+
+- `power_production` is J/tick (1e6 / 60 produced 1 MW).
+- Writing `input_flow_limit` / `output_flow_limit` at runtime **reads back but does not change the
+  flow** — the prototype's limits stay in force. Set them in the prototype.
+- Writing `electric_buffer_size` at runtime **does** take effect: a 1 MJ buffer stops charging at
+  1 MJ. Use it to cap throughput per settlement period.
+- A `tertiary` EEI behaves like an accumulator: it charges only from the network's surplus and
+  discharges only on shortage, and two tertiary entities do not feed each other.
 
 Robust metering pattern (independent of the exact unit semantics): measure the buffer delta.
 

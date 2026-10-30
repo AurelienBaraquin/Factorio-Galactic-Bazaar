@@ -1,4 +1,4 @@
-# ADR-0009 — Spoilable goods sell at the market price times their freshness
+# ADR-0013 — Spoilable goods sell at the market price times their freshness
 
 - **Status**: Accepted
 - **Date**: 2026-10-30

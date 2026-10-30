@@ -60,7 +60,7 @@ in an isolated `factorio-test-data-dir/` that never touches a real mods folder. 
 adapters in `scripts/`: storage lifecycle and force events (`tests/forces.lua`), the production
 graph and base values built from the real prototypes (`tests/recipe_graph.lua`,
 `tests/pricing.lua`), value overrides through the remote interface (`tests/overrides.lua`), quality values and markets (`tests/quality.lua`, effective in the Space Age run), per-force trading (`tests/market.lua`), the terminal buildings
-(`tests/hubs.lua`, `tests/cargo.lua`), delivery by orbital capsule (`tests/freight.lua`) and the market window driven through the test save's
+(`tests/hubs.lua`, `tests/cargo.lua`), delivery by orbital capsule (`tests/freight.lua`), power trading (`tests/power.lua`), price signal combinators (`tests/price_signals.lua`), order combinators (`tests/circuit_orders.lua`), telecommunications (`tests/telecom.lua`) and the market window driven through the test save's
 player (`tests/market_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
 re-fetches what it needs instead of trusting the file's locals. `control.lua` registers them only when the `factorio-test` mod is

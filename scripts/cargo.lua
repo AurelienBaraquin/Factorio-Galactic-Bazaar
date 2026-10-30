@@ -16,29 +16,6 @@ cargo.DEFAULT_MIN_PRICE_RATIO = 0.5
 cargo.EXPORT_INTERVAL = 6
 cargo.EXPORT_BATCH = 2
 
-local function has_power(hub)
-  return hub.energy > 0
-end
-
--- The nearest registered hub of the entity's force within range; with `powered_only`, the nearest
--- one that has power.
-local function nearest_hub(entity, powered_only)
-  local best, best_distance
-  local candidates = entity.surface.find_entities_filtered({
-    name = hubs.NAME, force = entity.force, position = entity.position, radius = cargo.HUB_RANGE,
-  })
-  for _, hub in ipairs(candidates) do
-    if hubs.get(hub.unit_number) and (not powered_only or has_power(hub)) then
-      local dx, dy = hub.position.x - entity.position.x, hub.position.y - entity.position.y
-      local distance = dx * dx + dy * dy
-      if not best or distance < best_distance or (distance == best_distance and hub.unit_number < best.unit_number) then
-        best, best_distance = hub, distance
-      end
-    end
-  end
-  return best and best.unit_number or nil
-end
-
 -- storage.cargo.imports[hub unit_number] = {[import chest unit_number] = true}.
 local function index_import(hub_unit_number, unit_number, present)
   if not hub_unit_number then return end
@@ -58,7 +35,7 @@ local function set_hub(module, hub_unit_number)
 end
 
 local function attach(module, powered_only)
-  set_hub(module, nearest_hub(module.entity, powered_only))
+  set_hub(module, hubs.nearest(module.entity, cargo.HUB_RANGE, powered_only))
 end
 
 local function attach_all()
@@ -148,8 +125,8 @@ end
 function cargo.powered_hub(module)
   local hub = module.hub and hubs.get(module.hub)
   local own = hub and hub.force == module.entity.force
-  if own and has_power(hub) then return hub end
-  local powered = nearest_hub(module.entity, true)
+  if own and hubs.has_power(hub) then return hub end
+  local powered = hubs.nearest(module.entity, cargo.HUB_RANGE, true)
   if powered then
     set_hub(module, powered)
     return hubs.get(powered)
@@ -182,22 +159,23 @@ local function is_plain(stack)
 end
 
 --- Sells the plain stacks of `inventory` for a force, each unit at its quality's price times its
---- freshness (1 - spoil_percent, ADR-0009), while each unit fetches at least `min_price_ratio` × its
---- base value; only stacks of `name` (any quality) when given, at most `limit` units when given.
---- The sale goes first: a stack only shrinks for units the market has paid for. Returns the units
---- sold and the credits received.
-function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit)
+--- freshness (1 - spoil_percent, ADR-0013), while each unit fetches at least `min_price_ratio` × its
+--- base value; only stacks of `name` (any quality) when given, at most `limit` units when given,
+--- only of `quality_name` when given. The sale goes first: a stack only shrinks for units the market
+--- has paid for. Returns the units sold and the credits received.
+function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit, quality_name)
   local sold, revenue = 0, 0
   for slot = 1, #inventory do
     if limit and sold >= limit then break end
     local stack = inventory[slot]
-    if stack.valid_for_read and (not name or stack.name == name) and is_plain(stack) then
-      local quality_name = stack.quality.name
+    if stack.valid_for_read and (not name or stack.name == name)
+      and (not quality_name or stack.quality.name == quality_name) and is_plain(stack) then
+      local stack_quality = stack.quality.name
       local freshness = 1 - stack.spoil_percent
       local units = freshness > 0 and math.min(stack.count, limit and limit - sold or math.huge,
-        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio / freshness, quality_name)))
+        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio / freshness, stack_quality)))
       if units and units > 0 then
-        local ok, credits = market.sell(force_index, "item", stack.name, units, quality_name, freshness)
+        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality, nil, freshness)
         if ok then
           stack.count = stack.count - units
           sold, revenue = sold + units, revenue + credits

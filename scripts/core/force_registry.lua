@@ -33,8 +33,8 @@ function force_registry.sync(forces, force_indices)
 end
 
 --- Folds the state of `source_index` into `destination_index`, then removes the source.
---- Each field added to the force state must define here how two values combine. Markets: the
---- destination keeps its own; the source's markets are dropped with it.
+--- Each field added to the force state must define here how two values combine. Markets and feed:
+--- the destination keeps its own; the source's are dropped with it.
 function force_registry.merge(forces, source_index, destination_index)
   local destination = force_registry.ensure(forces, destination_index)
   local source = forces[source_index]

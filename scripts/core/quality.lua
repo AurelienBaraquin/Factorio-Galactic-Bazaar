@@ -1,8 +1,9 @@
 -- Value of items by quality (ADR-0008). Pure Lua.
 --
 -- A quality's value is the normal value times FACTOR_PER_LEVEL to the power of the quality's level
--- (Space Age: uncommon 1, rare 2, epic 3, legendary 5). Without a quality mod only "normal" exists,
--- so nothing changes.
+-- (Space Age: uncommon 1, rare 2, epic 3, legendary 5). Its market is as deep in units as the
+-- normal one (its depth in credits grows with the same ratio), so a valuable quality still sells.
+-- Without a quality mod only "normal" exists, so nothing changes.
 local quality = {}
 
 quality.FACTOR_PER_LEVEL = 3
@@ -20,9 +21,10 @@ function quality.key(base_key, quality_name)
   return base_key .. "@" .. quality_name
 end
 
---- The normal key and the quality name of a market key.
+--- The normal key and the quality name of a market key, split at the last "@" (a modded item name
+--- may contain one: callers check the quality exists).
 function quality.split(key)
-  local base_key, quality_name = key:match("^(.-)@(.+)$")
+  local base_key, quality_name = key:match("^(.*)@([^@]+)$")
   if base_key then return base_key, quality_name end
   return key, quality.NORMAL
 end

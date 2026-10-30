@@ -2,6 +2,7 @@
 .lua/
 .claude-flow/
 .claude/settings.local.json
+.claude/worktrees/
 
 # Packaged mod archives
 *.zip

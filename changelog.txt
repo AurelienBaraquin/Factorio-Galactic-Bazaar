@@ -1,10 +1,33 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.8
+Date: 2026-10-30
+  Bugfixes:
+    - Spoilable goods (Space Age) can be sold; each unit fetches its price times its freshness.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.7
+Date: 2026-10-30
+  Features:
+    - Galactic telecommunications research: prices seen and emitted refresh every 30 s, 10 s or 2 s; level 2 adds trends and price history.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.6
+Date: 2026-10-30
+  Features:
+    - Order combinator: buys the items its circuit input asks for every 10 s, within a budget, delivered by orbital capsule.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.5
+Date: 2026-10-30
+  Features:
+    - Buy and sell price combinators: every market price (in milli-credits) and the balance (in credits) on the circuit network.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.4
+Date: 2026-10-30
+  Features:
+    - Power export and import substations: sell the network's surplus electricity and buy what it lacks, 10 MW each, 40 MW with Power trading 2.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.3
 Date: 2026-10-30
   Features:
     - With quality, each quality level has its own value and market; quality stacks sell at their quality's price.
-  Bugfixes:
-    - Spoilable goods (Space Age) can be sold; each unit fetches its price times its freshness.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.2
 Date: 2026-10-30

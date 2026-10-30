@@ -62,6 +62,12 @@ function pricing.init()
     if name and prototypes.item[name] then table.insert(storage.tradeable_items, name) end
   end
   table.sort(storage.tradeable_items)
+  storage.tradeable_fluids = {}
+  for key in pairs(values) do
+    local name = key:match("^fluid/(.+)$")
+    if name and prototypes.fluid[name] then table.insert(storage.tradeable_fluids, name) end
+  end
+  table.sort(storage.tradeable_fluids)
   -- "normal" is hidden when no quality mod is active, but it is always the quality of plain items.
   storage.quality_levels = { [quality.NORMAL] = 0 }
   for name, prototype in pairs(prototypes.quality) do
@@ -72,17 +78,19 @@ function pricing.init()
   end
 end
 
---- Value in credits of a market key (any quality) given the normal base values `values` (default:
---- the current ones); nil when it has none: not tradeable, a fluid with a quality, or a quality
---- that does not exist (or is hidden).
-function pricing.key_value(key, values)
+--- Value in credits of a market key (any quality) and its ratio to the normal value, given the
+--- normal base values `values` and quality levels `levels` (default: the current ones); nil when
+--- it has none: not tradeable, a fluid with a quality, or a quality that does not exist (or is
+--- hidden).
+function pricing.key_value(key, values, levels)
+  values = values or storage.base_values
+  if values[key] then return values[key], 1 end
   local base_key, quality_name = quality.split(key)
-  local normal_value = (values or storage.base_values)[base_key]
-  if not normal_value then return nil end
-  if quality_name == quality.NORMAL then return normal_value end
-  local level = storage.quality_levels[quality_name]
-  if not level or base_key:sub(1, 5) ~= "item/" then return nil end
-  return quality.value(normal_value, level)
+  local normal_value = values[base_key]
+  local level = (levels or storage.quality_levels or {})[quality_name]
+  if not (normal_value and level) or base_key:sub(1, 5) ~= "item/" then return nil end
+  local value = quality.value(normal_value, level)
+  return value, value / normal_value
 end
 
 --- Base value of an item or fluid in credits at a quality (default normal), or nil when it has none

@@ -80,13 +80,26 @@ script.on_init(set_values)
 script.on_configuration_changed(set_values)
 ```
 
+## Electricity
+
+Electricity is the key `energy/electricity`, in megajoules ([ADR-0009](adr/0009-power-trading-by-tertiary-substations.md)).
+Each tradeable chemical fuel without a burnt result gets a main-tier recipe `burn/<fuel>` giving
+its fuel value in MJ times the best fuel-to-electricity efficiency available (`raw.fuel_to_electricity`:
+the most efficient visible chemical boiler, reactor or burner generator times the most efficient
+steam generator — 1 in vanilla, 2.5 with Space Age's heating tower), so electricity is worth the
+cheapest chemical fuel per megajoule at that efficiency: 0.050 credit/MJ in vanilla, 0.013 with
+Space Age (2.1.24). Nuclear fuel is left out. Remote overrides do not take `energy` keys;
+the multiplier and fuel overrides reach electricity.
+
 ## Quality
 
 With a quality mod (Space Age), an item of a quality other than normal is worth its normal value
 times `quality.FACTOR_PER_LEVEL` (3) to the power of the quality's `level`
 ([ADR-0008](adr/0008-quality-values-by-level.md), `scripts/core/quality.lua`): uncommon ×3, rare ×9,
 epic ×27, legendary (level 5) ×243. Only normal values are stored; `pricing.base_value(kind, name,
-quality)` and `pricing.key_value(key)` compute the others from `storage.quality_levels`. Fluids and
+quality)` and `pricing.key_value(key)` (value and ratio to normal) compute the others from
+`storage.quality_levels`; a key is split at its last `@`, and an exact normal key wins, so an item
+name containing `@` stays tradeable. Fluids and
 hidden qualities have no quality value. Without a quality mod only normal exists and nothing
 changes.
 

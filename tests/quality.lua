@@ -3,6 +3,7 @@
 local cargo = require("scripts.cargo")
 local market = require("scripts.market")
 local pricing = require("scripts.pricing")
+local value_overrides = require("scripts.value_overrides")
 local quality = require("scripts.core.quality")
 
 local function player_state() return storage.forces[game.forces.player.index] end
@@ -70,5 +71,51 @@ describe("quality", function()
     assert.are.equal(0, inventory.get_item_count({ name = GEAR, quality = "uncommon" }))
     assert.is_true(math.abs(player_state().balance - expected) < 1e-6 * expected)
     assert.is_true(expected > market.preview(game.forces.player.index, "item", GEAR, "sell", 5))
+  end)
+
+  test("keeps a valuable quality as deep in units as normal, so export chests sell it", function()
+    if not script.active_mods["quality"] then return end
+    local force_index = game.forces.player.index
+    local normal = market.sellable(force_index, "item", "processing-unit", 0.5)
+    local legendary = market.sellable(force_index, "item", "processing-unit", 0.5, "legendary")
+    assert.is_true(legendary >= 1)
+    assert.is_true(math.abs(legendary - normal) < 1e-6 * normal)
+    player_state().markets["item/processing-unit"] = nil
+    player_state().markets["item/processing-unit@legendary"] = nil
+  end)
+
+  test("sells only the quality asked for", function()
+    if not script.active_mods["quality"] then return end
+    local inventory = game.create_inventory(4)
+    inventory.insert({ name = GEAR, count = 10, quality = "legendary" })
+    inventory.insert({ name = GEAR, count = 50 })
+    local sold = cargo.sell_stacks(inventory, game.forces.player.index, 0, GEAR, 20, "normal")
+    assert.are.equal(20, sold)
+    assert.are.equal(10, inventory.get_item_count({ name = GEAR, quality = "legendary" }))
+    inventory.destroy()
+  end)
+
+  test("rebases quality markets when the normal value changes", function()
+    if not script.active_mods["quality"] then return end
+    local force_index = game.forces.player.index
+    local plate = pricing.base_value("item", "iron-plate")
+    market.sell(force_index, "item", "iron-plate", 500, "rare")
+    local rare = pricing.base_value("item", "iron-plate", "rare")
+    local ratio = market.quote(force_index, "item", "iron-plate", "rare").mid / rare
+    remote.call("galactic-bazaar", "set_value", "item", "iron-plate", plate * 50)
+    local quote = market.quote(force_index, "item", "iron-plate", "rare")
+    local rebased = quote.mid / pricing.base_value("item", "iron-plate", "rare")
+    storage.value_overrides = {}
+    value_overrides.rebuild()
+    player_state().markets["item/iron-plate@rare"] = nil
+    assert.is_true(math.abs(rebased - ratio) < 1e-6 * ratio)
+  end)
+
+  test("keeps the quality levels across a save and reload", function()
+    storage.gb_test_levels = table_size(storage.quality_levels)
+  end).after_reload_mods(function()
+    assert.are.equal(storage.gb_test_levels, table_size(storage.quality_levels))
+    assert.are.equal(0, storage.quality_levels.normal)
+    storage.gb_test_levels = nil
   end)
 end)
