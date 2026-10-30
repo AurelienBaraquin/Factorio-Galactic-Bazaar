@@ -72,6 +72,26 @@ function market.sellable(force_index, kind, name, min_price_ratio)
   return market_model.max_sell_at_or_above(base_value, entry.displacement, min_price_ratio * base_value, MARKET_PARAMS)
 end
 
+--- The base values were rebuilt (prototypes, settings or overrides changed): every market entry is
+--- brought up to date with its old value, then rebased on its new one so that its price stays the
+--- same multiple of the base value and within bounds; entries of keys that lost their value go.
+function market.rebase_all(old_values)
+  if not (old_values and storage.forces) then return end
+  for _, state in pairs(storage.forces) do
+    local gone = {}
+    for key, entry in pairs(state.markets) do
+      local old, new = old_values[key], storage.base_values[key]
+      if not new then
+        gone[#gone + 1] = key
+      elseif old and old ~= new then
+        npc_market.catch_up(entry, old, game.tick, MARKET_PARAMS, NPC_PARAMS)
+        entry.displacement = market_model.rebase(entry.displacement, old, new, MARKET_PARAMS)
+      end
+    end
+    for _, key in ipairs(gone) do state.markets[key] = nil end
+  end
+end
+
 --- Buys `quantity` units for the force: debits the account and moves the market, or changes nothing.
 --- Returns true and the cost, or false and a reason (not-tradeable, invalid-quantity,
 --- insufficient-liquidity, insufficient-funds). Delivering the goods is the caller's job.

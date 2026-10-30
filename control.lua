@@ -5,18 +5,18 @@ local forces = require("scripts.forces")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market_gui = require("scripts.market_gui")
-local pricing = require("scripts.pricing")
+local value_overrides = require("scripts.value_overrides")
 
 local function init()
   forces.init()
-  pricing.init()
+  value_overrides.rebuild()
   hubs.init()
   cargo.init()
   freight.init()
   market_gui.init()
 end
 
-remote.add_interface("galactic-bazaar", pricing.REMOTE)
+remote.add_interface("galactic-bazaar", value_overrides.REMOTE)
 
 script.on_init(init)
 script.on_configuration_changed(init)

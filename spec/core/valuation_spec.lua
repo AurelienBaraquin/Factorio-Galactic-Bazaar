@@ -141,19 +141,36 @@ describe("valuation.compute", function()
     }
 
     it("keeps a fixed value and propagates it to the products", function()
-      local values = compute(chain, nil, nil, nil, { plate = 10 }).values
+      local values = compute(chain, nil, nil, nil, { plate = { value = 10 } }).values
       assert.are.equal(10, values.plate)
       assert.is_true(near(20.05, values.gear))
       assert.are.equal(1, values.ore)
     end)
 
     it("is not lowered by a cheaper recipe", function()
-      local values = compute(chain, nil, nil, nil, { gear = 0.5 }).values
+      local values = compute(chain, nil, nil, nil, { gear = { value = 0.5 } }).values
       assert.are.equal(0.5, values.gear)
     end)
 
+    it("keeps a fixed key of a later tier from undercutting an earlier chain", function()
+      local recipes = {
+        recipe("mine/ore", 1, {}, { ore = 1 }),
+        recipe("smelt", 100, { ore = 1 }, { plate = 1 }),
+        recipe("from-wood", 0, { wood = 1 }, { plate = 1 }),
+      }
+      local natural = { recipe("tree", 0.5, {}, { wood = 1 }) }
+      local first = compute(recipes, nil, natural)
+      assert.are.equal(valuation.NATURAL, first.tiers.wood)
+      assert.are.equal(valuation.MAIN, first.tiers.plate)
+      local fixed_wood = { wood = { value = first.values.wood, tier = first.tiers.wood } }
+      local same = compute(recipes, nil, natural, nil, fixed_wood)
+      assert.are.equal(first.values.plate, same.values.plate)
+      local as_main = compute(recipes, nil, natural, nil, { wood = { value = first.values.wood } })
+      assert.is_true(as_main.values.plate < first.values.plate)
+    end)
+
     it("prices a key that no recipe can make", function()
-      local result = compute(chain, nil, nil, { "ore", "plate", "gear", "relic" }, { relic = 7 })
+      local result = compute(chain, nil, nil, { "ore", "plate", "gear", "relic" }, { relic = { value = 7 } })
       assert.are.equal(7, result.values.relic)
       assert.are.same({}, result.unpriced)
     end)

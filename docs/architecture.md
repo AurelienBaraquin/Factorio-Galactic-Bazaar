@@ -49,7 +49,8 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 ## 3. Flows
 
 - **Init and configuration change**: `control.lua` calls `forces.init` (one state per force, with
-  its account), `pricing.init` (base values from the prototypes, [pricing.md](pricing.md)),
+  its account), `value_overrides.rebuild` (base values from the prototypes, the multiplier and the
+  overrides, then every market rebased on them, [pricing.md](pricing.md)),
   `hubs.init` (drops hubs that no longer exist), `cargo.init` (drops chests that no longer
   exist, re-attaches the others) and `freight.init` (settles the queues of hubs that no longer
   exist).
@@ -71,8 +72,9 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md))
   and move queued capsules to the destination force; after a merge, every cargo chest is
   re-attached.
-- **Remote interface**: `control.lua` registers `galactic-bazaar` (`pricing.REMOTE`); an override
-  call checks its input, stores it and rebuilds the base values ([pricing.md](pricing.md)).
+- **Remote interface**: `control.lua` registers `galactic-bazaar` (`value_overrides.REMOTE`); an
+  override call checks its input, stores it, rebuilds the base values and rebases the markets
+  ([pricing.md](pricing.md)).
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
   NPC market lazily when read ([market.md](market.md)); export chests sell through it.
 

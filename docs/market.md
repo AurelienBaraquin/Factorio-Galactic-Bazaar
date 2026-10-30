@@ -15,6 +15,7 @@ how they move on their own, and how a force trades. The reasoning is in
 | `market.sell(force_index, kind, name, quantity)` | credits the account and moves the market; `true, revenue` or `false, reason` |
 | `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
 | `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
+| `market.rebase_all(old_values)` | after base values are rebuilt: brings every entry up to date with its old value, rebases it on the new one, drops entries of keys that lost their value |
 
 A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
 `insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving
@@ -46,6 +47,7 @@ prices), negative after they bought (shortage, higher prices); 0 is the balanced
 | `market.max_buy` / `market.max_sell` | most units tradeable before the bound `|s| = max_depths × L` |
 | `market.max_sell_at_or_above(V, s, min_price, params)` | most units sellable while the next unit's sell price stays ≥ `min_price` (closed form) |
 | `market.decay(s, ticks, params)` | `s` after `ticks` of reversion towards 0 |
+| `market.rebase(s, V_old, V_new, params)` | `s × V_old / V_new`, bounded: the price stays the same multiple of the base value when the base value changes (multiplier, overrides, mods) |
 
 Reasons: `invalid-quantity` (not a positive number), `insufficient-liquidity` (beyond the bound).
 

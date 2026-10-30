@@ -119,3 +119,18 @@ describe("market.decay", function()
     assert.are.equal(1000, market.decay(1000, 0, params))
   end)
 end)
+
+describe("market.rebase", function()
+  it("keeps the price the same multiple of a new base value", function()
+    local depth = market.depth(V, params)
+    local before = market.mid_price(V, 3 * depth, params) / V
+    local after_displacement = market.rebase(3 * depth, V, 100 * V, params)
+    assert.is_true(near(before, market.mid_price(100 * V, after_displacement, params) / (100 * V)))
+  end)
+
+  it("stays within the bounds of the new value", function()
+    local bound = params.max_depths * market.depth(V / 7, params)
+    assert.is_true(near(bound, market.rebase(1e12, V, V / 7, params)))
+    assert.is_true(near(-bound, market.rebase(-1e12, V, V / 7, params)))
+  end)
+end)

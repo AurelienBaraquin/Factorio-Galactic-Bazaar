@@ -28,9 +28,13 @@ overridden one.
 Option 2. `remote.call("galactic-bazaar", …)` offers `set_value`, `scale_value`, `clear_value` and
 `get_value`; overrides persist in `storage.value_overrides`, keyed like base values, and each change
 recomputes every base value. A fixed value is final: the startup multiplier `gb-value-multiplier`
-scales every other value. Invalid input (a key that is not a tradeable item or fluid, a value or
-factor that is not positive and finite) raises an error in the calling mod, since it is a
-programming mistake.
+scales every other value. A fixed value is a source from the main tier on; a factor keeps the tier
+the graph priced its key in (ADR-0002 tiers), so a factor of 1 is neutral and a factor never lets a
+natural source undercut a production chain. Values and factors are bounded so every value stays
+finite and above the floor. Invalid input (a key that is not a tradeable item or fluid, a missing or
+out-of-range number, a call during `on_load`) raises an error in the calling mod, since it is a
+programming mistake. After every rebuild, each market's displacement is rescaled by
+`V_old / V_new` and bounded again, so a price stays the same multiple of its base value.
 
 ## Consequences
 
@@ -38,5 +42,6 @@ programming mistake.
   input and its products; the interface is four functions.
 - Trade-offs accepted: each call recomputes everything (17 ms vanilla, 47 ms Space Age, measured on
   2.1.24), fine for calls made once in a mod's `on_init` or `on_configuration_changed`, not for calls
-  every tick; markets keep their displacement in units, so prices jump to the new value at once.
+  every tick; prices move with their base value at once (relative market state is kept); factors
+  do not compound along a chain.
 - Follow-up: a batch call if mods set many values at once.

@@ -55,7 +55,8 @@ local function refresh_list(player, data)
   elements.page.caption = { "gb-gui.page", shown.page, shown.pages }
   for i, row in ipairs(elements.rows) do
     local name = shown.names[i]
-    -- An override removed by another mod can leave a listed item without a price until reopening.
+    -- The list is taken when the window opens: an item whose value another mod removes since then
+    -- is hidden, and one that gains a value appears on the next opening.
     local quote = name and market.quote(player.force_index, "item", name)
     for _, cell in pairs(row) do cell.visible = quote ~= nil end
     if quote then
