@@ -92,7 +92,7 @@ describe("price signal combinators", function()
   end)
 
   local function expire()
-    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - 1e7
     update_all()
     update_all()
   end
@@ -144,7 +144,7 @@ describe("price signal combinators", function()
   test("finish a snapshot from the lists it started with when an override replaces them", function()
     place("gb-sell-price-combinator", 3)
     update_all()
-    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - 1e7
     price_signals.on_pass_tick()
     price_signals.on_pass_tick()
     local builder = storage.price_signals.builders[game.forces.player.index]
@@ -193,7 +193,7 @@ describe("price signal combinators", function()
     place("gb-sell-price-combinator", 3)
     update_all()
     market.sell(game.forces.player.index, "item", "iron-gear-wheel", 5000)
-    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - 1e7
     update_all()
     local module = storage.price_signals.modules[storage.price_signals.order[1]]
     local profiler = helpers.create_profiler()
@@ -207,7 +207,7 @@ describe("price signal combinators", function()
   test("measures a pass while a force's snapshot is rebuilt", function()
     place("gb-sell-price-combinator", 3)
     update_all()
-    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - price_signals.UPDATE_TICKS
+    storage.price_signals.snapshots[game.forces.player.index].tick = game.tick - 1e7
     price_signals.on_pass_tick()
     local profiler = helpers.create_profiler()
     local passes = update_all()

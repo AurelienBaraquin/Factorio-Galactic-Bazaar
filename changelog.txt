@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.7
+Date: 2026-10-30
+  Features:
+    - Galactic telecommunications research: prices seen and emitted refresh every 30 s, 10 s or 2 s; level 2 adds trends and price history.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.6
 Date: 2026-10-30
   Features:

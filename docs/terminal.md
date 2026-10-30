@@ -24,8 +24,8 @@ logic in `scripts/core/catalog.lua`.
 | Part | Behaviour |
 |---|---|
 | Status | the force's balance, whether the hub has power, and its capsules queued out of `max_capsules` |
-| List | tradeable items (`storage.tradeable_items`, built with the base values), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price, trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
-| Detail | for the selected item: a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee. A purchase is exactly the preview; a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
+| List | tradeable items (`storage.tradeable_items`, built with the base values), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price as the force sees them (`telecom.quote`, at most its telecommunications period old, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)), and with telecommunications 2 the trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
+| Detail | for the selected item: with telecommunications 2, a history line (sparkline of the last 30 NPC steps); a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee. A purchase is exactly the preview; a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
 | Buy | needs a powered hub with at least one import chest of its force; pays the market cost plus the freight fee at once and queues the units in orbital capsules (`freight.order`, see below); the printed result says when the last capsule lands |
 | Sell | needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, no price floor), so the preview matches; other qualities stay in the inventory until the window can pick a quality |
 | Refresh | once a second per open window of a connected player, spread over `SLOTS` (10) slots of `SLOT_TICKS` (6) ticks by player index; a window whose hub is gone, foreign or out of reach is closed. Measured on 2.1.24: 0.18 ms per window refresh in vanilla (196 items), 0.40 ms with Space Age (284) — budget 0.5 ms per window |
@@ -111,7 +111,7 @@ scaling in `scripts/core/signals.lua`; prototypes: `prototypes/signals.lua`.
 | Technology | `gb-market-signals` (after the Galactic Bazaar and circuit network; 100 × red and green) |
 | Hub | attached like the power substations: nearest hub of the force within `price_signals.HUB_RANGE` (10 tiles), re-checked at each visit; silent (`enabled = false`) without a powered one |
 | Signals | section 1: buy or sell price of every item in `storage.tradeable_items` and fluid in `storage.tradeable_fluids`, normal quality, in milli-credits; section 2: the balance on `gb-credits` in credits, read live at each visit (`signals.price`, `signals.balance`: rounded, clamped to int32, zero values left out) |
-| Snapshot | per force, taken again when older than `price_signals.UPDATE_TICKS` (600, 10 s), quoting `SNAPSHOT_CHUNK` (40) keys per pass from the item and fluid lists captured when it started; combinators keep the last complete snapshot; its version changes only when a price changed. Reading every price keeps a market entry per key and force up to date (`storage.forces[i].markets`) |
+| Snapshot | per force, taken again when older than the force's telecommunications period (30 s, 10 s or 2 s, ADR-0012), quoting `SNAPSHOT_CHUNK` (40) keys per pass from the item and fluid lists captured when it started; combinators keep the last complete snapshot; its version changes only when a price changed. Reading every price keeps a market entry per key and force up to date (`storage.forces[i].markets`) |
 | Writing | every `PASS_TICKS` (6), up to `VISITS` (10) combinators are visited in turn, the pass stopping after one price rewrite (a whole `filters` write); the balance slot is set when it changed. Prices thus reach every combinator within 10 s plus 0.1 s per combinator to rewrite |
 | Integrity | players cannot open it (`operable = false`); a combinator is registered once; any section that is not one of the script's two plain sections (blueprint, pasted settings, another mod: a group, inactive, a multiplier) is replaced at the next visit; pasted settings force a rewrite |
 | Budget | costliest pass (one price rewrite): 0.2–0.5 ms; average pass during a rebuild: 0.17–0.29 ms (2.1.24, vanilla and Space Age) — budgets 0.6 ms and 0.3 ms |
@@ -133,3 +133,18 @@ parsing and budget in `scripts/core/orders.lua`; prototype in `prototypes/signal
 | Orders | in name order, each placed with `freight.order` (capsule delivery, freight fee, refused when it exceeds what is left of the budget: `over-budget`); a full capsule queue or a hub without import chest stops the combinator's orders for the period |
 | Budget (UPS) | a pass with 50 combinators asking for 5 items each: 0.09 ms in vanilla, 0.13 ms with Space Age (2.1.24) — budget 0.2 ms |
 | Journal | `buy` and `freight` entries merged per item and minute (`circuit_orders.JOURNAL_MERGE_TICKS`) |
+
+## Telecommunications (`gb-telecommunications-1`, `gb-telecommunications-2`)
+
+Research that sets how fresh the prices a force sees are ([ADR-0012](adr/0012-telecommunications-set-price-freshness.md)).
+Code: `scripts/telecom.lua`, levels and sparkline in `scripts/core/telecom.lua`.
+
+| Level | Technology | Prices seen and emitted | Also |
+|---|---|---|---|
+| 0 | none | at most 30 s old | |
+| 1 | `gb-telecommunications-1` (after the Galactic Bazaar and logistic science; 100 × red and green) | at most 10 s old | |
+| 2 | `gb-telecommunications-2` (after level 1 and advanced circuits; 200 × red and green) | at most 2 s old | trend column and history line in the market window |
+
+`telecom.quote(force_index, kind, name)` returns `{buy, sell, history}` from the force's feed
+(`storage.forces[i].feed[key]`), quoted again when older than the period. Trade previews and
+executions always use live prices (`market.quote`, `market.preview`).

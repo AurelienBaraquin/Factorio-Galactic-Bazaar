@@ -122,7 +122,7 @@ if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
     { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market",
       "tests/hubs", "tests/cargo", "tests/freight", "tests/power", "tests/price_signals", "tests/circuit_orders",
-      "tests/market_gui" },
+      "tests/telecom", "tests/market_gui" },
     { load_luassert = true }
   )
 end
