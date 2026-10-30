@@ -43,7 +43,7 @@ moved by contract outcomes and kept within [`MIN`, `MAX`] = [−20, 20].
 | Effect | Rule |
 |---|---|
 | Freight fees | every purchase's fee × `fee_factor` = 1 − `FEE_STEP` (0.025) × score: ×0.5 at 20, ×1.5 at −20 (`freight.preview`, `freight.order`) |
-| Contract size | incoming offers aim at `TARGET_VALUE` × `contract_scale` = max(`MIN_SIZE` (0.5), 1 + `SIZE_STEP` (0.1) × score): ×3 at 20; the reward follows the batch |
+| Contract size | incoming offers aim at `TARGET_VALUE` × `contract_scale` = max(`MIN_SIZE` (0.5), 1 + `SIZE_STEP` (0.1) × score): ×3 at 20, ×0.5 from −5 down; the reward follows the batch |
 | Force merge | the destination keeps its score less the source's debt (`reputation.merge`) |
 
 The market window shows the score, with its effects in the tooltip ([terminal.md](terminal.md)).

@@ -27,11 +27,11 @@ it to another.
 ## Decision
 
 One score per force (`storage.forces[i].reputation`), kept within **[−20, 20]**
-(`scripts/core/reputation.lua`). Effects, linear in the score:
+(`scripts/core/reputation.lua`). Effects, linear in the score up to their bounds:
 
 - **Freight fees** × (1 − 0.025 × score): half price at 20, one and a half times at −20.
 - **Contract size**: incoming offers aim at a product value of 1 000 × (1 + 0.1 × score) credits,
-  at least half of it (×3 at 20); the reward scales with the batch.
+  at least half of it, reached at −5 (×3 at 20); the reward scales with the batch.
 
 On a force merge the destination keeps its own score **less the source's debt** (only a negative
 score follows). No decay. The market window shows the score, its effects in the tooltip.

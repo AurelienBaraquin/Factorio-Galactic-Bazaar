@@ -63,8 +63,8 @@ local function refresh_status(player, data)
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(state.balance) }
   elements.reputation.caption = { "gb-gui.reputation", state.reputation }
   elements.reputation.tooltip = { "gb-gui.reputation-effects",
-    string.format("%.0f", reputation.fee_factor(state.reputation) * 100),
-    string.format("%.0f", reputation.contract_scale(state.reputation) * 100) }
+    string.format("%.4g", reputation.fee_factor(state.reputation) * 100),
+    string.format("%.4g", reputation.contract_scale(state.reputation) * 100) }
   local hub = usable_hub(player, data)
   elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
   local tier = freight.tier(data.hub)

@@ -24,11 +24,11 @@ for name in pairs(freight.TIERS) do
 end
 
 describe("orbital capsule", function()
-  local saved_balance, hub, chest
+  local saved_balance, saved_reputation, hub, chest
   before_each(function()
     surface = game.surfaces[1]
     created = {}
-    saved_balance = player_state().balance
+    saved_balance, saved_reputation = player_state().balance, player_state().reputation
     player_state().balance = 1e6
     player_state().markets["item/" .. GEAR] = nil
     hub = place("gb-hub", 0, 0)
@@ -43,6 +43,7 @@ describe("orbital capsule", function()
       end
     end
     if saved_balance then player_state().balance = saved_balance end
+    if saved_reputation then player_state().reputation = saved_reputation end
     player_state().markets["item/" .. GEAR] = nil
   end)
 
@@ -58,13 +59,13 @@ describe("orbital capsule", function()
   end)
 
   test("scales the freight fee with the force's reputation", function()
-    local saved = player_state().reputation
     player_state().reputation = 0
     local cost, plain = freight.preview(game.forces.player.index, GEAR, 50)
     player_state().reputation = 20
     local _, trusted = freight.preview(game.forces.player.index, GEAR, 50)
-    player_state().reputation = saved
     assert.is_true(math.abs(trusted - plain / 2) < 1e-9)
+    local _, _, charged = freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
+    assert.is_true(math.abs(charged - trusted) < 1e-9)
     assert.is_true(math.abs(plain - cost * freight.TIERS.capsule.fee_rate) < 1e-9)
   end)
 

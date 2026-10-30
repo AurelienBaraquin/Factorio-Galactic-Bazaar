@@ -176,10 +176,11 @@ contracts.key = key_of
 contracts.HISTORY_SIZE = 20
 
 --- Gives a force state its contract book if it lacks one: {open = {[id] = contract}, history =
---- {contract...}}, and its reputation score.
+--- {contract...}}, and its reputation score, brought within its bounds (saves before 0.1.17 had
+--- none).
 function contracts.init_book(state)
   state.contracts = state.contracts or { open = {}, history = {} }
-  state.reputation = state.reputation or 0
+  state.reputation = reputation.add(state.reputation or 0, 0)
 end
 
 --- Files a contract in a force's book under `id`, unique across all forces (the adapter's counter),

@@ -81,4 +81,10 @@ describe("force_registry.ensure on a state saved before contracts", function()
     assert.are.same({ open = {}, history = {} }, forces[1].contracts)
     assert.are.equal(0, forces[1].reputation)
   end)
+
+  it("brings a reputation saved without bounds within them", function()
+    local forces = { [1] = { balance = 5, journal = {}, markets = {}, reputation = 35 } }
+    force_registry.ensure(forces, 1)
+    assert.are.equal(20, forces[1].reputation)
+  end)
 end)

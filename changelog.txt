@@ -5,6 +5,7 @@ Date: 2026-10-30
     - Reputation from -20 to 20, shown in the market window: it scales freight fees (half price at 20) and the size of contracts offered (up to three times).
   Changes:
     - On a force merge, only a negative reputation follows the merged force.
+    - Reputation saved by earlier versions is brought within -20 to 20.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.16
 Date: 2026-10-30
