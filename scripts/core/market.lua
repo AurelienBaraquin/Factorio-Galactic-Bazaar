@@ -53,6 +53,16 @@ function market.max_sell(base_value, displacement, params)
   return math.max(0, params.max_depths * market.depth(base_value, params) - displacement)
 end
 
+--- Most units the player can sell while the price of each unit stays at or above `min_price`
+--- (and within `max_sell`). The sell price at displacement x is (1 - spread/2) V e^(-x/L), so the
+--- last acceptable displacement is -L ln(min_price / ((1 - spread/2) V)).
+function market.max_sell_at_or_above(base_value, displacement, min_price, params)
+  if min_price <= 0 then return market.max_sell(base_value, displacement, params) end
+  local depth = market.depth(base_value, params)
+  local last = -depth * math.log(min_price / ((1 - params.spread / 2) * base_value))
+  return math.max(0, math.min(last - displacement, market.max_sell(base_value, displacement, params)))
+end
+
 --- Cost of buying `quantity` units, and the displacement after the trade; nil and a reason when the
 --- quantity is not positive or exceeds `max_buy`.
 function market.quote_buy(base_value, displacement, quantity, params)

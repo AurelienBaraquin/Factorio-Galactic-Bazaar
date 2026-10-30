@@ -3,17 +3,6 @@ local hubs = {}
 
 hubs.NAME = "gb-hub"
 
--- Every way an entity can appear; each is registered with a name filter in control.lua.
-hubs.BUILT_EVENTS = {
-  defines.events.on_built_entity,
-  defines.events.on_robot_built_entity,
-  defines.events.on_space_platform_built_entity,
-  defines.events.script_raised_built,
-  defines.events.script_raised_revive,
-  defines.events.on_entity_cloned,
-}
-hubs.FILTER = { { filter = "name", name = hubs.NAME } }
-
 local function register(entity)
   storage.hubs[entity.unit_number] = { entity = entity }
   script.register_on_object_destroyed(entity)
@@ -30,13 +19,18 @@ function hubs.init()
   for _, unit_number in ipairs(gone) do storage.hubs[unit_number] = nil end
 end
 
-function hubs.on_built(event)
-  local entity = event.entity or event.destination
-  if entity and entity.valid and entity.name == hubs.NAME then register(entity) end
+--- Registers a newly built hub; returns true when the entity was a hub.
+function hubs.on_built(entity)
+  if entity.name ~= hubs.NAME then return false end
+  register(entity)
+  return true
 end
 
-function hubs.on_object_destroyed(event)
-  if event.type == defines.target_type.entity then storage.hubs[event.useful_id] = nil end
+--- Forgets a destroyed hub; returns true when the unit number was a hub.
+function hubs.forget(unit_number)
+  if not storage.hubs[unit_number] then return false end
+  storage.hubs[unit_number] = nil
+  return true
 end
 
 --- The registered hub entity with this unit number, or nil.

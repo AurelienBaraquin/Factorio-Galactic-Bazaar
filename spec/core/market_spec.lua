@@ -76,6 +76,25 @@ describe("market.quote_sell", function()
   end)
 end)
 
+describe("market.max_sell_at_or_above", function()
+  it("sells down exactly to the price floor", function()
+    local floor = 0.5 * V
+    local units = market.max_sell_at_or_above(V, 0, floor, params)
+    assert.is_true(units > 0)
+    assert.is_true(near(floor, market.sell_price(V, units, params)))
+  end)
+
+  it("sells nothing when the price is already below the floor", function()
+    local depth = market.depth(V, params)
+    assert.are.equal(0, market.max_sell_at_or_above(V, 2 * depth, 0.5 * V, params))
+  end)
+
+  it("is bounded by the market's surplus bound, and unbounded floors use it", function()
+    assert.are.equal(market.max_sell(V, 0, params), market.max_sell_at_or_above(V, 0, 0, params))
+    assert.are.equal(market.max_sell(V, 0, params), market.max_sell_at_or_above(V, 0, 1e-12, params))
+  end)
+end)
+
 describe("round trips", function()
   for _, quantity in ipairs({ 1, 100, 10000, 100000 }) do
     it("always lose money when buying then selling " .. quantity .. " units at once", function()
