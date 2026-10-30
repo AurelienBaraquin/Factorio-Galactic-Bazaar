@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.13
+Date: 2026-10-30
+  Features:
+    - Electromagnetic catapult: sells everything it holds in one shot, at most every 2 s, for 50 MJ per shot.
+  Changes:
+    - Automatic sales (export chests, catapults) merge their journal entries per item and minute.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.12
 Date: 2026-10-30
   Features:

@@ -42,7 +42,7 @@ module, M3). The window's layout has only been checked by tests, not by eye.
 | Prototypes | `prototypes/cargo.lua`: two 48-slot containers derived from the steel chest, tinted orange (export) and green (import); icons add an up or down arrow |
 | Recipe | 1 steel chest + 5 electronic circuits, 2 s; unlocked by the technology below |
 | Attachment | the nearest registered hub of the same force within `cargo.HUB_RANGE` (10 tiles), resolved on build, for nearby modules when a hub is built, for a removed hub's modules, for every module on configuration change and force merge ([ADR-0005](adr/0005-modules-attach-to-a-hub-in-range.md)). When its hub has no power or belongs to another force, a module switches to the nearest powered hub of its force in range; if there is none, it stays attached to its nearest hub, powered or not |
-| Export | every `cargo.EXPORT_INTERVAL` (6) ticks, the next `cargo.EXPORT_BATCH` (2) export chests — 20 chests a second — sell their plain stacks while each unit still fetches at least `min_price_ratio` (default 0.5) × its base value. Plain (any quality, sold at its quality's price, [ADR-0008](adr/0008-quality-values-by-level.md)): no extra data (equipment grid, inventory, blueprint, tags), full health, unused tools and ammunition. Spoilable goods (Space Age) are plain too, though each of their stacks carries a `LuaItem`; a unit fetches its price × its freshness (`1 - spoil_percent`), the market moving by the units sold, and the floor applies to that, so with the default floor a stack less than about half fresh stays in the chest ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)). The sale is made first; the stack only shrinks for what was paid |
+| Export | every `cargo.EXPORT_INTERVAL` (6) ticks, the next `cargo.EXPORT_BATCH` (2) export chests — 20 chests a second — sell their plain stacks while each unit still fetches at least `min_price_ratio` (default 0.5) × its base value. Plain (any quality, sold at its quality's price, [ADR-0008](adr/0008-quality-values-by-level.md)): no extra data (equipment grid, inventory, blueprint, tags), full health, unused tools and ammunition. Spoilable goods (Space Age) are plain too, though each of their stacks carries a `LuaItem`; a unit fetches its price × its freshness (`1 - spoil_percent`), the market moving by the units sold, and the floor applies to that, so with the default floor a stack less than about half fresh stays in the chest ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)). The sale is made first; the stack only shrinks for what was paid; journal entries merge per item and minute (`cargo.JOURNAL_MERGE_TICKS`) |
 | Import | `cargo.deliver(hub_unit_number, name, count)` inserts landed items into that hub's import chests and returns how many fit; `cargo.has_import(hub_unit_number)` says whether the hub has an import chest of its force |
 | Budget | 0.09 ms per batch of 2 chests holding 4 item kinds each, measured on 2.1.24 with 164 chests in range (≈ 0.015 ms per tick on average); 0.13–0.15 ms with Space Age and quality pricing (budget 0.2 ms); the in-game test logs it, since LuaProfiler cannot be compared from Lua |
 | Throughput | each chest is visited every `n / 20` seconds for `n` export chests: with 2000 chests, every 100 s — fewer, fuller chests sell faster than many small ones |
@@ -215,3 +215,18 @@ Gives its hub the teleporter tier (#66, [ADR-0014](adr/0014-delivery-tier-per-hu
 | Hub | attached like the other modules (`teleporter.HUB_RANGE`, 10 tiles), indexed per hub (`storage.teleporters.by_hub`) |
 | Tier | the hub has the teleporter while one of its teleporters of its force holds at least `POWERED_SHARE` (half) of its buffer |
 | Without power | while all the hub's teleporters are unpowered, its teleporter shipments already queued wait (`delivers`); once the hub has no teleporter at all (mined, attached elsewhere), they land, since they were paid for |
+
+## Electromagnetic catapult (`gb-catapult`)
+
+Bulk exports (#67). Code: `scripts/catapult.lua`; prototypes: `prototypes/catapult.lua`.
+
+| | |
+|---|---|
+| Prototypes | a 48-slot chest derived from the steel chest, tinted red; under it, a hidden `gb-catapult-capacitor` (electric-energy-interface, not selectable, not blueprintable, no collision; `secondary-input`, 100 MJ buffer, intake capped at 30 MW) placed and removed by the script with the catapult |
+| Recipe | 100 steel plates, 30 advanced circuits, 10 accumulators, 20 electric engines, 20 s |
+| Technology | `gb-catapult` (after the Galactic Bazaar, accumulators and electric engine; 250 × red, green and blue) |
+| Hub | attached like the other modules (`catapult.HUB_RANGE`, 10 tiles); shoots only through a powered hub of its force |
+| Shot | every `catapult.PASS_TICKS` (6), the next catapult in turn shoots if its interval (`SHOT_TICKS`, 120) passed and its capacitor holds `SHOT_MJ` (50 MJ): it sells every plain stack while each unit fetches at least `cargo.DEFAULT_MIN_PRICE_RATIO` (0.5) × its base value, then spends the 50 MJ, only if something sold |
+| Journal | entries merged per item and minute (`cargo.JOURNAL_MERGE_TICKS`), like export chests |
+| Budget | a shot of 48 full stacks: 0.44–0.48 ms (2.1.24); one catapult per pass — budget 0.5 ms |
+| Lifecycle | a catapult that lost its capacitor gets a new one on configuration change |
