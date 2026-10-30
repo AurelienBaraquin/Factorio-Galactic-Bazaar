@@ -24,17 +24,20 @@ parameters be carried by the tier and that a hub choose the tier it has, the win
 
 Option 3. Tiers are a table of parameters with a rank (`scripts/core/freight.lua`: capsule,
 shuttle, teleporter). Modules that provide a tier register a provider with
-`freight.register_tier_provider(fn)`: given a hub, it returns the tier its building gives that hub
-now (attached, fuelled or powered), or nil. A hub ships by the highest-ranked tier any provider
-returns, the orbital capsule otherwise. An order is scheduled, priced (fee) and bounded (queue) with
-the tier at order time, and each shipment records its tier; shipments already queued keep their
-schedule when the tier changes. The market window shows the tier and its queue bound.
+`freight.register_tier_provider(fn)` at file scope: given a hub, it returns the tier its building
+gives that hub now (attached, fuelled or powered), or nil, with no side effect (it is asked on every
+preview and refresh). A hub ships by the highest-ranked tier any provider returns, the orbital
+capsule otherwise. An order is scheduled, priced (fee) and bounded with the tier at order time, and
+each shipment records its tier. Each tier has its own launch schedule and its own queue bound in the
+hub's single queue, and unloading takes every landed shipment, so a fast tier never waits behind a
+slow one and a better tier never locks a hub out. The market window shows the tier and its queue;
+a purchase from it is refused (`tier-changed`) if the tier changed since it was shown.
 
 ## Consequences
 
 - Positive: one queue and one bound per hub; a new tier is a parameter set plus a provider; order
   combinators and the window follow the hub's tier without change.
-- Trade-offs accepted: a hub cannot use two tiers at once; dropping to a tier with a smaller queue
-  bound (teleporter 10) refuses new orders until the queue drains.
-- Follow-up: the shuttle's fuel per rotation (#65) and the teleporter's power (#66) are what their
-  providers check.
+- Trade-offs accepted: a hub uses one tier for new orders at a time; shipments queued on a slower
+  tier keep their schedule after an upgrade.
+- Follow-up: the shuttle's fuel per rotation (#65) needs a hook called when shipments are committed
+  (providers only answer yes or no); the teleporter's power (#66) fits the yes-or-no provider.

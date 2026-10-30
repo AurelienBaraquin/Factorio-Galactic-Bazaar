@@ -68,12 +68,15 @@ scheduling and the tier parameters in `scripts/core/freight.lua` (`freight.TIERS
 |---|---|---|---|---|---|---|---|
 | `capsule` | 1 | 1800 ticks (30 s) | 600 ticks (10 s) | 10 stacks | 5 % | 20 | always |
 | `shuttle` | 2 | 1200 ticks (20 s) | 300 ticks (5 s) | 40 stacks | 3 % | 20 | a fuelled docking bay (#65) |
-| `teleporter` | 3 | 60 ticks (1 s) | 60 ticks (1 s) | 20 stacks | 1 % | 10 | a powered teleporter (#66) |
+| `teleporter` | 3 | 60 ticks (1 s) | 60 ticks (1 s) | 20 stacks | 1 % | 20 | a powered teleporter (#66) |
 
-A module providing a tier registers `freight.register_tier_provider(fn)`, `fn(hub_unit_number)`
-returning a tier name or nil; `freight.tier(hub_unit_number)` gives the hub's tier. An order is
-scheduled, charged and bounded with the tier at order time and each shipment records it; the market
-window's status line shows the tier and its queue bound. The rows below describe the capsule; the
+A module providing a tier registers `freight.register_tier_provider(fn)` at file scope,
+`fn(hub_unit_number)` returning a tier name or nil with no side effect; `freight.tier(hub_unit_number)`
+gives the hub's tier. An order is scheduled, charged and bounded with the tier at order time and each
+shipment records it. Each tier launches on its own schedule and has its own queue bound
+(`freight.queued(hub, tier)`), and unloading takes every landed shipment, so tiers never hold each
+other back. The market window's status line shows the tier and its queue; a purchase from it is
+refused (`tier-changed`) when the tier changed since the window showed it. The rows below describe the capsule; the
 other tiers differ only by their parameters.
 
 | Payment | at order time: the market cost plus `fee_rate` (5 %) of it, journaled as a `buy` and a `freight` entry; refused whole if the balance does not cover both. Each capsule records the force that paid and the market price paid per unit |

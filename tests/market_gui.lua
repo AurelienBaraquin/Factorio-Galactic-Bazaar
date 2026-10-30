@@ -72,6 +72,9 @@ describe("market window", function()
     assert.is_true(window() ~= nil)
     assert.are.equal(player.opened, window())
     assert.are.same({ "gb-gui.balance", "1.00M" }, data().elements.balance.caption)
+    local delivery = data().elements.freight.caption
+    assert.are.same({ "gb-gui.delivery", { "gb-gui.tier-capsule" } }, { delivery[1], delivery[2] })
+    assert.are.same({ 0, 20 }, { tonumber(delivery[3]), tonumber(delivery[4]) })
     assert.are.equal(15, #shown_items())
   end)
 

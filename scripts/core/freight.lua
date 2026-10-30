@@ -18,7 +18,7 @@ freight.TIERS = {
   },
   teleporter = {
     name = "teleporter", rank = 3,
-    delay_ticks = 60, launch_interval_ticks = 60, capacity_stacks = 20, fee_rate = 0.01, max_capsules = 10,
+    delay_ticks = 60, launch_interval_ticks = 60, capacity_stacks = 20, fee_rate = 0.01, max_capsules = 20,
   },
 }
 freight.DEFAULT_TIER = "capsule"

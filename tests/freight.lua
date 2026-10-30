@@ -149,13 +149,16 @@ describe("orbital capsule", function()
   end).after_reload_mods(function()
     local unit_number = storage.gb_test_freight.hub
     local capsules = freight.capsules(unit_number)
-    assert.are.equal(1, #capsules)
-    assert.are.equal(50, capsules[1].count)
-    assert.is_true(storage.freight.hubs[unit_number].next_launch > 0)
+    local count, first = #capsules, capsules[1] and capsules[1].count
+    local launch = storage.freight.hubs[unit_number].launches.capsule
+    -- Clean up before asserting, so that a failure does not leave entities behind for later tests.
     storage.freight.hubs[unit_number] = nil
     storage.hubs[unit_number].entity.destroy()
     storage.cargo.modules[storage.gb_test_freight.chest].entity.destroy()
     storage.gb_test_freight = nil
+    assert.are.equal(1, count)
+    assert.are.equal(50, first)
+    assert.is_true(launch > 0)
   end)
 
   describe("tiers", function()
@@ -177,6 +180,34 @@ describe("orbital capsule", function()
       assert.are.equal(1, freight.queued(hub.unit_number))
       assert.are.equal("shuttle", freight.capsules(hub.unit_number)[1].tier)
       assert.are.equal(game.tick + shuttle.delay_ticks, arrival)
+    end)
+
+    test("land a fast tier at its own time, never behind a slower one", function()
+      storage.gb_test_tiers = { [hub.unit_number] = "shuttle" }
+      local per_shuttle = prototypes.item[GEAR].stack_size * freight.TIERS.shuttle.capacity_stacks
+      freight.order(game.forces.player.index, hub.unit_number, GEAR, 2 * per_shuttle)
+      storage.gb_test_tiers = { [hub.unit_number] = "teleporter" }
+      local _, _, _, arrival = freight.order(game.forces.player.index, hub.unit_number, "iron-plate", 10)
+      assert.are.equal(game.tick + freight.TIERS.teleporter.delay_ticks, arrival)
+      freight.on_unload_tick({ tick = arrival })
+      assert.are.equal(10, chest.get_item_count("iron-plate"))
+      assert.are.equal(2, freight.queued(hub.unit_number))
+      player_state().markets["item/iron-plate"] = nil
+    end)
+
+    test("bound each tier's queue on its own, so a better tier never locks a hub out", function()
+      local per_capsule = prototypes.item[GEAR].stack_size * freight.TIERS.capsule.capacity_stacks
+      freight.order(game.forces.player.index, hub.unit_number, GEAR, per_capsule * freight.TIERS.capsule.max_capsules)
+      storage.gb_test_tiers = { [hub.unit_number] = "teleporter" }
+      assert.is_true(freight.order(game.forces.player.index, hub.unit_number, GEAR, 10))
+      assert.are.equal(1, freight.queued(hub.unit_number, "teleporter"))
+    end)
+
+    test("refuse an order whose tier changed since the player saw it", function()
+      local ok, reason = freight.order(game.forces.player.index, hub.unit_number, GEAR, 10, nil, nil, "item", "shuttle")
+      assert.is_false(ok)
+      assert.are.equal("tier-changed", reason)
+      assert.are.equal(0, freight.queued(hub.unit_number))
     end)
   end)
 end)
