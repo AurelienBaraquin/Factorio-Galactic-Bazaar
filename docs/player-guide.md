@@ -42,3 +42,29 @@ every visit, within a few seconds. Without a powered hub in range, a combinator 
    `✓ = 1`.
 
 The inserter then only loads the export chest while plates sell for more than 1.5 credits.
+
+## Order combinator
+
+Researched with **Market orders** (after Market signals). Place it within 10 tiles of a powered
+trading hub that has an import chest, and wire signals into it; it cannot be opened and emits
+nothing.
+
+- Every **10 seconds**, it buys, for each **item signal** with a positive value, that many units
+  (normal quality). They arrive by orbital capsule in the hub's import chests, with the freight fee,
+  like a purchase from the market window.
+- **Budget**: it spends at most the value of the **Credits** signal on its input per 10 s; without
+  that signal, at most a tenth of your balance. An order that does not fit is skipped.
+- A signal left on keeps buying every 10 s. The capsule queue (20 per hub) stops it when the
+  import chests stay full.
+- Negative values, fluids, qualities other than normal and items that cannot be traded are ignored.
+
+### Example: keep 2 000 iron plates in stock
+
+1. Wire the import chest (red) to a decider combinator: condition `Iron plate < 2000`, output
+   `Iron plate = 200` (a constant 200).
+2. Wire the decider's output (green) to the order combinator, and a constant combinator emitting
+   `Credits = 500` to the same green wire. Keep the chest's red wire away from the order
+   combinator: it would read the chest's contents as orders.
+
+While the chest holds fewer than 2 000 plates, the order combinator buys 200 plates every 10 s,
+spending at most 500 credits each time.

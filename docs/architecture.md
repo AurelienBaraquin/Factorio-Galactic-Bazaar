@@ -55,13 +55,15 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   exist, re-attaches the others) and `freight.init` (settles the queues of hubs that no longer
   exist).
 - **Building events**: `control.lua` routes every way an entity can appear (filtered to the mod's
-  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
+  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
 - **Price signals**: every `price_signals.PASS_TICKS`, the snapshots being built advance by a chunk
   of quotes and the next combinator is rewritten if its force's snapshot changed
   ([terminal.md](terminal.md)).
+- **Circuit orders**: every `circuit_orders.ORDER_TICKS`, each order combinator reads its inputs
+  and places capsule orders within its budget ([terminal.md](terminal.md)).
 - **Power**: every `power.SETTLE_TICKS`, each force's export substations are sold and its import
   substations refilled through the market ([terminal.md](terminal.md)).
 - **Delivery**: a purchase is paid and queued in capsules (`freight.order`); every

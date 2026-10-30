@@ -17,7 +17,7 @@ local function is_finite(n)
 end
 
 -- Recent entries searched for one to merge a recurring transaction into.
-account.MERGE_WINDOW = 4
+account.MERGE_WINDOW = 16
 
 -- The recent entry a recurring transaction merges into: same kind and key, also mergeable, and
 -- started less than `merge_ticks` before it.

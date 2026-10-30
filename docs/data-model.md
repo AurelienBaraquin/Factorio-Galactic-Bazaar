@@ -118,6 +118,13 @@ once each, and `modules[order[i]].order_index == i`; `written` is the snapshot v
 `written_balance` the balance last written into the combinator. Snapshots and builders are dropped
 on `on_configuration_changed`, and a merged force's on `on_forces_merged`.
 
+## `storage.circuit_orders`
+
+`{modules = {[unit_number] = {entity, hub}}}` — every order combinator ([terminal.md](terminal.md),
+ADR-0011). Written by `scripts/circuit_orders.lua` on build events, hub build and removal, force
+merge and `on_object_destroyed`; invalid entries are dropped and the others re-attached on
+`on_configuration_changed`.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market

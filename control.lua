@@ -5,6 +5,7 @@ local forces = require("scripts.forces")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market_gui = require("scripts.market_gui")
+local circuit_orders = require("scripts.circuit_orders")
 local power = require("scripts.power")
 local price_signals = require("scripts.price_signals")
 local value_overrides = require("scripts.value_overrides")
@@ -17,6 +18,7 @@ local function init()
   freight.init()
   power.init()
   price_signals.init()
+  circuit_orders.init()
   market_gui.init()
 end
 
@@ -33,6 +35,7 @@ script.on_event(defines.events.on_forces_merged, function(event)
   cargo.on_forces_merged(event)
   power.on_forces_merged(event)
   price_signals.on_forces_merged(event)
+  circuit_orders.on_forces_merged(event)
 end)
 
 -- Every way an entity can appear, filtered to the mod's buildings.
@@ -44,7 +47,9 @@ local BUILT_EVENTS = {
   defines.events.script_raised_revive,
   defines.events.on_entity_cloned,
 }
-local BUILDING_FILTER = { { filter = "name", name = hubs.NAME } }
+local BUILDING_FILTER = {
+  { filter = "name", name = hubs.NAME }, { filter = "name", name = circuit_orders.NAME, mode = "or" },
+}
 for _, kinds in ipairs({ cargo.KINDS, power.KINDS, price_signals.KINDS }) do
   for name in pairs(kinds) do
     table.insert(BUILDING_FILTER, { filter = "name", name = name, mode = "or" })
@@ -58,7 +63,8 @@ local function on_built(event)
     cargo.on_hub_built(entity)
     power.on_hub_built(entity)
     price_signals.on_hub_built(entity)
-  elseif not (power.on_built(entity) or price_signals.on_built(entity)) then
+    circuit_orders.on_hub_built(entity)
+  elseif not (power.on_built(entity) or price_signals.on_built(entity) or circuit_orders.on_built(entity)) then
     cargo.on_built(entity)
   end
 end
@@ -73,9 +79,11 @@ script.on_event(defines.events.on_object_destroyed, function(event)
     cargo.on_hub_removed(event.useful_id)
     power.on_hub_removed(event.useful_id)
     price_signals.on_hub_removed(event.useful_id)
+    circuit_orders.on_hub_removed(event.useful_id)
     freight.on_hub_removed(event.useful_id)
     market_gui.on_hub_removed(event.useful_id)
-  elseif not (power.forget(event.useful_id) or price_signals.forget(event.useful_id)) then
+  elseif not (power.forget(event.useful_id) or price_signals.forget(event.useful_id)
+    or circuit_orders.forget(event.useful_id)) then
     cargo.forget(event.useful_id)
   end
 end)
@@ -91,6 +99,7 @@ every(market_gui.SLOT_TICKS, market_gui.on_refresh_tick)
 every(freight.UNLOAD_INTERVAL, freight.on_unload_tick)
 every(power.SETTLE_TICKS, power.on_settle_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
+every(circuit_orders.ORDER_TICKS, circuit_orders.on_order_tick)
 for ticks, handlers in pairs(periodic) do
   script.on_nth_tick(ticks, function(event)
     for _, handler in ipairs(handlers) do handler(event) end
@@ -109,7 +118,8 @@ script.on_event({
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
     { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market",
-      "tests/hubs", "tests/cargo", "tests/freight", "tests/power", "tests/price_signals", "tests/market_gui" },
+      "tests/hubs", "tests/cargo", "tests/freight", "tests/power", "tests/price_signals", "tests/circuit_orders",
+      "tests/market_gui" },
     { load_luassert = true }
   )
 end
