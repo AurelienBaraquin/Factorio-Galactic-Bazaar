@@ -43,8 +43,9 @@ local function current_entry(force_index, key)
   return entry, base_value, state, params
 end
 
--- Every function below takes `quality_name` last, optional: an item quality other than normal
--- trades on its own market, priced from the normal value (ADR-0008).
+-- Every function below takes `quality_name`, optional: an item quality other than normal trades on
+-- its own market, priced from the normal value (ADR-0008). `buy` and `sell` also take `merge_ticks`,
+-- optional, for recurring trades whose journal entries merge over that period (core/account.lua).
 
 --- Current prices of `kind`/`name` ("item"/"fluid") for a force: {buy, sell, mid, history}, or nil
 --- when it is not tradeable.
@@ -59,14 +60,15 @@ function market.quote(force_index, kind, name, quality_name)
   }
 end
 
-local function trade(force_index, key, quantity, side)
+local function trade(force_index, key, quantity, side, merge_ticks)
   local entry, base_value, state, params = current_entry(force_index, key)
   if not entry then return false, "not-tradeable" end
   local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
   local credits, displacement = quote(base_value, entry.displacement, quantity, params)
   if not credits then return false, displacement end
   local amount = side == "buy" and -credits or credits
-  local ok, reason = account.apply(state, amount, { tick = game.tick, kind = side, key = key, quantity = quantity })
+  local journal_entry = { tick = game.tick, kind = side, key = key, quantity = quantity, merge_ticks = merge_ticks }
+  local ok, reason = account.apply(state, amount, journal_entry)
   if not ok then return false, reason end
   entry.displacement = displacement
   return true, credits
@@ -89,6 +91,14 @@ function market.sellable(force_index, kind, name, min_price_ratio, quality_name)
   local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return 0 end
   return market_model.max_sell_at_or_above(base_value, entry.displacement, min_price_ratio * base_value, params)
+end
+
+--- Units of `kind`/`name` the force can buy before the market's shortage bound; 0 when it is not
+--- tradeable. Funds are not checked.
+function market.buyable(force_index, kind, name, quality_name)
+  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  if not entry then return 0 end
+  return market_model.max_buy(base_value, entry.displacement, params)
 end
 
 --- The base values were rebuilt (prototypes, settings or overrides changed): every market entry is
@@ -116,14 +126,14 @@ end
 --- Buys `quantity` units for the force: debits the account and moves the market, or changes nothing.
 --- Returns true and the cost, or false and a reason (not-tradeable, invalid-quantity,
 --- insufficient-liquidity, insufficient-funds). Delivering the goods is the caller's job.
-function market.buy(force_index, kind, name, quantity, quality_name)
-  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "buy")
+function market.buy(force_index, kind, name, quantity, quality_name, merge_ticks)
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "buy", merge_ticks)
 end
 
 --- Sells `quantity` units for the force: credits the account and moves the market, or changes
 --- nothing. Returns true and the revenue, or false and a reason. Taking the goods is the caller's job.
-function market.sell(force_index, kind, name, quantity, quality_name)
-  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell")
+function market.sell(force_index, kind, name, quantity, quality_name, merge_ticks)
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell", merge_ticks)
 end
 
 return market

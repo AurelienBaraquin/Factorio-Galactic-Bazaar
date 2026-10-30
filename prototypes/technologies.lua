@@ -18,4 +18,37 @@ data:extend({
       time = 15,
     },
   },
+  {
+    type = "technology",
+    name = "gb-power-trading",
+    icons = data.raw.item["gb-power-export"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-galactic-bazaar", "electric-energy-distribution-1" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-power-export" },
+      { type = "unlock-recipe", recipe = "gb-power-import" },
+    },
+    unit = {
+      count = 150,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 30,
+    },
+  },
+  {
+    type = "technology",
+    name = "gb-power-trading-2",
+    icons = data.raw.item["gb-power-import"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-power-trading", "electric-energy-distribution-2" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-power-trading-2" } },
+    },
+    unit = {
+      count = 300,
+      ingredients = {
+        { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 },
+      },
+      time = 30,
+    },
+  },
 })

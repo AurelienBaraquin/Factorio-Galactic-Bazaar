@@ -11,13 +11,16 @@ how they move on their own, and how a force trades. The reasoning is in
 | Function | Does |
 |---|---|
 | `market.quote(force_index, kind, name)` | `{buy, sell, mid, history}` for `"item"`/`"fluid"` `name`, or `nil` if not tradeable |
-| `market.buy(force_index, kind, name, quantity)` | debits the account and moves the market; `true, cost` or `false, reason` |
-| `market.sell(force_index, kind, name, quantity)` | credits the account and moves the market; `true, revenue` or `false, reason` |
+| `market.buy(force_index, kind, name, quantity, quality_name, merge_ticks)` | debits the account and moves the market; `true, cost` or `false, reason` |
+| `market.sell(force_index, kind, name, quantity, quality_name, merge_ticks)` | credits the account and moves the market; `true, revenue` or `false, reason` |
 | `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
 | `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
+| `market.buyable(force_index, kind, name, quality_name)` | units buyable before the shortage bound (funds not checked) |
 | `market.rebase_all(old_values)` | after base values are rebuilt: brings every entry up to date with its old value, rebases it on the new one, drops entries of keys that lost their value |
 
-Every function takes an optional last argument `quality_name` (default normal): an item of another
+`kind` is `"item"`, `"fluid"` or `"energy"` (`energy/electricity`, in megajoules, traded by the
+power module). `merge_ticks` (optional) marks a recurring trade whose journal entries merge over that period
+(power settlements). Every function takes an optional argument `quality_name` (default normal): an item of another
 quality trades on its own market, keyed `item/<name>@<quality>` and priced from the quality value
 ([pricing.md](pricing.md), ADR-0008). Its `depth_credits` is multiplied by the quality's value
 ratio, so it is as deep in units as the normal market. `market.rebase` takes the old and new

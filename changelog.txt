@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.4
+Date: 2026-10-30
+  Features:
+    - Power export and import substations: sell the network's surplus electricity and buy what it lacks, 10 MW each, 40 MW with Power trading 2.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.3
 Date: 2026-10-30
   Features:

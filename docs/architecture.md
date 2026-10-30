@@ -55,10 +55,12 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   exist, re-attaches the others) and `freight.init` (settles the queues of hubs that no longer
   exist).
 - **Building events**: `control.lua` routes every way an entity can appear (filtered to the mod's
-  buildings) to `hubs.on_built`, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
+  buildings) to `hubs.on_built`, `power.on_built` for a substation, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
+- **Power**: every `power.SETTLE_TICKS`, each force's export substations are sold and its import
+  substations refilled through the market ([terminal.md](terminal.md)).
 - **Delivery**: a purchase is paid and queued in capsules (`freight.order`); every
   `freight.UNLOAD_INTERVAL` ticks landed capsules are unloaded into import chests; a removed hub's
   queue is sold back ([terminal.md](terminal.md)).

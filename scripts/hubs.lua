@@ -39,4 +39,29 @@ function hubs.get(unit_number)
   return hub and hub.entity.valid and hub.entity or nil
 end
 
+--- Whether a hub has power to trade.
+function hubs.has_power(hub)
+  return hub.energy > 0
+end
+
+--- Unit number of the nearest registered hub of the entity's force on its surface within `range`
+--- tiles (ADR-0005); with `powered_only`, the nearest one that has power. Ties go to the lowest unit
+--- number, so every peer picks the same hub.
+function hubs.nearest(entity, range, powered_only)
+  local best, best_distance
+  local candidates = entity.surface.find_entities_filtered({
+    name = hubs.NAME, force = entity.force, position = entity.position, radius = range,
+  })
+  for _, hub in ipairs(candidates) do
+    if hubs.get(hub.unit_number) and (not powered_only or hubs.has_power(hub)) then
+      local dx, dy = hub.position.x - entity.position.x, hub.position.y - entity.position.y
+      local distance = dx * dx + dy * dy
+      if not best or distance < best_distance or (distance == best_distance and hub.unit_number < best.unit_number) then
+        best, best_distance = hub, distance
+      end
+    end
+  end
+  return best and best.unit_number or nil
+end
+
 return hubs
