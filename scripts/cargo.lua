@@ -170,19 +170,21 @@ end
 
 --- Sells the plain stacks of `inventory` for a force, each at its quality's price, while each unit
 --- fetches at least `min_price_ratio` × its base value; only stacks of `name` (any quality) when
---- given, at most `limit` units when given. The sale goes first: a stack only shrinks for units the
---- market has paid for. Returns the units sold and the credits received.
-function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit)
+--- given, at most `limit` units when given, only of `quality_name` when given. The sale goes first:
+--- a stack only shrinks for units the market has paid for. Returns the units sold and the credits
+--- received.
+function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit, quality_name)
   local sold, revenue = 0, 0
   for slot = 1, #inventory do
     if limit and sold >= limit then break end
     local stack = inventory[slot]
-    if stack.valid_for_read and (not name or stack.name == name) and is_plain(stack) then
-      local quality_name = stack.quality.name
+    if stack.valid_for_read and (not name or stack.name == name)
+      and (not quality_name or stack.quality.name == quality_name) and is_plain(stack) then
+      local stack_quality = stack.quality.name
       local units = math.min(stack.count, limit and limit - sold or math.huge,
-        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio, quality_name)))
+        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio, stack_quality)))
       if units > 0 then
-        local ok, credits = market.sell(force_index, "item", stack.name, units, quality_name)
+        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality)
         if ok then
           stack.count = stack.count - units
           sold, revenue = sold + units, revenue + credits

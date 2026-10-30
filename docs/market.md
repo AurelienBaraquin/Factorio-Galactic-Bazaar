@@ -19,7 +19,10 @@ how they move on their own, and how a force trades. The reasoning is in
 
 Every function takes an optional last argument `quality_name` (default normal): an item of another
 quality trades on its own market, keyed `item/<name>@<quality>` and priced from the quality value
-([pricing.md](pricing.md), ADR-0008).
+([pricing.md](pricing.md), ADR-0008). Its `depth_credits` is multiplied by the quality's value
+ratio, so it is as deep in units as the normal market. `market.rebase` takes the old and new
+parameters, and `market.rebase_all(old_values, old_levels)` uses the quality levels of before the
+rebuild.
 
 A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
 `insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving

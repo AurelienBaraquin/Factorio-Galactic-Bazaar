@@ -133,4 +133,14 @@ describe("market.rebase", function()
     assert.is_true(near(bound, market.rebase(1e12, V, V / 7, params)))
     assert.is_true(near(-bound, market.rebase(-1e12, V, V / 7, params)))
   end)
+
+  it("keeps the price ratio when the depth parameters change with the value", function()
+    local deep = {}
+    for name, value in pairs(params) do deep[name] = value end
+    deep.depth_credits = params.depth_credits * 9
+    local s = 2 * market.depth(V, params)
+    local ratio = market.mid_price(V, s, params) / V
+    local rebased = market.rebase(s, V, 9 * V, params, deep)
+    assert.is_true(near(ratio, market.mid_price(9 * V, rebased, deep) / (9 * V)))
+  end)
 end)

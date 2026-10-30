@@ -26,14 +26,20 @@ qualities apart.
 
 Option 3, with `FACTOR_PER_LEVEL = 3` to start (Space Age: uncommon ×3, rare ×9, epic ×27,
 legendary ×243). Each quality other than normal trades on its own market, keyed `<key>@<quality>`;
-normal keys stay as they were, so saves and fluids (which have no quality) are unchanged. Hidden
-qualities are not tradeable. Quality stacks sell from export chests and the player's inventory at
-their quality's price; purchases stay normal quality.
+normal keys stay as they were, so saves and fluids (which have no quality) are unchanged. A quality
+market is as deep in units as the normal one (its depth in credits grows with its value), otherwise
+a legendary item worth thousands of credits would barely sell. Hidden qualities are not tradeable.
+Quality stacks sell from export chests at their quality's price; the market window sells normal
+quality only until it can pick a quality; purchases stay normal quality.
 
 ## Consequences
 
 - Positive: no change without a quality mod; modded qualities work; one constant to tune.
-- Trade-offs accepted: the factor does not follow how cheaply a given factory makes quality; base
-  value overrides (ADR-0007) apply to the normal value and so to every quality; buying a chosen
-  quality needs an interface (later).
+- Trade-offs accepted: the factor does not follow how cheaply a given factory makes quality. With
+  quality modules, one craft's expected sale value exceeds its normal value (about ×1.12 with four
+  tier-1 modules, ×1.74 with four legendary tier-3 ones), so crafting bought inputs with quality
+  modules and selling the output can beat the 10 % spread, like productivity modules already can;
+  market impact and the spread bound it, and reputation and contracts (M4) are the levers if it
+  proves too strong. Base value overrides (ADR-0007) apply to the normal value and so to every
+  quality; buying a chosen quality needs an interface (later).
 - Follow-up: tune the factor with play-testing; quality purchases with the market window.
