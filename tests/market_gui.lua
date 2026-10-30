@@ -1,5 +1,5 @@
 -- In-game tests of the market window (scripts/market_gui.lua), driven through the test save's player.
-local market = require("scripts.market")
+local freight = require("scripts.freight")
 local market_gui = require("scripts.market_gui")
 
 local player, surface, created
@@ -116,23 +116,25 @@ describe("market window", function()
     local caption = data().elements.preview.caption
     assert.are.equal("gb-gui.preview", caption[1])
     assert.are.equal(100, tonumber(caption[2]))
-    local previewed = market.preview(player.force_index, "item", "iron-gear-wheel", "buy", 100)
+    local cost, fee = freight.preview(player.force_index, "iron-gear-wheel", 100)
+    assert.is_true(fee > 0)
     click("buy")
-    assert.is_true(math.abs((1e6 - force_state().balance) - previewed) < 1e-6)
+    assert.is_true(math.abs((1e6 - force_state().balance) - (cost + fee)) < 1e-6)
   end)
 
-  test("buys into the hub's import chests and debits the force", function()
-    local chest = place("gb-import-chest", 5, 0)
+  test("orders a capsule to the hub and debits the force", function()
+    place("gb-import-chest", 5, 0)
     market_gui.open(player, hub)
     type_text("search", "iron gear")
     click("select")
     type_text("quantity", "50")
     click("buy")
-    assert.are.equal(50, chest.get_item_count("iron-gear-wheel"))
+    assert.are.equal(1, freight.queued(hub.unit_number))
+    assert.are.equal(50, freight.capsules(hub.unit_number)[1].count)
     assert.is_true(force_state().balance < 1e6)
   end)
 
-  test("refuses to buy without power or without room, changing nothing", function()
+  test("refuses to buy without power or without an import chest, changing nothing", function()
     market_gui.open(player, hub)
     type_text("search", "iron gear")
     click("select")
@@ -143,6 +145,7 @@ describe("market window", function()
     hub.energy = 0
     click("buy")
     assert.are.equal(0, chest.get_item_count("iron-gear-wheel"))
+    assert.are.equal(0, freight.queued(hub.unit_number))
     assert.are.equal(1e6, force_state().balance)
   end)
 

@@ -1,6 +1,6 @@
 -- The cargo module (ADR-0005): export chests sold to the market and import chests that receive
 -- purchases, each attached to the nearest trading hub of its force within range. State lives in
--- storage.cargo.
+-- storage.cargo, with an index of each hub's import chests so that a delivery only visits those.
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
 
@@ -39,8 +39,22 @@ local function nearest_hub(entity, powered_only)
   return best and best.unit_number or nil
 end
 
+-- storage.cargo.imports[hub unit_number] = {[import chest unit_number] = true}.
+local function index_import(hub_unit_number, unit_number, present)
+  if not hub_unit_number then return end
+  local imports = storage.cargo.imports
+  imports[hub_unit_number] = imports[hub_unit_number] or {}
+  imports[hub_unit_number][unit_number] = present or nil
+  if next(imports[hub_unit_number]) == nil then imports[hub_unit_number] = nil end
+end
+
 local function attach(module, powered_only)
+  local previous = module.hub
   module.hub = nearest_hub(module.entity, powered_only)
+  if module.kind == "import" and module.hub ~= previous then
+    index_import(previous, module.entity.unit_number, false)
+    index_import(module.hub, module.entity.unit_number, true)
+  end
 end
 
 local function attach_all()
@@ -49,15 +63,21 @@ local function attach_all()
   end
 end
 
---- on_init and on_configuration_changed: creates the state, drops modules that no longer exist and
---- re-attaches the others (hubs may have been dropped, or the range changed).
+--- on_init and on_configuration_changed: creates the state, drops modules that no longer exist,
+--- rebuilds the import index and re-attaches the modules (hubs may have been dropped, or the range
+--- changed).
 function cargo.init()
   storage.cargo = storage.cargo or { modules = {}, exports = {}, cursor = 1 }
+  storage.cargo.imports = storage.cargo.imports or {}
   local gone = {}
   for unit_number, module in pairs(storage.cargo.modules) do
     if not module.entity.valid then gone[#gone + 1] = unit_number end
   end
   for _, unit_number in ipairs(gone) do cargo.forget(unit_number) end
+  storage.cargo.imports = {}
+  for unit_number, module in pairs(storage.cargo.modules) do
+    if module.kind == "import" then index_import(module.hub, unit_number, true) end
+  end
   attach_all()
 end
 
@@ -85,6 +105,7 @@ function cargo.forget(unit_number)
   local module = state.modules[unit_number]
   if not module then return end
   state.modules[unit_number] = nil
+  if module.kind == "import" then index_import(module.hub, unit_number, false) end
   local index = module.export_index
   if not index then return end
   local exports = state.exports
@@ -183,22 +204,18 @@ local function import_inventories(hub_unit_number)
   local hub = hubs.get(hub_unit_number)
   local inventories = {}
   if not hub then return inventories end
-  for _, module in pairs(storage.cargo.modules) do
-    if module.kind == "import" and module.hub == hub_unit_number and module.entity.valid
-      and module.entity.force == hub.force then
+  for unit_number in pairs(storage.cargo.imports[hub_unit_number] or {}) do
+    local module = storage.cargo.modules[unit_number]
+    if module.entity.valid and module.entity.force == hub.force then
       inventories[#inventories + 1] = module.entity.get_inventory(defines.inventory.chest)
     end
   end
   return inventories
 end
 
---- How many `name` items (normal quality) the import chests of a hub can still take.
-function cargo.import_capacity(hub_unit_number, name)
-  local capacity = 0
-  for _, inventory in ipairs(import_inventories(hub_unit_number)) do
-    capacity = capacity + inventory.get_insertable_count({ name = name, quality = "normal" })
-  end
-  return capacity
+--- Whether a hub has at least one import chest of its force to receive purchases.
+function cargo.has_import(hub_unit_number)
+  return #import_inventories(hub_unit_number) > 0
 end
 
 --- Puts purchased items into the import chests of a hub. Returns how many were stored; the rest

@@ -59,12 +59,25 @@ with `hubs.get(unit_number)`, which checks `valid`.
 ## `storage.cargo`
 
 `{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil,
-min_price_ratio, export_index}}, exports = {unit_number...}, cursor}` — every cargo chest and the
-round-robin order of export chests ([terminal.md](terminal.md)). Written by `scripts/cargo.lua`.
+min_price_ratio, export_index}}, exports = {unit_number...}, cursor, imports = {[hub unit_number] =
+{[unit_number] = true}}}` — every cargo chest, the round-robin order of export chests and the
+import chests attached to each hub ([terminal.md](terminal.md)). Written by `scripts/cargo.lua`.
 Invariants: `exports` lists exactly the export modules and `modules[exports[i]].export_index == i`
-(removal swaps the last entry in); `hub` is a hint, re-checked before every use — a module only
+(removal swaps the last entry in); `imports` lists exactly the import modules by their `hub`,
+kept in step by attachment and removal and rebuilt on `on_configuration_changed`; `hub` is a hint, re-checked before every use — a module only
 works through a valid, powered hub of its own force; invalid entries are dropped and every module
 re-attached on `on_configuration_changed`.
+
+## `storage.freight`
+
+`{hubs = {[hub unit_number] = {next_launch, capsules = {{force_index, name, count, unit_cost, arrival}...}}}}`
+— the delivery queue of each hub ([terminal.md](terminal.md), ADR-0006). Written by
+`scripts/freight.lua`. Invariants: `capsules` is in landing order and holds at most
+`max_capsules` entries; `force_index` is the force that paid and `unit_cost` the market price it
+paid per unit; `count` is what is still to unload. A
+queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back; on
+`on_configuration_changed`, capsules of items that no longer exist are refunded and dropped, and
+the queues of hubs that no longer exist are sold back.
 
 ## `storage.players`
 
