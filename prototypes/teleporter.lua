@@ -1,6 +1,7 @@
 -- The teleporter (#66): an electric building that gives its trading hub the teleporter delivery
 -- tier while powered, for a constant 20 MW draw. Derived from the base electric-energy-interface,
--- tinted violet.
+-- tinted violet. Its intake is capped a little above its draw, so that a network that cannot keep up
+-- drains its buffer (and a fresh one fills in seconds rather than in one tick).
 local TINT = { 0.75, 0.45, 1, 1 }
 
 local entity = table.deepcopy(data.raw["electric-energy-interface"]["electric-energy-interface"])
@@ -14,7 +15,9 @@ entity.subgroup = "galactic-bazaar"
 entity.order = "b[delivery]-b[teleporter]"
 entity.gui_mode = "none"
 entity.allow_copy_paste = false
-entity.energy_source = { type = "electric", usage_priority = "secondary-input", buffer_capacity = "40MJ" }
+entity.energy_source = {
+  type = "electric", usage_priority = "secondary-input", buffer_capacity = "40MJ", input_flow_limit = "24MW",
+}
 entity.energy_production = "0kW"
 entity.energy_usage = "20MW"
 entity.picture = table.deepcopy(entity.picture)

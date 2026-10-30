@@ -1,8 +1,9 @@
 -- Teleporters (#66): electric buildings attached to the nearest hub of their force in range
 -- (ADR-0005) that give their hub the teleporter tier (ADR-0014) while they are powered: a high but
--- bounded throughput for a constant power draw. Without power, a hub's teleporter shipments already
--- queued wait instead of landing. State lives in storage.teleporters, with an index of each hub's
--- teleporters.
+-- bounded throughput for a constant power draw. While a hub's teleporters are all unpowered, its
+-- teleporter shipments already queued wait instead of landing; once it has no teleporter at all
+-- (mined, moved to another hub), they land, since they were paid for. State lives in
+-- storage.teleporters, with an index of each hub's teleporters.
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 

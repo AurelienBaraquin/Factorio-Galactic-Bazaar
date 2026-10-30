@@ -28,8 +28,9 @@ shuttle, teleporter). Modules that provide a tier register a provider with
 tier and answers, with no side effect (it is asked on every preview and refresh), whether a hub has
 it now (`available`) and whether it can carry N shipments (`can_supply`, e.g. fuel); `supply`
 consumes what the shipments of a paid order need; `delivers` (amended with #66) lets a provider with
-a building at a hub hold its tier's shipments already queued (a teleporter without power), while a
-provider without it never holds them (a shuttle's fuel was paid with the order). A hub ships by the
+a building at a hub hold its tier's shipments already queued (a teleporter without power; once the
+hub has no teleporter at all they land, being paid for), while a provider without it never holds
+them (a shuttle's fuel was paid with the order). A hub ships by the
 highest-ranked available tier,
 the orbital capsule otherwise; an order a tier cannot supply, or whose queue is full, falls back to
 the next one, and the window plans and shows the tier for the quantity typed. An order is scheduled, priced (fee) and bounded with the tier at order time, and

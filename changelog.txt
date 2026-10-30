@@ -2,7 +2,7 @@
 Version: 0.1.12
 Date: 2026-10-30
   Features:
-    - Teleporter: gives its hub near-instant deliveries (20 stacks a second, 1 % freight) for a constant 20 MW; without power its shipments wait.
+    - Teleporter: gives its hub near-instant deliveries (20 stacks a second, 1 % freight) for a constant 20 MW; while unpowered its shipments wait.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.11
 Date: 2026-10-30

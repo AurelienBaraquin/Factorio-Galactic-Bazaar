@@ -209,9 +209,9 @@ Gives its hub the teleporter tier (#66, [ADR-0014](adr/0014-delivery-tier-per-hu
 
 | | |
 |---|---|
-| Prototype | an `electric-energy-interface` derived from the base one, tinted violet, drawing 20 MW (`secondary-input`, 40 MJ buffer) |
+| Prototype | an `electric-energy-interface` derived from the base one, tinted violet, drawing 20 MW (`secondary-input`, 40 MJ buffer, intake capped at 24 MW so a network that cannot keep up drains it; a fresh one reaches half its buffer in about 5 s) |
 | Recipe | 100 processing units, 50 low density structures, 200 steel plates, 30 s |
 | Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × the five vanilla packs) |
 | Hub | attached like the other modules (`teleporter.HUB_RANGE`, 10 tiles), indexed per hub (`storage.teleporters.by_hub`) |
 | Tier | the hub has the teleporter while one of its teleporters of its force holds at least `POWERED_SHARE` (half) of its buffer |
-| Without power | the hub's teleporter shipments already queued do not land until a teleporter is powered again (`delivers`) |
+| Without power | while all the hub's teleporters are unpowered, its teleporter shipments already queued wait (`delivers`); once the hub has no teleporter at all (mined, attached elsewhere), they land, since they were paid for |
