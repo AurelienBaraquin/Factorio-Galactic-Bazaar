@@ -6,6 +6,7 @@ local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
 local freight = require("scripts.freight")
 local incoming = require("scripts.incoming_contracts")
+local market = require("scripts.market")
 
 local player, surface, created
 local function place(name, dx, dy)
@@ -115,6 +116,50 @@ describe("incoming contracts", function()
       { capsules[1].name, capsules[1].count, capsules[1].unit_cost, capsules[1].contract })
   end)
 
+  test("acceptance after the offer's end is refused before anything ships", function()
+    local id = contracts.offer(force().index, spec())
+    contracts.get(force().index, id).accept_by = game.tick - 1
+    assert.are.same({ false, "expired" }, { incoming.accept(force().index, id, hub.unit_number) })
+    assert.are.equal(0, freight.queued(hub.unit_number))
+    assert.are.equal(1000, state().balance)
+  end)
+
+  test("the penalty rises to what the ingredients sell for on the market at acceptance", function()
+    local id = contracts.offer(force().index, spec())
+    local sell = market.quote(force().index, "item", "iron-plate").sell
+    contracts.get(force().index, id).penalty = 0
+    assert.is_true(incoming.accept(force().index, id, hub.unit_number))
+    local contract = contracts.get(force().index, id)
+    assert.is_true(math.abs(contract.penalty - 10 * sell) < 1e-9)
+    assert.is_true(math.abs(1000 - (100 + 10 * sell) - state().balance) < 1e-9)
+  end)
+
+  test("no more offers while MAX_CONTRACTS incoming contracts are open", function()
+    force().technologies[incoming.TECHNOLOGY].researched = true
+    for _ = 1, incoming.MAX_CONTRACTS do
+      contracts.accept(force().index, contracts.offer(force().index, spec()))
+    end
+    incoming.on_offer_tick()
+    local count = 0
+    for _ in pairs(state().contracts.open) do count = count + 1 end
+    assert.are.equal(incoming.MAX_CONTRACTS, count)
+  end)
+
+  test("a contract whose goods no longer exist is voided with its guarantee back", function()
+    local active = contracts.offer(force().index, spec())
+    contracts.accept(force().index, active)
+    contracts.get(force().index, active).requires[1].name = "gb-test-vanished"
+    local offered = contracts.offer(force().index, spec())
+    contracts.get(force().index, offered).provides[1].name = "gb-test-vanished"
+    local reputation = state().reputation
+    incoming.init()
+    assert.is_nil(contracts.get(force().index, active))
+    assert.is_nil(contracts.get(force().index, offered))
+    assert.are.equal(1000, state().balance)
+    assert.are.equal(reputation, state().reputation)
+    assert.are.equal(core.VOIDED, state().contracts.history[#state().contracts.history - 1].state)
+  end)
+
   test("acceptance without an import chest is refused, changing nothing", function()
     import_chest.destroy()
     local id = contracts.offer(force().index, spec())
@@ -168,7 +213,16 @@ describe("incoming contracts", function()
     assert.are.equal(core.ACTIVE, contracts.get(force().index, first).state)
     contracts_gui.on_gui_click({ element = find(window, "contract-decline", second), player_index = player.index })
     assert.is_nil(contracts.get(force().index, second))
-    assert.is_true(find(window, "contract-abandon", first) ~= nil)
+    contracts_gui.on_gui_click({ element = find(window, "contract-abandon", first), player_index = player.index })
+    assert.is_nil(contracts.get(force().index, first))
+  end)
+
+  test("the contracts window closes when its hub is removed", function()
+    contracts_gui.open(player, hub.unit_number)
+    hub.destroy()
+    after_ticks(1, function()
+      assert.is_nil(player.gui.screen.gb_contracts)
+    end)
   end)
 
   test("keeps contract chests across a save and reload", function()

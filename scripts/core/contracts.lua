@@ -11,6 +11,7 @@ local contracts = {}
 contracts.OFFERED, contracts.ACTIVE = "offered", "active"
 contracts.FULFILLED, contracts.FAILED = "fulfilled", "failed"
 contracts.EXPIRED, contracts.DECLINED = "expired", "declined"
+contracts.VOIDED = "voided"
 
 -- Largest credits a contract may name, so that every sum stays finite.
 contracts.MAX_CREDITS = 1e12
@@ -156,6 +157,15 @@ function contracts.abandon(contract, tick)
   if contract.state ~= contracts.ACTIVE then return nil end
   contract.due_tick = math.min(contract.due_tick, tick - 1)
   return contracts.settle(contract, tick)
+end
+
+--- Voids an active contract at `tick` that can no longer be fulfilled through no fault of the force
+--- (its goods no longer exist): the outcome gives the whole guarantee back, without reputation.
+--- Returns nil when it is not active.
+function contracts.void(contract, tick)
+  if contract.state ~= contracts.ACTIVE then return nil end
+  contract.state, contract.settled_tick = contracts.VOIDED, tick
+  return { state = contracts.VOIDED, credits = contracts.guarantee(contract), reputation = 0 }
 end
 
 contracts.key = key_of

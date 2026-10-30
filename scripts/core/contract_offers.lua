@@ -2,9 +2,12 @@
 -- contract spec — a counterparty provides the ingredients for a batch, the force hands back the
 -- products — priced from base values.
 --
--- Pricing keeps the deal honest both ways: the reward pays the work (LABOR_SHARE of the products'
--- value), and the guarantee (deposit plus penalty) exceeds the value of the ingredients provided,
--- so taking the ingredients and failing costs more than they are worth.
+-- Pricing keeps the deal honest both ways: the reward pays the work — LABOR_SHARE of the products'
+-- value, but never more than the value crafting adds (products minus ingredients), so buying the
+-- products on the market and selling the ingredients received never pays — and the guarantee
+-- (deposit plus penalty) exceeds the value of the ingredients provided, so taking them and failing
+-- costs more than they are worth (the adapter raises the penalty to their market price at
+-- acceptance).
 local contract_offers = {}
 
 -- Value of the products a batch aims at, in credits.
@@ -46,11 +49,11 @@ end
 
 --- A contract spec from `recipe` = {energy, ingredients = {{kind, name, count}}, products =
 --- {{kind, name, count}}} and base `values` by key, with the counterparty picked by `draw` (a number
---- in (0, 1)); nil when a good has no value or the products are worth nothing.
+--- in (0, 1)); nil when a good has no value or crafting adds no value.
 function contract_offers.offer(recipe, values, draw)
   local product_value = value_of(recipe.products, values)
   local ingredient_value = value_of(recipe.ingredients, values)
-  if not (product_value and ingredient_value) or product_value <= 0 then return nil end
+  if not (product_value and ingredient_value) or product_value <= ingredient_value then return nil end
   local batch = math.max(1, math.min(contract_offers.MAX_BATCH,
     math.ceil(contract_offers.TARGET_VALUE / product_value)))
   local counterparties = contract_offers.COUNTERPARTIES
@@ -59,7 +62,7 @@ function contract_offers.offer(recipe, values, draw)
     counterparty = counterparties[math.min(#counterparties, math.floor(draw * #counterparties) + 1)],
     provides = scaled(recipe.ingredients, batch),
     requires = scaled(recipe.products, batch),
-    reward = contract_offers.LABOR_SHARE * product_value * batch,
+    reward = math.min(contract_offers.LABOR_SHARE * product_value, product_value - ingredient_value) * batch,
     deposit = contract_offers.DEPOSIT_SHARE * ingredient_value * batch,
     penalty = contract_offers.PENALTY_SHARE * ingredient_value * batch,
     duration_ticks = math.ceil(recipe.energy * 60 * batch * contract_offers.TIME_FACTOR)

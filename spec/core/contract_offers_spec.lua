@@ -14,7 +14,7 @@ describe("contract_offers.offer", function()
     local batch = math.ceil(contract_offers.TARGET_VALUE / 2.69)
     assert.are.same({ { kind = "item", name = "iron-plate", count = 2 * batch } }, spec.provides)
     assert.are.same({ { kind = "item", name = "iron-gear-wheel", count = batch } }, spec.requires)
-    assert.are.near(contract_offers.LABOR_SHARE * 2.69 * batch, spec.reward, 1e-9)
+    assert.are.near((2.69 - 2 * 1.32) * batch, spec.reward, 1e-9)
     assert.is_true(spec.deposit + spec.penalty > 1.32 * 2 * batch)
     assert.is_truthy(contracts.new(spec, 0))
   end)
@@ -24,6 +24,17 @@ describe("contract_offers.offer", function()
     local provided = 0
     for _, goods in ipairs(spec.provides) do provided = provided + values["item/" .. goods.name] * goods.count end
     assert.is_true(spec.deposit + spec.penalty > provided)
+  end)
+
+  it("pays at most the labour share of the products' value", function()
+    local rich = { ["item/iron-plate"] = 1, ["item/iron-gear-wheel"] = 10 }
+    local spec = contract_offers.offer(gear, rich, 0.5)
+    assert.are.near(contract_offers.LABOR_SHARE * 10 * contract_offers.TARGET_VALUE / 10, spec.reward, 1e-9)
+  end)
+
+  it("refuses a recipe whose ingredients are worth as much as its products", function()
+    assert.is_nil(contract_offers.offer(gear, { ["item/iron-plate"] = 1.5, ["item/iron-gear-wheel"] = 3 }, 0.5))
+    assert.is_nil(contract_offers.offer(gear, { ["item/iron-plate"] = 2, ["item/iron-gear-wheel"] = 3 }, 0.5))
   end)
 
   it("refuses a recipe with a good that has no value", function()

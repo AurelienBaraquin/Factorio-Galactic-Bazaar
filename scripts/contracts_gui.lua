@@ -10,7 +10,7 @@ local incoming = require("scripts.incoming_contracts")
 
 local contracts_gui = {}
 
-contracts_gui.ROWS = 8
+contracts_gui.ROWS = incoming.MAX_CONTRACTS
 contracts_gui.REFRESH_TICKS = 60
 
 local WINDOW = "gb_contracts"
@@ -127,7 +127,8 @@ end
 actions["contract-accept"] = function(player, data, tags)
   local hub = hubs.get(data.hub)
   if not (hub and hub.force == player.force and player.can_reach_entity(hub)) then
-    return player.print({ "gb-gui.hub-unavailable" })
+    contracts_gui.close(player.index)
+    return player.print({ "gb-contracts.hub-unavailable" })
   end
   local ok, reason = incoming.accept(player.force_index, tags.id, data.hub)
   if not ok then player.print({ "gb-contracts.refused-" .. reason }) end
@@ -151,6 +152,15 @@ function contracts_gui.on_gui_click(event)
   local player = game.get_player(event.player_index)
   action(player, data, element.tags)
   if window_of(event.player_index) then refresh(player, data) end
+end
+
+--- A hub is gone: the contracts windows opened from it close.
+function contracts_gui.on_hub_removed(hub_unit_number)
+  local closing = {}
+  for player_index, data in pairs(storage.contracts_gui) do
+    if data.hub == hub_unit_number then closing[#closing + 1] = player_index end
+  end
+  for _, player_index in ipairs(closing) do contracts_gui.close(player_index) end
 end
 
 --- on_nth_tick(REFRESH_TICKS): refreshes the open windows of connected players.

@@ -98,6 +98,8 @@ them with the **Contracts** button of the market window.
 - Craft the products and put them in a **contract chest** within 10 tiles of a hub: every second,
   it hands over what your contracts still need, oldest first.
 - **On time**: you get the reward and the whole guarantee back, and +1 reputation. **Late or
-  abandoned**: the guarantee is lost, and −1 reputation. The guarantee is always worth more than
-  the ingredients, so keeping them never pays.
+  abandoned**: the guarantee is lost, and −1 reputation. The guarantee is set at acceptance above
+  what the ingredients sell for then, so keeping them does not pay.
+- The reward is the value your crafting adds, so recipes that add little value pay little.
+- At most 8 contracts are open at a time, offers and active ones together.
 - An offer not accepted within 5 minutes expires; **Decline** removes it at once.

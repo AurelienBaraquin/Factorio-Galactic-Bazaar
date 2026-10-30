@@ -313,13 +313,13 @@ function freight.on_forces_merging(event)
 end
 
 -- Refunds and drops capsules of items or fluids that no longer exist (a mod was removed): they
--- cannot land.
+-- cannot land. A contract's capsules were not paid for: they are dropped (the contract is voided).
 local function drop_unknown_cargo(queue)
   local kept = {}
   for _, capsule in ipairs(queue.capsules) do
     if CARGO[capsule.kind or "item"].stack_size(capsule.name) then
       kept[#kept + 1] = capsule
-    else
+    elseif not capsule.contract then
       refund(capsule)
     end
   end
