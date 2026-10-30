@@ -20,9 +20,11 @@ local capacitor = table.deepcopy(data.raw["electric-energy-interface"]["electric
 capacitor.name = "gb-catapult-capacitor"
 capacitor.hidden = true
 capacitor.flags = { "not-on-map", "not-blueprintable", "not-deconstructable", "not-selectable-in-game",
-  "placeable-off-grid", "not-flammable" }
+  "placeable-off-grid", "not-flammable", "not-repairable", "not-in-kill-statistics" }
 capacitor.minable = nil
 capacitor.collision_mask = { layers = {} }
+-- The catapult's own footprint, so that poles power it exactly where they power the catapult.
+capacitor.collision_box = table.deepcopy(catapult.collision_box)
 capacitor.selection_box = nil
 capacitor.gui_mode = "none"
 capacitor.allow_copy_paste = false

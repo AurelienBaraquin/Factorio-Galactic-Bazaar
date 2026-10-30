@@ -2,7 +2,8 @@
 -- (ADR-0005) that sell their contents in bulk, one shot at a time: a shot sells every plain stack
 -- while each unit fetches at least the export floor, and draws SHOT_MJ from the catapult's capacitor,
 -- a hidden electric-energy-interface under it that charges from the network. Without enough energy,
--- no shot. Catapults are visited one per PASS_TICKS in turn, each shooting at most every SHOT_TICKS.
+-- no shot. Catapults are visited in turn, up to VISITS per PASS_TICKS and at most one shot per pass,
+-- each shooting at most every SHOT_TICKS.
 -- State lives in storage.catapults.
 local cargo = require("scripts.cargo")
 local hubs = require("scripts.hubs")
@@ -15,11 +16,28 @@ catapult.HUB_RANGE = 10
 catapult.SHOT_MJ = 50
 catapult.SHOT_TICKS = 120
 catapult.PASS_TICKS = 6
+-- Catapults visited per pass at most; a pass stops at the first shot.
+catapult.VISITS = 5
 
 local MJ = 1e6
 
+-- The catapult's capacitor: one already under it (an area clone copies both) or a new one. It cannot
+-- be damaged: nothing lets a player see or repair it.
 local function place_capacitor(entity)
-  return entity.surface.create_entity({ name = catapult.CAPACITOR, position = entity.position, force = entity.force })
+  local capacitor = entity.surface.find_entities_filtered({
+    name = catapult.CAPACITOR, position = entity.position, limit = 1,
+  })[1]
+  capacitor = capacitor or entity.surface.create_entity({
+    name = catapult.CAPACITOR, position = entity.position, force = entity.force,
+  })
+  capacitor.destructible = false
+  return capacitor
+end
+
+-- The catapult's capacitor, placed again if it is gone (another mod destroyed it).
+local function capacitor_of(module)
+  if not (module.capacitor and module.capacitor.valid) then module.capacitor = place_capacitor(module.entity) end
+  return module.capacitor
 end
 
 --- on_init and on_configuration_changed: creates the state, drops catapults that no longer exist,
@@ -33,7 +51,7 @@ function catapult.init()
   end
   for _, unit_number in ipairs(gone) do catapult.forget(unit_number) end
   for _, module in pairs(state.modules) do
-    if not (module.capacitor and module.capacitor.valid) then module.capacitor = place_capacitor(module.entity) end
+    capacitor_of(module)
     hubs.attach(module, catapult.HUB_RANGE)
   end
 end
@@ -99,8 +117,9 @@ end
 -- powered hub of its force. The energy is spent only when the shot sold something. Returns the units
 -- sold.
 local function shoot(module, tick)
-  local entity, capacitor = module.entity, module.capacitor
-  if tick < module.next_shot or not (capacitor and capacitor.valid) then return 0 end
+  local entity = module.entity
+  if tick < module.next_shot then return 0 end
+  local capacitor = capacitor_of(module)
   if capacitor.energy < catapult.SHOT_MJ * MJ or not hubs.trading_hub(module, catapult.HUB_RANGE) then return 0 end
   local sold = cargo.sell_stacks(entity.get_inventory(defines.inventory.chest), entity.force.index,
     cargo.DEFAULT_MIN_PRICE_RATIO, nil, nil, nil, cargo.JOURNAL_MERGE_TICKS)
@@ -111,14 +130,19 @@ local function shoot(module, tick)
   return sold
 end
 
---- on_nth_tick(PASS_TICKS): the next catapult in turn shoots if it is ready.
+--- on_nth_tick(PASS_TICKS): catapults are visited in turn, up to VISITS per pass, until one shoots;
+--- empty ones are passed over cheaply.
 function catapult.on_pass_tick(event)
   local state = storage.catapults
-  if #state.order == 0 then return end
-  if state.cursor > #state.order then state.cursor = 1 end
-  local module = state.modules[state.order[state.cursor]]
-  state.cursor = state.cursor + 1
-  if module and module.entity.valid then shoot(module, event.tick) end
+  for _ = 1, math.min(catapult.VISITS, #state.order) do
+    if state.cursor > #state.order then state.cursor = 1 end
+    local module = state.modules[state.order[state.cursor]]
+    state.cursor = state.cursor + 1
+    if module and module.entity.valid and not module.entity.get_inventory(defines.inventory.chest).is_empty()
+      and shoot(module, event.tick) > 0 then
+      return
+    end
+  end
 end
 
 catapult.shoot = shoot

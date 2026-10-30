@@ -50,10 +50,44 @@ describe("electromagnetic catapult", function()
     local capacitor = module_of(machine).capacitor
     assert.is_true(capacitor.valid)
     assert.are.equal(catapult.CAPACITOR, capacitor.name)
-    local unit_number = machine.unit_number
+    assert.is_false(capacitor.destructible)
     machine.destroy()
-    catapult.forget(unit_number)
-    assert.is_false(capacitor.valid)
+    after_ticks(1, function()
+      assert.is_false(capacitor.valid)
+    end)
+  end)
+
+  test("keeps a single capacitor when an area clone copies both", function()
+    place("gb-catapult", 3)
+    surface.clone_area({ source_area = { { 2, 209 }, { 4, 211 } }, destination_area = { { 2, 229 }, { 4, 231 } },
+      expand_map = true })
+    local copies = surface.find_entities_filtered({ area = { { 2, 229 }, { 4, 231 } } })
+    local capacitors = 0
+    for _, entity in ipairs(copies) do
+      created[#created + 1] = entity
+      if entity.name == catapult.CAPACITOR then capacitors = capacitors + 1 end
+    end
+    assert.are.equal(1, capacitors)
+  end)
+
+  test("visits catapults in turn, passing over empty ones, until one shoots", function()
+    local empty = place("gb-catapult", 3)
+    local full = place("gb-catapult", 5)
+    full.insert({ name = "iron-plate", count = 100 })
+    module_of(full).capacitor.energy = module_of(full).capacitor.electric_buffer_size
+    storage.catapults.cursor = module_of(empty).order_index
+    catapult.on_pass_tick({ tick = game.tick })
+    assert.are.equal(0, full.get_item_count("iron-plate"))
+  end)
+
+  test("keeps its visiting order after a middle catapult is removed", function()
+    local first, middle, last = place("gb-catapult", 3), place("gb-catapult", 5), place("gb-catapult", 7)
+    catapult.forget(middle.unit_number)
+    middle.destroy()
+    for index, unit_number in ipairs(storage.catapults.order) do
+      assert.are.equal(index, storage.catapults.modules[unit_number].order_index)
+    end
+    assert.is_truthy(module_of(first) and module_of(last))
   end)
 
   test("sells everything in one shot and spends a shot's energy", function()
@@ -104,12 +138,16 @@ describe("electromagnetic catapult", function()
     assert.is_true(module_of(machine).capacitor.valid)
   end)
 
-  test("measures a shot of a full catapult", function()
+  test("measures a shot of a full catapult holding 48 different items", function()
     local machine = place("gb-catapult", 3)
-    local kinds = { "iron-plate", "copper-plate", "iron-gear-wheel", "electronic-circuit" }
-    for i = 1, 48 do
-      local name = kinds[(i - 1) % #kinds + 1]
-      machine.insert({ name = name, count = prototypes.item[name].stack_size })
+    local kinds = {}
+    for _, name in ipairs(storage.tradeable_items) do
+      if #kinds == 48 then break end
+      local item = prototypes.item[name]
+      if item.type == "item" and item.get_spoil_ticks() == 0 then
+        kinds[#kinds + 1] = name
+        machine.insert({ name = name, count = item.stack_size })
+      end
     end
     local module = module_of(machine)
     module.capacitor.energy = module.capacitor.electric_buffer_size
@@ -118,5 +156,17 @@ describe("electromagnetic catapult", function()
     profiler.stop()
     log({ "", "[galactic-bazaar] catapult shot of 48 stacks: ", profiler })
     for _, name in ipairs(kinds) do player_state().markets["item/" .. name] = nil end
+  end)
+
+  test("keeps its catapults across a save and reload", function()
+    storage.gb_test_catapult = place("gb-catapult", 3).unit_number
+  end).after_reload_mods(function()
+    local module = storage.catapults.modules[storage.gb_test_catapult]
+    local alive = module.capacitor.valid
+    for _, entity in ipairs(game.surfaces[1].find_entities_filtered({ area = { { -10, 205 }, { 10, 215 } } })) do
+      if entity.name ~= catapult.CAPACITOR then entity.destroy() end
+    end
+    storage.gb_test_catapult = nil
+    assert.is_true(alive)
   end)
 end)
