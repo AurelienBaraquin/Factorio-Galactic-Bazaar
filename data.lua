@@ -2,6 +2,7 @@
 require("prototypes.hub")
 require("prototypes.cargo")
 require("prototypes.manifold")
+require("prototypes.docking_bay")
 require("prototypes.power")
 require("prototypes.signals")
 require("prototypes.technologies")

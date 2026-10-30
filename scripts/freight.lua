@@ -17,10 +17,14 @@ local freight = {}
 
 freight.TIERS = core.TIERS
 
--- Functions that say which tier a hub has through a building of theirs (ADR-0014): each takes a hub
--- unit number and returns a tier name or nil. They must have no side effect (they are asked on every
--- read: previews, window refreshes) and be registered at file scope when their module loads, the same
--- on every peer, never from an event handler.
+-- Modules that give hubs a better tier through a building of theirs (ADR-0014). A provider is
+-- {tier = name, available = fn(hub) -> bool, can_supply = fn(hub, shipments) -> bool (optional),
+-- supply = fn(hub, shipments) (optional)}: `available` says whether the hub has the tier now and
+-- `can_supply` whether it can ship that many shipments (fuel...), both without side effect, since
+-- they are asked on every read (previews, window refreshes); `supply` consumes what the shipments
+-- of a paid order need, and is called only after `can_supply` said yes in the same tick. Providers
+-- are registered at file scope when their module loads, the same on every peer, never from an event
+-- handler.
 local tier_providers = {}
 
 --- Registers a tier provider (see above).
@@ -28,14 +32,23 @@ function freight.register_tier_provider(provider)
   tier_providers[#tier_providers + 1] = provider
 end
 
+-- The tiers a hub can ship by now, best first, each with its provider; the orbital capsule last.
+local function candidates(hub_unit_number)
+  local list = {}
+  for _, provider in ipairs(tier_providers) do
+    local tier = core.TIERS[provider.tier]
+    if tier and hub_unit_number and provider.available(hub_unit_number) then
+      list[#list + 1] = { tier = tier, provider = provider }
+    end
+  end
+  table.sort(list, function(a, b) return a.tier.rank > b.tier.rank end)
+  list[#list + 1] = { tier = core.TIERS[core.DEFAULT_TIER] }
+  return list
+end
+
 --- The tier a hub ships by now: the best one its buildings provide, the orbital capsule otherwise.
 function freight.tier(hub_unit_number)
-  local available = {}
-  for _, provider in ipairs(tier_providers) do
-    local name = hub_unit_number and provider(hub_unit_number)
-    if name then available[#available + 1] = name end
-  end
-  return core.best(available)
+  return candidates(hub_unit_number)[1].tier
 end
 -- Ticks between two unloading passes over the hubs' landed capsules.
 freight.UNLOAD_INTERVAL = 60
@@ -115,11 +128,17 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   if not stack_size then return false, "not-tradeable" end
   if not cargo_kind.has_receiver(hub_unit_number, name) then return false, cargo_kind.no_receiver end
   local existing = storage.freight.hubs[hub_unit_number]
-  local tier = freight.tier(hub_unit_number)
+  -- The best tier that can carry the whole order: one whose building lacks what the shipments need
+  -- (a bay short of fuel) hands the order down to the next tier.
+  local tier, provider, capsules, launch
+  for _, candidate in ipairs(candidates(hub_unit_number)) do
+    tier, provider = candidate.tier, candidate.provider
+    capsules, launch = core.schedule(units, stack_size, tier, freight.queued(hub_unit_number, tier.name),
+      next_launch(existing, tier.name), game.tick)
+    if not capsules then return false, launch end
+    if not (provider and provider.can_supply) or provider.can_supply(hub_unit_number, #capsules) then break end
+  end
   if expected_tier and tier.name ~= expected_tier then return false, "tier-changed" end
-  local capsules, launch = core.schedule(units, stack_size, tier, freight.queued(hub_unit_number, tier.name),
-    next_launch(existing, tier.name), game.tick)
-  if not capsules then return false, launch end
   local cost, reason = market.preview(force_index, kind, name, "buy", units)
   if not cost then return false, reason end
   local fee = core.fee(cost, tier)
@@ -134,6 +153,7 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   account.apply(state, -fee, {
     tick = game.tick, kind = "freight", key = pricing.key(kind, name), quantity = units, merge_ticks = merge_ticks,
   })
+  if provider and provider.supply then provider.supply(hub_unit_number, #capsules) end
   local queue = queue_of(hub_unit_number)
   for _, capsule in ipairs(capsules) do
     capsule.force_index, capsule.kind, capsule.name, capsule.unit_cost = force_index, kind, name, paid / units

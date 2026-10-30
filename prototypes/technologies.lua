@@ -127,4 +127,21 @@ data:extend({
       time = 15,
     },
   },
+  {
+    type = "technology",
+    name = "gb-cargo-shuttle",
+    icons = data.raw.item["gb-docking-bay"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-galactic-bazaar", "rocket-fuel", "electric-engine" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-docking-bay" },
+    },
+    unit = {
+      count = 300,
+      ingredients = {
+        { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 },
+      },
+      time = 30,
+    },
+  },
 })

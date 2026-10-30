@@ -67,11 +67,12 @@ scheduling and the tier parameters in `scripts/core/freight.lua` (`freight.TIERS
 | Tier | Rank | Delay | One shipment every | Capacity | Fee | Queue bound | Provided by |
 |---|---|---|---|---|---|---|---|
 | `capsule` | 1 | 1800 ticks (30 s) | 600 ticks (10 s) | 10 stacks | 5 % | 20 | always |
-| `shuttle` | 2 | 1200 ticks (20 s) | 300 ticks (5 s) | 40 stacks | 3 % | 20 | a fuelled docking bay (#65) |
+| `shuttle` | 2 | 1200 ticks (20 s) | 300 ticks (5 s) | 40 stacks | 3 % | 20 | a docking bay holding fuel (100 MJ per shipment) |
 | `teleporter` | 3 | 60 ticks (1 s) | 60 ticks (1 s) | 20 stacks | 1 % | 20 | a powered teleporter (#66) |
 
-A module providing a tier registers `freight.register_tier_provider(fn)` at file scope,
-`fn(hub_unit_number)` returning a tier name or nil with no side effect; `freight.tier(hub_unit_number)`
+A module providing a tier registers `freight.register_tier_provider({tier, available, can_supply,
+supply})` at file scope (`available(hub)` and `can_supply(hub, shipments)` without side effect,
+`supply(hub, shipments)` after payment); an order a tier cannot supply falls back to the next tier; `freight.tier(hub_unit_number)`
 gives the hub's tier. An order is scheduled, charged and bounded with the tier at order time and each
 shipment records it. Each tier launches on its own schedule and has its own queue bound
 (`freight.queued(hub, tier)`), and unloading takes every landed shipment, so tiers never hold each
@@ -184,3 +185,18 @@ Fluid trading (#63). Code: `scripts/manifold.lua`; prototypes: `prototypes/manif
 | Export | every `manifold.EXPORT_INTERVAL` (6) ticks, the next `manifold.EXPORT_BATCH` (2) export manifolds with a powered hub sell their fluid while it fetches at least `manifold.MIN_PRICE_RATIO` (0.5) × its base value; the fluid leaves the tank first, the market pays for what actually left, and it goes back if the market refuses; journal entries merged per fluid and minute. Fluids are priced by name: temperature does not change the price |
 | Import | fluids bought from the market window or an order combinator travel by orbital capsule (`freight.order(…, "fluid")`), `freight.FLUID_UNITS_PER_STACK` (500) units taking the room of one stack, and land in the hub's import manifolds of its force at the fluid's default temperature (`manifold.deliver`, through the index `storage.manifold.imports`); without an import manifold that is empty or already holds the fluid, the order is refused (`no-import-manifold`) |
 | Budget | 0.03–0.06 ms per export batch of 2 manifolds (2.1.24, vanilla and Space Age) — budget 0.1 ms |
+
+## Docking bay (`gb-docking-bay`)
+
+Gives its hub the cargo shuttle tier (#65, [ADR-0014](adr/0014-delivery-tier-per-hub.md)). Code:
+`scripts/docking_bay.lua`; prototype: `prototypes/docking_bay.lua`.
+
+| | |
+|---|---|
+| Prototype | a 10-slot chest derived from the steel chest, tinted blue |
+| Recipe | 50 steel plates, 20 advanced circuits, 10 electric engines, 10 s |
+| Technology | `gb-cargo-shuttle` (after the Galactic Bazaar, rocket fuel and electric engine; 300 × red, green and blue) |
+| Hub | attached like the other modules (`docking_bay.HUB_RANGE`, 10 tiles); bays of another force are ignored |
+| Fuel | any chemical fuel item of normal quality; `docking_bay.fuel(hub)` sums the bays' buffers and fuel items in MJ |
+| Tier | the hub has the shuttle while its bays hold at least `FUEL_MJ_PER_SHIPMENT` (100 MJ, one rocket fuel); an order needing more shipments than the fuel covers goes by orbital capsule, burning nothing |
+| Burning | when a shuttle order is paid, `shipments × 100 MJ` are burnt from the bays in unit-number order: each bay's buffer first, then whole items in name order; what the last item gives beyond the need goes to the bay's buffer (lost if the bay is removed) |
