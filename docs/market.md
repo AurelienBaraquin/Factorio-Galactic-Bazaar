@@ -12,12 +12,12 @@ how they move on their own, and how a force trades. The reasoning is in
 |---|---|
 | `market.quote(force_index, kind, name)` | `{buy, sell, mid, history}` for `"item"`/`"fluid"` `name`, or `nil` if not tradeable |
 | `market.buy(force_index, kind, name, quantity)` | debits the account and moves the market; `true, cost` or `false, reason` |
-| `market.sell(force_index, kind, name, quantity)` | credits the account and moves the market; `true, revenue` or `false, reason` |
+| `market.sell(force_index, kind, name, quantity, quality_name, value_factor)` | credits the account and moves the market by `quantity`; `true, revenue` or `false, reason`. `value_factor` (default 1) scales the revenue only: the freshness of spoiled goods ([ADR-0009](adr/0009-spoilable-goods-priced-by-freshness.md)) |
 | `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
 | `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
 | `market.rebase_all(old_values)` | after base values are rebuilt: brings every entry up to date with its old value, rebases it on the new one, drops entries of keys that lost their value |
 
-Every function takes an optional last argument `quality_name` (default normal): an item of another
+Every function takes an optional argument `quality_name` (default normal), last but for `market.sell`: an item of another
 quality trades on its own market, keyed `item/<name>@<quality>` and priced from the quality value
 ([pricing.md](pricing.md), ADR-0008).
 

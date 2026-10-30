@@ -42,12 +42,13 @@ function market.quote(force_index, kind, name, quality_name)
   }
 end
 
-local function trade(force_index, key, quantity, side)
+local function trade(force_index, key, quantity, side, value_factor)
   local entry, base_value, state = current_entry(force_index, key)
   if not entry then return false, "not-tradeable" end
   local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
   local credits, displacement = quote(base_value, entry.displacement, quantity, MARKET_PARAMS)
   if not credits then return false, displacement end
+  credits = credits * (value_factor or 1)
   local amount = side == "buy" and -credits or credits
   local ok, reason = account.apply(state, amount, { tick = game.tick, kind = side, key = key, quantity = quantity })
   if not ok then return false, reason end
@@ -103,8 +104,10 @@ end
 
 --- Sells `quantity` units for the force: credits the account and moves the market, or changes
 --- nothing. Returns true and the revenue, or false and a reason. Taking the goods is the caller's job.
-function market.sell(force_index, kind, name, quantity, quality_name)
-  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell")
+--- `value_factor` (default 1) scales the revenue, not the market move: the share of a fresh unit's
+--- value the goods keep (spoilage, ADR-0009).
+function market.sell(force_index, kind, name, quantity, quality_name, value_factor)
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell", value_factor)
 end
 
 return market

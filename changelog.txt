@@ -3,6 +3,8 @@ Version: 0.1.3
 Date: 2026-10-30
   Features:
     - With quality, each quality level has its own value and market; quality stacks sell at their quality's price.
+  Bugfixes:
+    - Spoilable goods (Space Age) can be sold; each unit fetches its price times its freshness.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.2
 Date: 2026-10-30

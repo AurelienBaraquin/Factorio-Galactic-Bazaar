@@ -1,6 +1,7 @@
 -- In-game tests of the cargo module (scripts/cargo.lua): attachment to hubs in range, export
--- selling, import delivery, and the export batch budget.
+-- selling (spoilable stacks by freshness), import delivery, and the export batch budget.
 local cargo = require("scripts.cargo")
+local market = require("scripts.market")
 
 local surface, created
 local function place(name, x, y, force)
@@ -153,6 +154,54 @@ describe("cargo module", function()
     assert.are.equal(1, inventory.get_item_count("firearm-magazine"))
     assert.are.equal(1, inventory.get_item_count("stone-furnace"))
     assert.are.equal(0, player_state().balance)
+  end)
+
+  -- Spoilable items come with Space Age: run with `npm run test:game -- --mods space-age`. Each of
+  -- their stacks carries a LuaItem, which alone must not make it unsellable.
+  describe("spoilable stacks", function()
+    local SPOILABLE = "nutrients"
+    local inventory
+    before_each(function()
+      inventory = game.create_inventory(1)
+      player_state().markets["item/" .. SPOILABLE] = nil
+    end)
+    after_each(function()
+      if inventory and inventory.valid then inventory.destroy() end
+      player_state().markets["item/" .. SPOILABLE] = nil
+    end)
+
+    test("sell at the market price times their freshness, moving the market by the units sold", function()
+      if not script.active_mods["space-age"] then return end
+      inventory.insert({ name = SPOILABLE, count = 10, spoil_percent = 0.75 })
+      local freshness = 1 - inventory[1].spoil_percent
+      local fresh_revenue = market.preview(game.forces.player.index, "item", SPOILABLE, "sell", 10)
+      local sold, revenue = cargo.sell_stacks(inventory, game.forces.player.index, 0)
+      assert.are.equal(10, sold)
+      assert.is_true(freshness < 0.3)
+      assert.are.near(fresh_revenue * freshness, revenue, 1e-9 * fresh_revenue)
+      assert.are.near(revenue, player_state().balance, 1e-9 * fresh_revenue)
+      assert.are.equal(10, player_state().markets["item/" .. SPOILABLE].displacement)
+    end)
+
+    test("stay unsold when their freshness takes a unit below the price floor", function()
+      if not script.active_mods["space-age"] then return end
+      inventory.insert({ name = SPOILABLE, count = 10, spoil_percent = 0.75 })
+      local sold = cargo.sell_stacks(inventory, game.forces.player.index, cargo.DEFAULT_MIN_PRICE_RATIO)
+      assert.are.equal(0, sold)
+      assert.are.equal(10, inventory.get_item_count(SPOILABLE))
+      assert.are.equal(0, player_state().balance)
+    end)
+
+    test("sell from an export chest while fresh enough for its price floor", function()
+      if not script.active_mods["space-age"] then return end
+      local hub = place("gb-hub", 0, 0)
+      local chest = place("gb-export-chest", 2, 0)
+      hub.energy = hub.electric_buffer_size
+      chest.insert({ name = SPOILABLE, count = 10, spoil_percent = 0.1 })
+      for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
+      assert.are.equal(0, chest.get_item_count(SPOILABLE))
+      assert.is_true(player_state().balance > 0)
+    end)
   end)
 
   test("keeps visiting every export chest after one is removed", function()
