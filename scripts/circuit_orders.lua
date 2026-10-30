@@ -121,7 +121,8 @@ local function place_orders(module, tick)
   local hub = hubs.trading_hub(module, circuit_orders.HUB_RANGE)
   local force_index = entity.force.index
   local state = storage.forces[force_index]
-  if not (hub and state and freight.queued(hub.unit_number) < freight.TIER.max_capsules) then return end
+  if not (hub and state) then return end
+  if freight.queued(hub.unit_number) >= freight.tier(hub.unit_number).max_capsules then return end
   local requests, budget, refused = orders.requests(entity.get_signals(W.circuit_red, W.circuit_green),
     circuit_orders.BUDGET_SIGNAL, circuit_orders.REFUSED_SIGNAL)
   if refused or budget <= 0 or #requests == 0 then return end

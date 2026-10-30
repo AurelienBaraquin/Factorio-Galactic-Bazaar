@@ -12,6 +12,11 @@ end
 local function player_state() return storage.forces[game.forces.player.index] end
 local GEAR = "iron-gear-wheel"
 
+-- A tier provider for tests: storage.gb_test_tiers[hub unit number] = tier name.
+freight.register_tier_provider(function(hub_unit_number)
+  return storage.gb_test_tiers and storage.gb_test_tiers[hub_unit_number]
+end)
+
 describe("orbital capsule", function()
   local saved_balance, hub, chest
   before_each(function()
@@ -48,7 +53,7 @@ describe("orbital capsule", function()
 
   test("lands in the import chests after the delay, not before", function()
     local _, _, _, arrival = freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
-    assert.are.equal(game.tick + freight.TIER.delay_ticks, arrival)
+    assert.are.equal(game.tick + freight.TIERS.capsule.delay_ticks, arrival)
     freight.on_unload_tick({ tick = arrival - 1 })
     assert.are.equal(0, chest.get_item_count(GEAR))
     freight.on_unload_tick({ tick = arrival })
@@ -67,8 +72,8 @@ describe("orbital capsule", function()
   end)
 
   test("refuses orders beyond the queue bound, and without an import chest, changing nothing", function()
-    local per_capsule = prototypes.item[GEAR].stack_size * freight.TIER.capacity_stacks
-    local too_many = per_capsule * freight.TIER.max_capsules + 1
+    local per_capsule = prototypes.item[GEAR].stack_size * freight.TIERS.capsule.capacity_stacks
+    local too_many = per_capsule * freight.TIERS.capsule.max_capsules + 1
     local ok, reason = freight.order(game.forces.player.index, hub.unit_number, GEAR, too_many)
     assert.is_false(ok)
     assert.are.equal("queue-full", reason)
@@ -81,7 +86,7 @@ describe("orbital capsule", function()
   end)
 
   test("unloads what fits and keeps the rest landed, holding back the next capsule", function()
-    local per_capsule = prototypes.item[GEAR].stack_size * freight.TIER.capacity_stacks
+    local per_capsule = prototypes.item[GEAR].stack_size * freight.TIERS.capsule.capacity_stacks
     freight.order(game.forces.player.index, hub.unit_number, GEAR, per_capsule + 10)
     local capsules = freight.capsules(hub.unit_number)
     chest.insert({ name = "stone", count = 47 * 50 })
@@ -151,5 +156,27 @@ describe("orbital capsule", function()
     storage.hubs[unit_number].entity.destroy()
     storage.cargo.modules[storage.gb_test_freight.chest].entity.destroy()
     storage.gb_test_freight = nil
+  end)
+
+  describe("tiers", function()
+    after_each(function() storage.gb_test_tiers = nil end)
+
+    test("ship by the orbital capsule when a hub has no better tier", function()
+      assert.are.equal("capsule", freight.tier(hub.unit_number).name)
+      freight.order(game.forces.player.index, hub.unit_number, GEAR, 50)
+      assert.are.equal("capsule", freight.capsules(hub.unit_number)[1].tier)
+    end)
+
+    test("ship by the best tier a hub's buildings provide, with its delay, capacity and fee", function()
+      storage.gb_test_tiers = { [hub.unit_number] = "shuttle" }
+      local shuttle = freight.TIERS.shuttle
+      local cost, fee = freight.preview(game.forces.player.index, GEAR, 50, "item", hub.unit_number)
+      assert.is_true(math.abs(fee - cost * shuttle.fee_rate) < 1e-9 * cost)
+      local units = prototypes.item[GEAR].stack_size * shuttle.capacity_stacks
+      local _, _, _, arrival = freight.order(game.forces.player.index, hub.unit_number, GEAR, units)
+      assert.are.equal(1, freight.queued(hub.unit_number))
+      assert.are.equal("shuttle", freight.capsules(hub.unit_number)[1].tier)
+      assert.are.equal(game.tick + shuttle.delay_ticks, arrival)
+    end)
   end)
 end)

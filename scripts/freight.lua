@@ -14,7 +14,27 @@ local pricing = require("scripts.pricing")
 
 local freight = {}
 
-freight.TIER = core.TIERS.capsule
+freight.TIERS = core.TIERS
+
+-- Functions that say which tier a hub has through a building of theirs (ADR-0014): each takes a hub
+-- unit number and returns a tier name or nil. Registered by the modules that provide a tier, when
+-- they are loaded.
+local tier_providers = {}
+
+--- Registers a tier provider (see above).
+function freight.register_tier_provider(provider)
+  tier_providers[#tier_providers + 1] = provider
+end
+
+--- The tier a hub ships by now: the best one its buildings provide, the orbital capsule otherwise.
+function freight.tier(hub_unit_number)
+  local available = {}
+  for _, provider in ipairs(tier_providers) do
+    local name = hub_unit_number and provider(hub_unit_number)
+    if name then available[#available + 1] = name end
+  end
+  return core.best(available)
+end
 -- Ticks between two unloading passes over the hubs' landed capsules.
 freight.UNLOAD_INTERVAL = 60
 -- Fluid units that take the room of one item stack in a capsule (a stack of 10 barrels).
@@ -55,11 +75,12 @@ function freight.capsules(hub_unit_number)
 end
 
 --- What buying `units` × `name` (`kind` "item", default, or "fluid") through a hub would cost right
---- now: the market cost and the freight fee, or nil and a reason.
-function freight.preview(force_index, name, units, kind)
+--- now: the market cost and the freight fee of the hub's tier (the capsule's without a hub), or nil
+--- and a reason.
+function freight.preview(force_index, name, units, kind, hub_unit_number)
   local cost, reason = market.preview(force_index, kind or "item", name, "buy", units)
   if not cost then return nil, reason end
-  return cost, core.fee(cost, freight.TIER)
+  return cost, core.fee(cost, freight.tier(hub_unit_number))
 end
 
 --- Buys `units` × `name` for a force and queues them at a hub. Pays the market cost and the freight
@@ -75,10 +96,11 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   if not stack_size then return false, "not-tradeable" end
   if not cargo_kind.has_receiver(hub_unit_number, name) then return false, cargo_kind.no_receiver end
   local existing = storage.freight.hubs[hub_unit_number]
-  local capsules, next_launch = core.schedule(units, stack_size, freight.TIER, freight.queued(hub_unit_number),
+  local tier = freight.tier(hub_unit_number)
+  local capsules, next_launch = core.schedule(units, stack_size, tier, freight.queued(hub_unit_number),
     existing and existing.next_launch or 0, game.tick)
   if not capsules then return false, next_launch end
-  local cost, fee = freight.preview(force_index, name, units, kind)
+  local cost, fee = freight.preview(force_index, name, units, kind, hub_unit_number)
   if not cost then return false, fee end
   if max_cost and cost + fee > max_cost then return false, "over-budget" end
   local state = storage.forces[force_index]
@@ -94,6 +116,7 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   local queue = queue_of(hub_unit_number)
   for _, capsule in ipairs(capsules) do
     capsule.force_index, capsule.kind, capsule.name, capsule.unit_cost = force_index, kind, name, paid / units
+    capsule.tier = tier.name
     queue.capsules[#queue.capsules + 1] = capsule
   end
   queue.next_launch = next_launch

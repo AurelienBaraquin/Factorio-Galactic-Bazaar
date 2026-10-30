@@ -90,8 +90,8 @@ re-attached on `on_configuration_changed`.
 
 ## `storage.freight`
 
-`{hubs = {[hub unit_number] = {next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival}...}}}}`
-— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item") ([terminal.md](terminal.md), ADR-0006). Written by
+`{hubs = {[hub unit_number] = {next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier}...}}}}`
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10) ([terminal.md](terminal.md), ADR-0006). Written by
 `scripts/freight.lua`. Invariants: `capsules` is in landing order (a landed capsule that does not fit does not hold back the others) and holds at most
 `max_capsules` entries; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
