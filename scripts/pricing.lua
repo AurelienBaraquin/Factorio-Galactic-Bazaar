@@ -4,6 +4,7 @@
 -- scripts/value_overrides.lua), so they are shared by all forces and recomputed whenever one of
 -- those may have changed.
 local overrides = require("scripts.core.overrides")
+local quality = require("scripts.core.quality")
 local raw_graph = require("scripts.recipe_graph")
 local recipe_graph = require("scripts.core.recipe_graph")
 local valuation = require("scripts.core.valuation")
@@ -12,9 +13,10 @@ local pricing = {}
 
 pricing.MULTIPLIER_SETTING = "gb-value-multiplier"
 
---- Key of an item or fluid in base values and markets: "item/<name>" or "fluid/<name>".
-function pricing.key(kind, name)
-  return kind .. "/" .. name
+--- Key of an item or fluid in base values and markets: "item/<name>" or "fluid/<name>", with
+--- "@<quality>" for an item of a quality other than normal (ADR-0008).
+function pricing.key(kind, name, quality_name)
+  return quality.key(kind .. "/" .. name, quality_name)
 end
 
 -- Overrides of keys that are still tradeable; the others are kept for when they come back.
@@ -60,14 +62,33 @@ function pricing.init()
     if name and prototypes.item[name] then table.insert(storage.tradeable_items, name) end
   end
   table.sort(storage.tradeable_items)
+  -- "normal" is hidden when no quality mod is active, but it is always the quality of plain items.
+  storage.quality_levels = { [quality.NORMAL] = 0 }
+  for name, prototype in pairs(prototypes.quality) do
+    if not prototype.hidden then storage.quality_levels[name] = prototype.level end
+  end
   if #unpriced > 0 then
     log("[galactic-bazaar] no base value (not tradeable): " .. table.concat(unpriced, ", "))
   end
 end
 
---- Base value of an item or fluid in credits, or nil when it has none (not tradeable).
-function pricing.base_value(kind, name)
-  return storage.base_values[pricing.key(kind, name)]
+--- Value in credits of a market key (any quality) given the normal base values `values` (default:
+--- the current ones); nil when it has none: not tradeable, a fluid with a quality, or a quality
+--- that does not exist (or is hidden).
+function pricing.key_value(key, values)
+  local base_key, quality_name = quality.split(key)
+  local normal_value = (values or storage.base_values)[base_key]
+  if not normal_value then return nil end
+  if quality_name == quality.NORMAL then return normal_value end
+  local level = storage.quality_levels[quality_name]
+  if not level or base_key:sub(1, 5) ~= "item/" then return nil end
+  return quality.value(normal_value, level)
+end
+
+--- Base value of an item or fluid in credits at a quality (default normal), or nil when it has none
+--- (not tradeable).
+function pricing.base_value(kind, name, quality_name)
+  return pricing.key_value(pricing.key(kind, name, quality_name))
 end
 
 return pricing

@@ -15,7 +15,7 @@ local NPC_PARAMS = npc_market.DEFAULTS
 -- state (being merged) or the key has no base value (not tradeable).
 local function current_entry(force_index, key)
   local state = storage.forces[force_index]
-  local base_value = storage.base_values[key]
+  local base_value = pricing.key_value(key)
   if not (state and base_value) then return nil end
   local entry = state.markets[key]
   if not entry then
@@ -26,10 +26,13 @@ local function current_entry(force_index, key)
   return entry, base_value, state
 end
 
+-- Every function below takes `quality_name` last, optional: an item quality other than normal
+-- trades on its own market, priced from the normal value (ADR-0008).
+
 --- Current prices of `kind`/`name` ("item"/"fluid") for a force: {buy, sell, mid, history}, or nil
 --- when it is not tradeable.
-function market.quote(force_index, kind, name)
-  local entry, base_value = current_entry(force_index, pricing.key(kind, name))
+function market.quote(force_index, kind, name, quality_name)
+  local entry, base_value = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return nil end
   return {
     buy = market_model.buy_price(base_value, entry.displacement, MARKET_PARAMS),
@@ -39,8 +42,7 @@ function market.quote(force_index, kind, name)
   }
 end
 
-local function trade(force_index, kind, name, quantity, side)
-  local key = pricing.key(kind, name)
+local function trade(force_index, key, quantity, side)
   local entry, base_value, state = current_entry(force_index, key)
   if not entry then return false, "not-tradeable" end
   local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
@@ -55,8 +57,8 @@ end
 
 --- What trading `quantity` units would bring (`side` "sell") or cost (`side` "buy") right now,
 --- without trading: the credits, or nil and a reason.
-function market.preview(force_index, kind, name, side, quantity)
-  local entry, base_value = current_entry(force_index, pricing.key(kind, name))
+function market.preview(force_index, kind, name, side, quantity, quality_name)
+  local entry, base_value = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return nil, "not-tradeable" end
   local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
   local credits, reason = quote(base_value, entry.displacement, quantity, MARKET_PARAMS)
@@ -66,8 +68,8 @@ end
 
 --- Units of `kind`/`name` the force can sell while each unit still sells for at least
 --- `min_price_ratio` × its base value; 0 when it is not tradeable.
-function market.sellable(force_index, kind, name, min_price_ratio)
-  local entry, base_value = current_entry(force_index, pricing.key(kind, name))
+function market.sellable(force_index, kind, name, min_price_ratio, quality_name)
+  local entry, base_value = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return 0 end
   return market_model.max_sell_at_or_above(base_value, entry.displacement, min_price_ratio * base_value, MARKET_PARAMS)
 end
@@ -80,7 +82,7 @@ function market.rebase_all(old_values)
   for _, state in pairs(storage.forces) do
     local gone = {}
     for key, entry in pairs(state.markets) do
-      local old, new = old_values[key], storage.base_values[key]
+      local old, new = pricing.key_value(key, old_values), pricing.key_value(key)
       if not new then
         gone[#gone + 1] = key
       elseif old and old ~= new then
@@ -95,14 +97,14 @@ end
 --- Buys `quantity` units for the force: debits the account and moves the market, or changes nothing.
 --- Returns true and the cost, or false and a reason (not-tradeable, invalid-quantity,
 --- insufficient-liquidity, insufficient-funds). Delivering the goods is the caller's job.
-function market.buy(force_index, kind, name, quantity)
-  return trade(force_index, kind, name, quantity, "buy")
+function market.buy(force_index, kind, name, quantity, quality_name)
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "buy")
 end
 
 --- Sells `quantity` units for the force: credits the account and moves the market, or changes
 --- nothing. Returns true and the revenue, or false and a reason. Taking the goods is the caller's job.
-function market.sell(force_index, kind, name, quantity)
-  return trade(force_index, kind, name, quantity, "sell")
+function market.sell(force_index, kind, name, quantity, quality_name)
+  return trade(force_index, pricing.key(kind, name, quality_name), quantity, "sell")
 end
 
 return market

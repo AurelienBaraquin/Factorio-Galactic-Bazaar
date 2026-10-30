@@ -17,6 +17,10 @@ how they move on their own, and how a force trades. The reasoning is in
 | `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
 | `market.rebase_all(old_values)` | after base values are rebuilt: brings every entry up to date with its old value, rebases it on the new one, drops entries of keys that lost their value |
 
+Every function takes an optional last argument `quality_name` (default normal): an item of another
+quality trades on its own market, keyed `item/<name>@<quality>` and priced from the quality value
+([pricing.md](pricing.md), ADR-0008).
+
 A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
 `insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving
 the goods is the caller's job (the terminal). Read only the keys you display: a full catch-up

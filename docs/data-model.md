@@ -13,7 +13,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 |---|---|---|
 | `balance` | number | credits held by the force; never negative |
 | `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance` |
-| `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far ([market.md](market.md)); created on first read |
+| `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
 refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing.
@@ -52,6 +52,12 @@ Invariants:
   tradeable;
 - whenever it is rebuilt, every `markets` entry of every force is rebased on the new values
   (`market.rebase_all`), and entries of keys that lost their value are dropped.
+
+## `storage.quality_levels`
+
+`storage.quality_levels[quality_name] = level` — `normal` (0) and every non-hidden quality
+([pricing.md](pricing.md), ADR-0008). Rebuilt by `scripts/pricing.lua` with the base values. A
+market key `item/<name>@<quality>` is tradeable only while its quality is listed here.
 
 ## `storage.value_overrides`
 
