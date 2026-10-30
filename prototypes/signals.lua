@@ -1,8 +1,10 @@
--- Price signal combinators (ADR-0010): constant combinators whose signals the script writes, the
--- buy prices on one and the sell prices on the other, plus the force's balance on a signal of its own.
+-- Circuit combinators of the terminal: price signal combinators (ADR-0010), constant combinators
+-- whose signals the script writes (buy prices on one, sell prices on the other, plus the force's
+-- balance on a signal of its own), and the order combinator (ADR-0011), which the script only reads.
 local COMBINATORS = {
   { name = "gb-buy-price-combinator", tint = { 0.4, 1, 0.5, 1 }, order = "e[signals]-a[buy]" },
   { name = "gb-sell-price-combinator", tint = { 1, 0.6, 0.2, 1 }, order = "e[signals]-b[sell]" },
+  { name = "gb-order-combinator", tint = { 0.4, 0.7, 1, 1 }, order = "e[signals]-c[order]" },
 }
 
 local function tint_layers(sprite, tint)
@@ -19,6 +21,14 @@ data:extend({
     icon_size = 64,
     subgroup = "virtual-signal",
     order = "z[galactic-bazaar]-a[credits]",
+  },
+  {
+    type = "virtual-signal",
+    name = "gb-budget",
+    icon = "__base__/graphics/icons/coin.png",
+    icon_size = 64,
+    subgroup = "virtual-signal",
+    order = "z[galactic-bazaar]-b[budget]",
   },
 })
 

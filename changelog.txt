@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.6
+Date: 2026-10-30
+  Features:
+    - Order combinator: buys the items its circuit input asks for every 10 s, within a budget, delivered by orbital capsule.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.5
 Date: 2026-10-30
   Features:

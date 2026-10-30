@@ -12,7 +12,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | Field | Type | Meaning |
 |---|---|---|
 | `balance` | number | credits held by the force; never negative |
-| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into a recent entry of the same kind and key, which then holds the totals, its last tick and the balance after it |
+| `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into the journal's entry of the same kind and key started less than `merge_ticks` before, which then holds the totals, its last tick and the balance after it, and moves to the end, so the journal stays in tick order |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
@@ -117,6 +117,14 @@ ADR-0010). Written by `scripts/price_signals.lua`. Invariants: `order` lists exa
 once each, and `modules[order[i]].order_index == i`; `written` is the snapshot version and
 `written_balance` the balance last written into the combinator. Snapshots and builders are dropped
 on `on_configuration_changed`, and a merged force's on `on_forces_merged`.
+
+## `storage.circuit_orders`
+
+`{modules = {[unit_number] = {entity, hub}}, spent = {[force_index] = {period, credits}}}` — every
+order combinator, and what each force has spent through them in the current 10 s period
+([terminal.md](terminal.md), ADR-0011). Written by `scripts/circuit_orders.lua` on build events, hub build and removal, force
+merge and `on_object_destroyed`; invalid entries are dropped and the others re-attached on
+`on_configuration_changed`.
 
 ## `storage.players`
 

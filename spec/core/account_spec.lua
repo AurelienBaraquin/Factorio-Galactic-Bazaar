@@ -55,19 +55,29 @@ describe("account.apply with recurring entries", function()
     account.apply(state, -3, entry("buy", 300, 6))
     account.apply(state, 5, entry("sell", 300, 10))
     assert.are.equal(2, #state.journal)
-    local sells = state.journal[1]
+    local sells = state.journal[2]
     assert.are.same({ 10, 20, 300, 107 }, { sells.amount, sells.quantity, sells.tick, sells.balance })
     assert.are.equal(107, state.balance)
   end)
 
-  it("starts a new entry once the period is over or the entry is too old", function()
+  it("starts a new entry once the period is over", function()
     local state = { balance = 100, journal = {} }
     account.apply(state, 5, entry("sell", 0, 10))
     account.apply(state, 5, entry("sell", 3600, 10))
     assert.are.equal(2, #state.journal)
-    for _ = 1, account.MERGE_WINDOW do account.apply(state, 1, { tick = 3700, kind = "sell", key = "item/x" }) end
-    account.apply(state, 5, entry("sell", 3800, 10))
-    assert.are.equal(3 + account.MERGE_WINDOW, #state.journal)
+  end)
+
+  it("keeps merging any number of recurring transactions, and keeps the journal in tick order", function()
+    local state = { balance = 1000, journal = {} }
+    for period = 0, 5 do
+      for i = 1, 20 do
+        local recurring = { tick = period * 600, kind = "buy", key = "item/" .. i, quantity = 1, merge_ticks = 3600 }
+        account.apply(state, 1, recurring)
+      end
+    end
+    assert.are.equal(20, #state.journal)
+    assert.are.equal(6, state.journal[1].quantity)
+    for i = 2, #state.journal do assert.is_true(state.journal[i - 1].tick <= state.journal[i].tick) end
   end)
 
   it("never merges an entry without merge_ticks", function()

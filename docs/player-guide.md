@@ -42,3 +42,35 @@ every visit, within a few seconds. Without a powered hub in range, a combinator 
    `✓ = 1`.
 
 The inserter then only loads the export chest while plates sell for more than 1.5 credits.
+
+## Order combinator
+
+Researched with **Market orders** (after Market signals). Place it within 10 tiles of a powered
+trading hub that has an import chest, and wire signals into it; it cannot be opened and emits
+nothing.
+
+- Every **10 seconds**, it buys, for each **item signal** with a positive value, that many units
+  (normal quality). They arrive by orbital capsule in the hub's import chests about 30 s later, with
+  the freight fee, like a purchase from the market window.
+- **Budget**: it buys **nothing** without a positive **Budget** signal on its input. The value is the
+  most your force spends through all its order combinators in 10 s (never more than your balance).
+  Set it to 0 to pause buying. An order that does not fit in what is left is skipped.
+- **Never wire a price combinator to it**: an input carrying the **Credits** signal is refused,
+  since its item signals are prices, not orders.
+- A signal left on keeps buying every 10 s. The capsule queue (20 per hub) stops it when the import
+  chests stay full; removing the hub sells the queued capsules back at the market price.
+- Negative values, fluids, qualities other than normal and items that cannot be traded are ignored.
+
+### Example: keep about 2 000 iron plates in stock
+
+1. Place a constant combinator emitting `Iron plate = 200` and `Budget = 500`.
+2. Place a decider combinator. Wire the import chest to its input with **red**, and the constant
+   combinator to its input with **green**. Condition: `Iron plate` on the **red** wire `< 2000`.
+   Outputs: `Iron plate`, *input count*, read from the **green** wire only; and `Budget`, *input
+   count*, green only.
+3. Wire the decider's output to the order combinator. Keep the chest's wire away from the order
+   combinator: it would read the chest's contents as orders.
+
+While the chest holds fewer than 2 000 plates, the order combinator buys 200 plates every 10 s,
+spending at most 500 credits each time. Plates in flight are not counted, so the stock overshoots
+by up to about 600 plates (three orders land within 30 s); lower the threshold if that matters.

@@ -67,4 +67,19 @@ data:extend({
       time = 15,
     },
   },
+  {
+    type = "technology",
+    name = "gb-market-orders",
+    icons = data.raw.item["gb-order-combinator"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-market-signals" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-order-combinator" },
+    },
+    unit = {
+      count = 150,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 20,
+    },
+  },
 })
