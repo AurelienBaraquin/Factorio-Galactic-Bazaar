@@ -224,10 +224,33 @@ Bulk exports (#67). Code: `scripts/catapult.lua`; prototypes: `prototypes/catapu
 |---|---|
 | Prototypes | a 48-slot chest derived from the steel chest, tinted red; under it, a hidden `gb-catapult-capacitor` (electric-energy-interface, not selectable, not blueprintable, not repairable, indestructible, no collision layers but the chest's footprint for pole coverage; `secondary-input`, 100 MJ buffer, intake capped at 30 MW) placed and removed by the script with the catapult; a catapult adopts a capacitor already under it (an area clone copies both) |
 | Recipe | 100 steel plates, 30 advanced circuits, 10 accumulators, 20 electric engines, 20 s |
-| Technology | `gb-catapult` (after the Galactic Bazaar, accumulators and electric engine; 250 × red, green and blue) |
+| Technology | `gb-catapult` (after the cargo shuttle and accumulators; 250 × red, green and blue) |
 | Hub | attached like the other modules (`catapult.HUB_RANGE`, 10 tiles); shoots only through a powered hub of its force |
 | Shot | every `catapult.PASS_TICKS` (6), catapults are visited in turn, up to `VISITS` (5), empty ones passed over, until one shoots: it shoots if its interval (`SHOT_TICKS`, 120) passed and its capacitor holds `SHOT_MJ` (50 MJ): it sells every plain stack while each unit fetches at least `cargo.DEFAULT_MIN_PRICE_RATIO` (0.5) × its base value, then spends the 50 MJ, only if something sold |
 | Journal | entries merged per item and minute (`cargo.JOURNAL_MERGE_TICKS`), like export chests |
 | Budget | a shot of 48 full stacks: 0.44–0.48 ms with 4 kinds, 0.65 ms with 48 different items (2.1.24); one shot per pass — budget 0.8 ms |
 | Throughput | at most one shot per pass for the whole map (10 a second): with more than 20 loaded catapults, each waits about `n` × 0.1 s rather than 2 s |
 | Lifecycle | a catapult whose capacitor is gone (another mod destroyed it) gets a new one at its next shot or on configuration change |
+
+## Research tree
+
+Every technology of the mod (`prototypes/technologies.lua`), vanilla science packs only. The
+**space logistics** branch (#68) grows the delivery tiers in step with the vanilla tree: the cargo
+shuttle once rocket fuel exists (blue science), then the catapult and, with the last two packs, the
+teleporter.
+
+```text
+gb-galactic-bazaar (red) ── hub, cargo chests, orbital capsule
+├── gb-power-trading (red, green) ── gb-power-trading-2 (+ blue)
+├── gb-market-signals (red, green) ── gb-market-orders (red, green)
+├── gb-telecommunications-1 (red, green) ── gb-telecommunications-2 (red, green, after advanced circuits)
+├── gb-fluid-trading (red, green) ── fluid manifolds
+└── space logistics
+    └── gb-cargo-shuttle (red, green, blue) ── docking bay
+        ├── gb-catapult (red, green, blue) ── electromagnetic catapult
+        └── gb-teleporter (all five vanilla packs) ── teleporter
+```
+
+`tests/technologies.lua` checks, in vanilla and with Space Age, that each of these technologies uses
+vanilla packs only, never needs fewer packs than a prerequisite, and unlocks recipes whose
+ingredients its prerequisites (or the start of the game) already give.

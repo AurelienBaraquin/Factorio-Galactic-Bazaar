@@ -168,7 +168,7 @@ data:extend({
     name = "gb-catapult",
     icons = data.raw.item["gb-catapult"].icons,
     icon_size = 64,
-    prerequisites = { "gb-galactic-bazaar", "electric-energy-accumulators", "electric-engine" },
+    prerequisites = { "gb-cargo-shuttle", "electric-energy-accumulators" },
     effects = {
       { type = "unlock-recipe", recipe = "gb-catapult" },
     },
