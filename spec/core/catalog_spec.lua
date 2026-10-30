@@ -54,13 +54,21 @@ describe("catalog.format_credits", function()
     assert.are.equal("123G", catalog.format_credits(123.4e9))
     assert.are.equal("-2.50k", catalog.format_credits(-2500))
   end)
+
+  it("moves to the next unit when rounding reaches 1000", function()
+    assert.are.equal("1.00k", catalog.format_credits(999.996))
+    assert.are.equal("1.00M", catalog.format_credits(999950))
+    assert.are.equal("100k", catalog.format_credits(99960))
+    assert.are.equal("0.00", catalog.format_credits(0))
+  end)
 end)
 
 describe("catalog.parse_quantity", function()
   it("accepts positive whole numbers and rejects the rest", function()
     assert.are.equal(12, catalog.parse_quantity("12"))
     assert.are.equal(3, catalog.parse_quantity("3.9"))
-    for _, text in ipairs({ "", "abc", "0", "-5", "inf", "nan" }) do
+    assert.are.equal(catalog.MAX_QUANTITY, catalog.parse_quantity(tostring(catalog.MAX_QUANTITY)))
+    for _, text in ipairs({ "", "abc", "0", "-5", "inf", "nan", "1e10" }) do
       assert.is_nil(catalog.parse_quantity(text), text)
     end
   end)

@@ -1,11 +1,14 @@
 -- In-game tests of the market window (scripts/market_gui.lua), driven through the test save's player.
+local market = require("scripts.market")
 local market_gui = require("scripts.market_gui")
 
 local player, surface, created
 
-local function place(name, x, y, force)
+-- Places an entity at an offset from the player, so that it is within reach.
+local function place(name, dx, dy, force)
   local entity = surface.create_entity({
-    name = name, position = { x, y }, force = force or "player", raise_built = true,
+    name = name, position = { player.position.x + dx, player.position.y + dy }, force = force or "player",
+    raise_built = true,
   })
   created[#created + 1] = entity
   return entity
@@ -30,6 +33,13 @@ local function type_text(action, text)
   market_gui.on_gui_text_changed({ element = field, player_index = player.index })
 end
 local function force_state() return storage.forces[player.force_index] end
+local function shown_items()
+  local items = {}
+  for _, row in ipairs(data().elements.rows) do
+    if row.icon.visible then items[#items + 1] = row.icon.tags.item end
+  end
+  return items
+end
 
 describe("market window", function()
   local saved_balance, hub
@@ -41,15 +51,18 @@ describe("market window", function()
     force_state().balance = 1e6
     force_state().markets["item/iron-gear-wheel"] = nil
     player.get_main_inventory().clear()
-    hub = place("gb-hub", 10, 10)
+    hub = place("gb-hub", 3, 0)
     hub.energy = hub.electric_buffer_size
   end)
   after_each(function()
+    -- After a reload the file runs again and its locals start empty: fetch them again.
+    player = game.get_player(1)
+    created = created or {}
     market_gui.close(player.index)
     for _, entity in ipairs(created) do
       if entity.valid then entity.destroy() end
     end
-    force_state().balance = saved_balance
+    if saved_balance then force_state().balance = saved_balance end
     force_state().markets["item/iron-gear-wheel"] = nil
     player.get_main_inventory().clear()
   end)
@@ -59,11 +72,11 @@ describe("market window", function()
     assert.is_true(window() ~= nil)
     assert.are.equal(player.opened, window())
     assert.are.same({ "gb-gui.balance", "1.00M" }, data().elements.balance.caption)
-    assert.are.equal(5 * 16, #data().elements.list.children)
+    assert.are.equal(15, #shown_items())
   end)
 
   test("does not open on another force's hub", function()
-    local foreign = place("gb-hub", 20, 10, "enemy")
+    local foreign = place("gb-hub", -3, 0, "enemy")
     market_gui.open(player, foreign)
     assert.is_nil(window())
   end)
@@ -77,14 +90,11 @@ describe("market window", function()
   test("filters the list by search text", function()
     market_gui.open(player, hub)
     type_text("search", "iron gear")
-    local items = {}
-    for _, child in ipairs(data().elements.list.children) do
-      if child.tags.item then items[#items + 1] = child.tags.item end
-    end
-    assert.are.same({ "iron-gear-wheel" }, items)
+    assert.are.same({ "iron-gear-wheel" }, shown_items())
   end)
 
-  test("previews the real cost and revenue of the typed quantity", function()
+  test("previews exactly what the purchase then costs", function()
+    place("gb-import-chest", 5, 0)
     market_gui.open(player, hub)
     type_text("search", "iron gear")
     click("select")
@@ -92,10 +102,13 @@ describe("market window", function()
     local caption = data().elements.preview.caption
     assert.are.equal("gb-gui.preview", caption[1])
     assert.are.equal(100, tonumber(caption[2]))
+    local previewed = market.preview(player.force_index, "item", "iron-gear-wheel", "buy", 100)
+    click("buy")
+    assert.is_true(math.abs((1e6 - force_state().balance) - previewed) < 1e-6)
   end)
 
   test("buys into the hub's import chests and debits the force", function()
-    local chest = place("gb-import-chest", 12, 10)
+    local chest = place("gb-import-chest", 5, 0)
     market_gui.open(player, hub)
     type_text("search", "iron gear")
     click("select")
@@ -112,7 +125,7 @@ describe("market window", function()
     type_text("quantity", "50")
     click("buy")
     assert.are.equal(1e6, force_state().balance)
-    local chest = place("gb-import-chest", 12, 10)
+    local chest = place("gb-import-chest", 5, 0)
     hub.energy = 0
     click("buy")
     assert.are.equal(0, chest.get_item_count("iron-gear-wheel"))
@@ -140,10 +153,67 @@ describe("market window", function()
     assert.is_nil(data())
   end)
 
-  test("refreshes open windows without error", function()
+  local function refresh_slot_of_player()
+    local slot = player.index % market_gui.SLOTS
+    market_gui.on_refresh_tick({ tick = slot * market_gui.SLOT_TICKS })
+  end
+
+  test("refreshes an open window in its player's slot, keeping the row elements", function()
     market_gui.open(player, hub)
+    local first_row = data().elements.rows[1].icon
     force_state().balance = 2500
-    market_gui.on_refresh_tick()
+    local profiler = helpers.create_profiler()
+    refresh_slot_of_player()
+    profiler.stop()
+    log({ "", "[galactic-bazaar] market window refresh (one player, ", #storage.tradeable_items,
+      " tradeable items): ", profiler })
     assert.are.same({ "gb-gui.balance", "2.50k" }, data().elements.balance.caption)
+    assert.is_true(first_row.valid)
+  end)
+
+  test("closes when the player walks out of reach", function()
+    market_gui.open(player, hub)
+    local home = player.position
+    player.teleport({ home.x + 100, home.y })
+    refresh_slot_of_player()
+    assert.is_nil(window())
+    player.teleport(home)
+  end)
+
+  test("closes when its hub is destroyed", function()
+    market_gui.open(player, hub)
+    hub.destroy()
+    after_ticks(1, function()
+      assert.is_nil(window())
+    end)
+  end)
+
+  test("closes when the player changes force, is removed or leaves", function()
+    market_gui.open(player, hub)
+    market_gui.on_player_event({ player_index = player.index })
+    assert.is_nil(window())
+    assert.is_nil(data())
+  end)
+
+  test("refuses to sell without power, keeping the items", function()
+    player.get_main_inventory().insert({ name = "iron-gear-wheel", count = 30 })
+    market_gui.open(player, hub)
+    type_text("search", "iron gear")
+    click("select")
+    type_text("quantity", "20")
+    hub.energy = 0
+    click("sell")
+    assert.are.equal(30, player.get_main_inventory().get_item_count("iron-gear-wheel"))
+    assert.are.equal(1e6, force_state().balance)
+  end)
+
+  test("is closed on a save and reload, without leaving state behind", function()
+    market_gui.open(player, hub)
+    storage.gb_test_hub = hub.unit_number
+  end).after_reload_mods(function()
+    local entry = storage.players[1]
+    assert.is_true(entry == nil or (entry.elements.window.valid and entry.hub == storage.gb_test_hub))
+    market_gui.close(1)
+    storage.gb_test_hub = nil
   end)
 end)

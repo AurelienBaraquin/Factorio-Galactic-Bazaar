@@ -16,21 +16,23 @@ The buildings through which a force trades. How modules attach is decided in
 
 ## Market window
 
-Opened by clicking a hub of the player's force (`custom-input` `gb-open-hub`, linked to the game's
-"open GUI" control; `prototypes/inputs.lua`). Code: `scripts/market_gui.lua`, with the pure list
+Opened by clicking a hub of the player's force **within reach** (`custom-input` `gb-open-hub`,
+linked to the game's "open GUI" control; `prototypes/inputs.lua`), like the game's own entity
+windows: there is no remote trading, and selling takes items from the player's own inventory. Code: `scripts/market_gui.lua`, with the pure list
 logic in `scripts/core/catalog.lua`.
 
 | Part | Behaviour |
 |---|---|
 | Status | the force's balance, and whether the hub has power |
-| List | tradeable items (those with a base value), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price, trend (▲ ▼ – from the price history). Only the rows shown are read from the market (ADR-0004) |
-| Detail | for the selected item: a quantity field and a live preview of what buying and selling that quantity would cost and bring, market impact included |
-| Buy | needs a powered hub; capped by the free space of the hub's import chests (`cargo.import_capacity`), then debits the force and delivers into those chests at once — the orbital capsule (#20) will add delay and throughput |
+| List | tradeable items (`storage.tradeable_items`, built with the base values), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price, trend (▲ ▼ – from the price history). Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
+| Detail | for the selected item: a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included. The preview is per unit exact; execution may trade fewer units — purchases are capped by import-chest space, sales by the plain units in the inventory — and the printed result gives the real numbers |
+| Buy | needs a powered hub; capped by the free space of the hub's import chests of the same force (`cargo.import_capacity`), then debits the force and delivers into those chests at once (anything that did not fit is sold back and logged) — the orbital capsule (#20) will add delay and throughput |
 | Sell | needs a powered hub; sells plain stacks of the item from the player's main inventory (`cargo.sell_stacks`, no price floor) |
-| Refresh | every `market_gui.REFRESH_INTERVAL` (60) ticks for players with the window open |
+| Refresh | once a second per open window of a connected player, spread over `SLOTS` (10) slots of `SLOT_TICKS` (6) ticks by player index; a window whose hub is gone, foreign or out of reach is closed. Measured on 2.1.24: 0.18 ms per window refresh in vanilla (196 items), 0.40 ms with Space Age (284) — budget 0.5 ms per window |
+| Closing | close button, E/Esc or another window (`on_gui_closed`), hub destroyed, player leaves, changes force or is removed, out of reach on refresh, configuration change |
 
-Every action re-checks the hub (exists, same force, powered), the item and the quantity, since GUI
-events are player input. Results are printed to the player. Fluids are not listed yet (fluid
+Every action re-checks the hub (exists, same force, within reach, powered), the item and the
+quantity, since GUI events are player input; only elements created by this mod trigger actions. Results are printed to the player. Fluids are not listed yet (fluid
 module, M3). The window's layout has only been checked by tests, not by eye.
 
 ## Cargo module (`gb-export-chest`, `gb-import-chest`)

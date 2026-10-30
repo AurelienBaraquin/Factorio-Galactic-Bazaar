@@ -68,11 +68,17 @@ re-attached on `on_configuration_changed`.
 
 ## `storage.players`
 
-`storage.players[player_index] = {hub, filter, page, selected, elements}` — the market window of a
-player who has it open ([terminal.md](terminal.md)): the hub it trades through, the search text,
-the page, the selected item and references to its GUI elements. Interface state only: no economy
+`storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market
+window of a player who has it open ([terminal.md](terminal.md)): the hub it trades through, the
+search text and its cached results, the page, the selected item and references to its GUI elements
+(including the 15 fixed rows). Interface state only: no economy
 value lives here (ADR-0001). Written by `scripts/market_gui.lua`; an entry exists only while the
-window is open, is removed on `on_player_removed`, and every window is closed on
-`on_configuration_changed`.
+window is open, is removed when the player leaves, changes force or is removed, and every window
+is closed on `on_configuration_changed`.
+
+## `storage.tradeable_items`
+
+Sorted names of every item with a base value — the market window's list. Rebuilt with
+`storage.base_values` by `scripts/pricing.lua`, never edited elsewhere.
 
 Personal data: none. Backups: `storage` lives inside the save file.

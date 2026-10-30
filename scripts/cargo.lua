@@ -178,10 +178,14 @@ function cargo.on_export_tick()
   end
 end
 
+-- The inventories of a hub's import chests that still belong to the hub's force.
 local function import_inventories(hub_unit_number)
+  local hub = hubs.get(hub_unit_number)
   local inventories = {}
+  if not hub then return inventories end
   for _, module in pairs(storage.cargo.modules) do
-    if module.kind == "import" and module.hub == hub_unit_number and module.entity.valid then
+    if module.kind == "import" and module.hub == hub_unit_number and module.entity.valid
+      and module.entity.force == hub.force then
       inventories[#inventories + 1] = module.entity.get_inventory(defines.inventory.chest)
     end
   end

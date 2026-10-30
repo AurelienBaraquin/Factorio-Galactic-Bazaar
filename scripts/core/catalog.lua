@@ -6,6 +6,8 @@ local catalog = {}
 catalog.PAGE_SIZE = 15
 -- Relative change between the oldest and newest price samples under which a price counts as flat.
 catalog.FLAT_TREND = 0.01
+-- Largest quantity a player can type for one trade.
+catalog.MAX_QUANTITY = 1e9
 
 local function normalise(text)
   return (text:lower():gsub("[%s_]", "-"))
@@ -52,27 +54,37 @@ function catalog.trend(history)
   return "flat"
 end
 
-local SUFFIXES = { { 1e12, "T" }, { 1e9, "G" }, { 1e6, "M" }, { 1e3, "k" } }
+local UNITS = { { 1, "" }, { 1e3, "k" }, { 1e6, "M" }, { 1e9, "G" }, { 1e12, "T" } }
+
+-- `scaled` with 3 significant digits (2 decimals under 10, 1 under 100, none above).
+local function round_short(scaled)
+  local decimals = scaled >= 99.95 and 0 or scaled >= 9.995 and 1 or 2
+  return string.format("%." .. decimals .. "f", scaled), decimals
+end
 
 --- A credit amount as short text: 2 decimals below 1000, then k / M / G / T with 3 significant
---- digits ("0.42", "999.99", "1.23k", "45.6M").
+--- digits ("0.42", "999.99", "1.23k", "45.6M"). A value that rounds up to 1000 of a unit is shown
+--- in the next one ("1.00k", not "1000.00").
 function catalog.format_credits(amount)
   local sign = amount < 0 and "-" or ""
   local value = math.abs(amount)
-  for _, suffix in ipairs(SUFFIXES) do
-    if value >= suffix[1] then
-      local scaled = value / suffix[1]
-      local decimals = scaled >= 100 and 0 or scaled >= 10 and 1 or 2
-      return sign .. string.format("%." .. decimals .. "f", scaled) .. suffix[2]
+  for i = #UNITS, 1, -1 do
+    local unit = UNITS[i]
+    if value >= unit[1] or i == 1 then
+      local scaled = value / unit[1]
+      local text = i == 1 and string.format("%.2f", scaled) or round_short(scaled)
+      if tonumber(text) >= 1000 and UNITS[i + 1] then
+        return sign .. (round_short(value / UNITS[i + 1][1])) .. UNITS[i + 1][2]
+      end
+      return sign .. text .. unit[2]
     end
   end
-  return sign .. string.format("%.2f", value)
 end
 
---- A whole quantity typed by the player: a positive integer, or nil.
+--- A whole quantity typed by the player: a positive integer up to MAX_QUANTITY, or nil.
 function catalog.parse_quantity(text)
   local n = tonumber(text)
-  if not n or n ~= n or n < 1 or n == math.huge then return nil end
+  if not n or n ~= n or n < 1 or n > catalog.MAX_QUANTITY then return nil end
   return math.floor(n)
 end
 

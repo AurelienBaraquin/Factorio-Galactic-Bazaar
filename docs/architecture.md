@@ -57,8 +57,12 @@ Only the first eight entries ship in the mod: `.gitattributes` marks everything 
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
 - **Market window**: the `gb-open-hub` input opens it; `on_gui_click` and `on_gui_text_changed`
-  dispatch on the element's `gb_action` tag; `on_gui_closed` and `on_player_removed` drop it;
-  `script.on_nth_tick(market_gui.REFRESH_INTERVAL)` refreshes open windows.
+  dispatch on the `gb_action` tag of this mod's elements; `on_gui_closed`, a destroyed hub and the
+  player events (left, changed force, removed) close it; the refresh runs every
+  `market_gui.SLOT_TICKS`.
+- **Periodic handlers**: Factorio keeps one handler per tick interval, so `control.lua` groups
+  handlers by interval (`every(ticks, handler)`) and registers one composed handler per interval —
+  the export and the window refresh both run every 6 ticks.
 - **Force events**: creation and merging update `storage.forces` ([data-model.md](data-model.md));
   after a merge, every cargo chest is re-attached.
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
