@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.15
+Date: 2026-10-30
+  Features:
+    - Contract engine: offers, deposits, deadlines, rewards and penalties settled through the force's account, and a reputation score.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.14
 Date: 2026-10-30
   Changes:

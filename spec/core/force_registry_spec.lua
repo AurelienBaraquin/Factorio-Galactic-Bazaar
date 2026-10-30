@@ -1,6 +1,10 @@
 local force_registry = require("scripts.core.force_registry")
 
-local function new_state() return { balance = 0, journal = {}, markets = {} } end
+local function new_state()
+  return {
+    balance = 0, journal = {}, markets = {}, reputation = 0, contracts = { open = {}, history = {} },
+  }
+end
 
 describe("force_registry.ensure", function()
   it("creates a missing state with its account", function()
@@ -58,5 +62,23 @@ describe("force_registry.merge", function()
     local forces = { [2] = new_state() }
     force_registry.merge(forces, 2, 1)
     assert.are.same({ [1] = new_state() }, forces)
+  end)
+
+  it("carries the source's open contracts and reputation into the destination", function()
+    local forces = { [1] = new_state(), [2] = new_state() }
+    forces[2].contracts.open[9] = { id = 9 }
+    forces[1].reputation, forces[2].reputation = 1, 2
+    force_registry.merge(forces, 2, 1)
+    assert.are.same({ id = 9 }, forces[1].contracts.open[9])
+    assert.are.equal(3, forces[1].reputation)
+  end)
+end)
+
+describe("force_registry.ensure on a state saved before contracts", function()
+  it("adds the contract book and the reputation", function()
+    local forces = { [1] = { balance = 5, journal = {}, markets = {} } }
+    force_registry.ensure(forces, 1)
+    assert.are.same({ open = {}, history = {} }, forces[1].contracts)
+    assert.are.equal(0, forces[1].reputation)
   end)
 end)

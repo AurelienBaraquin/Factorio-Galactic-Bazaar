@@ -67,6 +67,8 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Fluids**: every `manifold.SELL_TICKS`, export manifolds sell their fluid; bought fluids land in
   import manifolds by capsule ([terminal.md](terminal.md)).
 - **Catapults**: every `catapult.PASS_TICKS`, the next catapult shoots if ready ([terminal.md](terminal.md)).
+- **Contracts**: every `contracts.SETTLE_TICKS`, each force's open contracts whose time has come
+  are settled through its account ([contracts.md](contracts.md)).
 - **Power**: every `power.SETTLE_TICKS`, each force's export substations are sold and its import
   substations refilled through the market ([terminal.md](terminal.md)).
 - **Delivery**: a purchase is paid and queued in capsules (`freight.order`); every
