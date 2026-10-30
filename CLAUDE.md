@@ -86,4 +86,3 @@ user — never guess into a document. Keep this file under about 100 lines.
 
 - In-game test framework (FactorioTest on headless) — issue #4.
 - Success criteria for 1.0, beyond M1 — owner.
-- Unified contract model for every exchange — ADR when the contract engine is designed.

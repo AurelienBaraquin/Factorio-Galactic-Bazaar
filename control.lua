@@ -9,6 +9,7 @@ local hubs = require("scripts.hubs")
 local manifold = require("scripts.manifold")
 local market_gui = require("scripts.market_gui")
 local circuit_orders = require("scripts.circuit_orders")
+local contracts = require("scripts.contracts")
 local power = require("scripts.power")
 local teleporter = require("scripts.teleporter")
 local price_signals = require("scripts.price_signals")
@@ -126,6 +127,7 @@ every(freight.UNLOAD_INTERVAL, freight.on_unload_tick)
 every(power.SETTLE_TICKS, power.on_settle_tick)
 every(manifold.EXPORT_INTERVAL, manifold.on_export_tick)
 every(catapult.PASS_TICKS, catapult.on_pass_tick)
+every(contracts.SETTLE_TICKS, contracts.on_settle_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 for ticks, handlers in pairs(periodic) do
@@ -148,10 +150,10 @@ script.on_event({
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market",
-      "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight", "tests/docking_bay",
-      "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders", "tests/telecom",
-      "tests/technologies", "tests/market_gui" },
+    { "tests/forces", "tests/contracts", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
+      "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
+      "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
+      "tests/telecom", "tests/technologies", "tests/market_gui" },
     { load_luassert = true }
   )
 end

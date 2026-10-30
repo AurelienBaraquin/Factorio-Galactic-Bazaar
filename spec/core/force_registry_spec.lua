@@ -1,6 +1,10 @@
 local force_registry = require("scripts.core.force_registry")
 
-local function new_state() return { balance = 0, journal = {}, markets = {} } end
+local function new_state()
+  return {
+    balance = 0, journal = {}, markets = {}, reputation = 0, contracts = { next_id = 1, open = {}, history = {} },
+  }
+end
 
 describe("force_registry.ensure", function()
   it("creates a missing state with its account", function()
