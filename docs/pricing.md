@@ -80,6 +80,18 @@ script.on_init(set_values)
 script.on_configuration_changed(set_values)
 ```
 
+## Quality
+
+With a quality mod (Space Age), an item of a quality other than normal is worth its normal value
+times `quality.FACTOR_PER_LEVEL` (3) to the power of the quality's `level`
+([ADR-0008](adr/0008-quality-values-by-level.md), `scripts/core/quality.lua`): uncommon ×3, rare ×9,
+epic ×27, legendary (level 5) ×243. Only normal values are stored; `pricing.base_value(kind, name,
+quality)` and `pricing.key_value(key)` (value and ratio to normal) compute the others from
+`storage.quality_levels`; a key is split at its last `@`, and an exact normal key wins, so an item
+name containing `@` stays tradeable. Fluids and
+hidden qualities have no quality value. Without a quality mod only normal exists and nothing
+changes.
+
 ## Reference values (Factorio 2.1.24)
 
 | Key | Vanilla | Space Age |

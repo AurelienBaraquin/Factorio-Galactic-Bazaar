@@ -159,29 +159,32 @@ function cargo.powered_hub(module)
   return nil
 end
 
--- A stack worth exactly its base value: no extra data (equipment grid, inventory, blueprint, tags),
--- undamaged, and for tools and ammunition unused. Normal quality only, until quality is priced.
+-- A stack worth exactly its base value at its quality: no extra data (equipment grid, inventory,
+-- blueprint, tags), undamaged, and for tools and ammunition unused.
 local function is_plain(stack)
-  if stack.item or stack.health < 1 or stack.quality.name ~= "normal" then return false end
+  if stack.item or stack.health < 1 then return false end
   if stack.is_tool and stack.durability < stack.prototype.get_durability(stack.quality) then return false end
   if stack.is_ammo and stack.ammo < stack.prototype.magazine_size then return false end
   return true
 end
 
---- Sells the plain stacks of `inventory` for a force while each unit fetches at least
---- `min_price_ratio` × its base value; only stacks of `name` when given, at most `limit` units when
---- given. The sale goes first: a stack only shrinks for units the market has paid for. Returns the
---- units sold and the credits received.
-function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit)
+--- Sells the plain stacks of `inventory` for a force, each at its quality's price, while each unit
+--- fetches at least `min_price_ratio` × its base value; only stacks of `name` (any quality) when
+--- given, at most `limit` units when given, only of `quality_name` when given. The sale goes first:
+--- a stack only shrinks for units the market has paid for. Returns the units sold and the credits
+--- received.
+function cargo.sell_stacks(inventory, force_index, min_price_ratio, name, limit, quality_name)
   local sold, revenue = 0, 0
   for slot = 1, #inventory do
     if limit and sold >= limit then break end
     local stack = inventory[slot]
-    if stack.valid_for_read and (not name or stack.name == name) and is_plain(stack) then
+    if stack.valid_for_read and (not name or stack.name == name)
+      and (not quality_name or stack.quality.name == quality_name) and is_plain(stack) then
+      local stack_quality = stack.quality.name
       local units = math.min(stack.count, limit and limit - sold or math.huge,
-        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio)))
+        math.floor(market.sellable(force_index, "item", stack.name, min_price_ratio, stack_quality)))
       if units > 0 then
-        local ok, credits = market.sell(force_index, "item", stack.name, units)
+        local ok, credits = market.sell(force_index, "item", stack.name, units, stack_quality)
         if ok then
           stack.count = stack.count - units
           sold, revenue = sold + units, revenue + credits

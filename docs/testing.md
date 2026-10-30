@@ -59,7 +59,7 @@ The tests in `tests/` run inside a headless Factorio 2.1.24 (install: [README](.
 in an isolated `factorio-test-data-dir/` that never touches a real mods folder. They cover the
 adapters in `scripts/`: storage lifecycle and force events (`tests/forces.lua`), the production
 graph and base values built from the real prototypes (`tests/recipe_graph.lua`,
-`tests/pricing.lua`), value overrides through the remote interface (`tests/overrides.lua`), per-force trading (`tests/market.lua`), the terminal buildings
+`tests/pricing.lua`), value overrides through the remote interface (`tests/overrides.lua`), quality values and markets (`tests/quality.lua`, effective in the Space Age run), per-force trading (`tests/market.lua`), the terminal buildings
 (`tests/hubs.lua`, `tests/cargo.lua`), delivery by orbital capsule (`tests/freight.lua`) and the market window driven through the test save's
 player (`tests/market_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`

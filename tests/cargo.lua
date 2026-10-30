@@ -138,14 +138,11 @@ describe("cargo module", function()
     assert.are.equal(0, player_state().balance)
   end)
 
-  test("leaves quality, damaged and used stacks unsold", function()
+  test("leaves damaged and used stacks unsold", function()
     local hub = place("gb-hub", 0, 0)
     local chest = place("gb-export-chest", 2, 0)
     hub.energy = hub.electric_buffer_size
     local inventory = chest.get_inventory(defines.inventory.chest)
-    if prototypes.quality.uncommon then
-      inventory.insert({ name = "iron-gear-wheel", count = 5, quality = "uncommon" })
-    end
     inventory.insert({ name = "firearm-magazine", count = 1 })
     inventory.insert({ name = "stone-furnace", count = 1, health = 0.5 })
     for slot = 1, #inventory do
@@ -155,9 +152,6 @@ describe("cargo module", function()
     for _ = 1, #storage.cargo.exports do cargo.on_export_tick() end
     assert.are.equal(1, inventory.get_item_count("firearm-magazine"))
     assert.are.equal(1, inventory.get_item_count("stone-furnace"))
-    if prototypes.quality.uncommon then
-      assert.are.equal(5, inventory.get_item_count({ name = "iron-gear-wheel", quality = "uncommon" }))
-    end
     assert.are.equal(0, player_state().balance)
   end)
 

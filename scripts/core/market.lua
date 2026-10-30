@@ -85,11 +85,14 @@ function market.quote_sell(base_value, displacement, quantity, params)
   return revenue, displacement + quantity
 end
 
---- Displacement after the base value changes from `old_value` to `new_value`: scaled so that the
---- price stays the same multiple of the base value (s / L is kept), then bounded again.
-function market.rebase(displacement, old_value, new_value, params)
-  local scaled = displacement * old_value / new_value
-  local bound = params.max_depths * market.depth(new_value, params)
+--- Displacement after the base value changes from `old_value` to `new_value` (and the parameters
+--- from `old_params` to `new_params`, default the same): scaled so that the price stays the same
+--- multiple of the base value (s / L is kept), then bounded again.
+function market.rebase(displacement, old_value, new_value, old_params, new_params)
+  new_params = new_params or old_params
+  local new_depth = market.depth(new_value, new_params)
+  local scaled = displacement * new_depth / market.depth(old_value, old_params)
+  local bound = new_params.max_depths * new_depth
   return math.max(-bound, math.min(bound, scaled))
 end
 

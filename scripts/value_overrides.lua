@@ -10,9 +10,9 @@ local value_overrides = {}
 
 --- Rebuilds the base values and rebases every market on them.
 function value_overrides.rebuild()
-  local old_values = storage.base_values
+  local old_values, old_levels = storage.base_values, storage.quality_levels
   pricing.init()
-  market.rebase_all(old_values)
+  market.rebase_all(old_values, old_levels)
 end
 
 -- Raises an error for the calling mod: remote calls come from other mods' code. The message names

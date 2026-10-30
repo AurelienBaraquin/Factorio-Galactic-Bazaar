@@ -266,7 +266,7 @@ function actions.sell(player, data)
   local inventory = player.get_main_inventory()
   if not (name and quantity and inventory) then return end
   if not trading_hub(player, data) then return end
-  local sold, revenue = cargo.sell_stacks(inventory, player.force_index, 0, name, quantity)
+  local sold, revenue = cargo.sell_stacks(inventory, player.force_index, 0, name, quantity, "normal")
   if sold == 0 then return notify(player, { "gb-gui.sold-nothing" }) end
   notify(player, { "gb-gui.sold", sold, item_label(name), catalog.format_credits(revenue) })
   refresh(player, data)
