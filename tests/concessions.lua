@@ -19,6 +19,7 @@ local function place(name, dx, dy)
 end
 
 local function force_index() return game.forces.player.index end
+local function recipe_of(name) return game.forces.player.recipes[name] end
 local function state() return storage.forces[force_index()] end
 
 local function find(element, action, resource)
@@ -194,9 +195,61 @@ describe("mining concessions", function()
     assert.is_true(button.enabled)
     planets_gui.on_gui_click({ element = button, player_index = 1 })
     local id, lease = next(storage.concessions)
-    assert.are.same({ hub.unit_number, "carbo", "stone" }, { lease.hub, lease.planet, lease.resource })
+    assert.are.same({ hub.unit_number, "carbo", "stone" }, { lease.hub, lease.planet, lease.item })
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
     assert.are.equal(2, planets.free(force_index(), "carbo", "resource", "stone"))
+  end)
+
+  test("a booking crafts the force's recipe on a planet and ships its products", function()
+    local id = concessions.book(force_index(), hub.unit_number, "fabrica-nova", "crafting", "iron-gear-wheel")
+    local contract = contracts.get(force_index(), id)
+    assert.are.same({ "outsourcing", core.ACTIVE }, { contract.kind, contract.state })
+    assert.are.equal(3, planets.free(force_index(), "fabrica-nova", "crafting", "crafting"))
+    local before = state().balance
+    run_period(id)
+    local capsules = freight.capsules(hub.unit_number)
+    assert.are.equal("iron-gear-wheel", capsules[1].name)
+    assert.is_true(math.abs(before - contract.charge - state().balance) < 1e-6)
+  end)
+
+  test("bookings are refused without a recipe, for a locked one or the wrong category", function()
+    local function reason(category, recipe)
+      return select(2, concessions.book(force_index(), hub.unit_number, "fabrica-nova", category, recipe))
+    end
+    assert.are.equal("no-recipe", reason("crafting", nil))
+    assert.are.equal("wrong-category", reason("advanced-crafting", "iron-gear-wheel"))
+    local locked = recipe_of("rocket-silo")
+    local enabled = locked.enabled
+    locked.enabled = false
+    assert.are.equal("recipe-locked", reason("crafting", "rocket-silo"))
+    locked.enabled = enabled
+    assert.are.equal("unknown-specialty",
+      select(2, concessions.book(force_index(), hub.unit_number, "carbo", "crafting", "iron-gear-wheel")))
+  end)
+
+  test("the planets window books the chosen recipe", function()
+    market_gui.open(player, hub)
+    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+    local button
+    for _, row in ipairs(storage.planets_gui[1].elements.rows) do
+      if row.planet == "fabrica-nova" and row.name == "crafting" then button = row.book end
+    end
+    button.parent.children[1].elem_value = "iron-gear-wheel"
+    planets_gui.on_gui_click({ element = button, player_index = 1 })
+    local id, lease = next(storage.concessions)
+    assert.are.same({ "iron-gear-wheel", 600 }, { lease.item, lease.units })
+    assert.are.equal("outsourcing", contracts.get(force_index(), id).kind)
+  end)
+
+  test("leases saved by 0.1.21 are converted on configuration change", function()
+    local id = concessions.lease(force_index(), hub.unit_number, "carbo", "stone")
+    storage.concessions[id] = { force_index = force_index(), hub = hub.unit_number, planet = "carbo",
+      resource = "stone", slots = 1 }
+    concessions.init({})
+    local lease = storage.concessions[id]
+    assert.are.same({ "stone", 150 }, { lease.item, lease.units })
+    assert.is_nil(lease.resource)
+    assert.is_nil(lease.slots)
   end)
 
   test("keeps leases across a save and reload", function()

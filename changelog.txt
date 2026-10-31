@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.22
+Date: 2026-10-31
+  Features:
+    - Outsourced production: book a planet's crafting slot for one of your recipes from the Planets window; the planet buys the ingredients and ships you the products every 5 minutes for 30 minutes, charged per shipment at 105% of their base value.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.21
 Date: 2026-10-31
   Features:

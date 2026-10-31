@@ -13,7 +13,7 @@ local contracts = {}
 contracts.SETTLE_TICKS = 60
 -- Kinds of contracts offered to the force by counterparties, shown in the contracts window, and how
 -- many of them may be open at once (the window's rows).
-contracts.LISTED_KINDS = { incoming = true, rental = true, concession = true }
+contracts.LISTED_KINDS = { incoming = true, rental = true, concession = true, outsourcing = true }
 contracts.MAX_LISTED = 8
 
 -- The state of a force that has a contract book, or nil.

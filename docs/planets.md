@@ -3,8 +3,8 @@
 Places outside the map where a force will extract resources and have goods crafted (M5,
 [ADR-0018](adr/0018-npc-planets-with-slot-capacity.md)). The pure model is
 `scripts/core/planets.lua`; the runtime side is `scripts/planets.lua`, the window
-`scripts/planets_gui.lua`, transit `scripts/core/transit.lua`, mining concessions
-`scripts/concessions.lua`. Foundries and assemblers come with #86.
+`scripts/planets_gui.lua`, transit `scripts/core/transit.lua`, mining concessions and outsourced
+production `scripts/concessions.lua`.
 
 ## Catalog
 
@@ -76,11 +76,30 @@ priced by `scripts/core/contract_offers.lua`:
 
 Leases live in `storage.concessions`; on a force merge they follow their contracts.
 
+## Outsourced production
+
+A force books one slot of a crafting category a planet serves (smelting, assembly, chemistry…) for
+one of its own recipes (#86), from the planets window: pick the recipe on the row, then **Book**
+(`concessions.book(force, hub, planet, category, recipe)`). It is a lease like a concession, of kind
+`outsourcing`, on the same term, period, guarantee and refusals, with these differences:
+
+| | |
+|---|---|
+| Recipe | one of the force's enabled, visible recipes, of that category, with one sure item product in a whole amount and a base value (`no-recipe`, `recipe-locked`, `wrong-category`, `not-craftable` otherwise) |
+| Ingredients | the planet buys them itself: the force never ships nor pays for them, only for the products |
+| Shipments | every period, the whole crafts one slot makes at crafting speed 1 in 5 minutes (`outsourcing_units`), times the product amount; a recipe taking longer than a period is refused (`too-slow`) |
+| Charge | the products shipped × their base value × `OUTSOURCING_PRICE` (1.05): the market's buy price when balanced, without the freight fee — above a concession's, because a force can pick any valued product by the hundred and would otherwise resell it whenever the market drifts up |
+| Terms shown | the Book button's tooltip gives the rule; the message printed on booking gives the units per period, the charge per shipment and the guarantee held |
+
+A booking keeps its products and amount from the day it was made, even if a mod later changes the
+recipe.
+
 ## Window
 
 A **Planets** button in the market window opens a read-only window: each planet's specialties, its
 distance, its transit terms (extra delay in seconds, max loss), the slots free for the player's force out of the total and, for a resource, a **Lease** button (its tooltip gives
-the terms; disabled without a free slot), refreshed every second
+the terms; disabled without a free slot) or, for a crafting category, a recipe picker and a **Book**
+button, refreshed every second
 (`planets_gui.REFRESH_TICKS`). A lease re-checks that the window's hub is the player's force's and
 within reach. Like the game's windows it becomes the player's opened window,
 replacing the market window. It closes with its button, E or Esc, when the player leaves, changes
