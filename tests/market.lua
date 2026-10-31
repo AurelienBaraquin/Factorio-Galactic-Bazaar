@@ -11,8 +11,10 @@ describe("market", function()
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
   after_each(function()
-    player_state().balance = saved_balance
-    player_state().overdraft_low = saved_balance
+    if saved_balance then
+      player_state().balance = saved_balance
+      player_state().overdraft_low = saved_balance
+    end
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
 
