@@ -1,4 +1,5 @@
 -- In-game tests of the per-force market (scripts/market.lua): quotes, atomic trades, persistence.
+local account = require("scripts.core.account")
 local market = require("scripts.market")
 
 local function player_state() return storage.forces[game.forces.player.index] end
@@ -11,6 +12,7 @@ describe("market", function()
   end)
   after_each(function()
     player_state().balance = saved_balance
+    player_state().overdraft_low = saved_balance
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
 
@@ -29,12 +31,13 @@ describe("market", function()
   end)
 
   test("refuses a purchase the force cannot pay, changing nothing", function()
-    player_state().balance = 0
+    local floor = -account.overdraft_limit(player_state())
+    player_state().balance = floor
     local before = market.quote(game.forces.player.index, "item", "iron-gear-wheel").mid
     local ok, reason = market.buy(game.forces.player.index, "item", "iron-gear-wheel", 10)
     assert.is_false(ok)
     assert.are.equal("insufficient-funds", reason)
-    assert.are.equal(0, player_state().balance)
+    assert.are.equal(floor, player_state().balance)
     assert.are.equal(before, market.quote(game.forces.player.index, "item", "iron-gear-wheel").mid)
   end)
 

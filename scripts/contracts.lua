@@ -59,7 +59,7 @@ function contracts.can_accept(force_index, id, guarantee)
   if not contract then return false, "unknown" end
   if contract.state ~= core.OFFERED then return false, "not-offered" end
   if game.tick > contract.accept_by then return false, "expired" end
-  if state.balance < (guarantee or core.guarantee(contract)) then return false, "insufficient-funds" end
+  if account.available(state) < (guarantee or core.guarantee(contract)) then return false, "insufficient-funds" end
   return true
 end
 
@@ -139,11 +139,12 @@ function contracts.register_service(kind, can_serve, serve)
 end
 
 -- Takes a period's charge. A period that cannot be delivered is skipped, uncharged; otherwise a
--- force that cannot pay defaults, and one that can is charged only if the service delivered.
+-- force whose available funds (overdraft included) cannot pay defaults, and one that can is charged
+-- only if the service delivered.
 local function charge(force_index, state, id, contract, amount, tick)
   local service = services[contract.kind]
   if not (service and service.can_serve(force_index, contract)) then return end
-  if state.balance < amount then return apply(state, id, core.default(contract, tick)) end
+  if account.available(state) < amount then return apply(state, id, core.default(contract, tick)) end
   if service.serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
 end
 

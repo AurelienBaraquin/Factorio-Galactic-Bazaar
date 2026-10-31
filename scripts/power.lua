@@ -5,6 +5,7 @@
 -- the export substations' buffers are sold and the import substations' buffers refilled, one trade
 -- per force and direction, journaled as one entry per direction and minute. The buffer size, set
 -- from the force's research level, caps the throughput. State lives in storage.power.
+local account = require("scripts.core.account")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
 local settlement = require("scripts.core.power_settlement")
@@ -133,7 +134,7 @@ local function settle_exports(force_index, entities)
   for _, entity in ipairs(entities) do entity.energy = entity.energy * kept end
 end
 
--- Buys what refills the import substations of a force, as far as its credits and the market allow;
+-- Buys what refills the import substations of a force, as far as its available funds and the market allow;
 -- the energy bought is shared out in proportion to what each lacks.
 local function settle_imports(force_index, entities)
   local missing = {}
@@ -143,7 +144,7 @@ local function settle_imports(force_index, entities)
   if not units or units <= 0 then return end
   local cost = market.preview(force_index, KIND, NAME, "buy", units)
   if not cost then return end
-  units = settlement.affordable(units, cost, storage.forces[force_index].balance)
+  units = settlement.affordable(units, cost, account.available(storage.forces[force_index]))
   if units <= 0 or not market.buy(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then return end
   for i, joules in ipairs(settlement.shares(missing, total_missing, units, JOULES_PER_UNIT)) do
     entities[i].energy = entities[i].energy + joules

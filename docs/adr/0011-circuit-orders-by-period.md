@@ -30,7 +30,10 @@ passes. Each positive normal-quality item signal buys that many units through th
 bought without a positive Budget signal** (`gb-budget`, a signal of its own): its value caps what
 the force spends through all its order combinators in the period, never more than the balance, and
 a zero or negative value pauses buying. An input that carries the Credits signal of price
-combinators (ADR-0010) is refused whole: its item signals are prices, not orders. Untradeable,
+combinators (ADR-0010) is refused whole: its item signals are prices, not orders. Amended by
+[ADR-0020](0020-overdraft-and-debit-interest.md): the cap is the available funds (balance plus
+overdraft), and an input carrying the Price feed marker that price combinators always emit is
+refused too, since a balance of 0 emits no Credits signal. Untradeable,
 negative and quality signals are ignored (fluid signals too until 2026-10-30: since #63 they buy
 fluids into import manifolds). Recurring orders merge their journal entries per
 item and minute.

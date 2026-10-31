@@ -1,5 +1,6 @@
 -- In-game tests of the power module (scripts/power.lua, ADR-0009): the value of electricity, selling
 -- a network's surplus, buying what it lacks, and the research levels.
+local account = require("scripts.core.account")
 local power = require("scripts.power")
 local pricing = require("scripts.pricing")
 
@@ -32,6 +33,7 @@ describe("power module", function()
       if entity.valid then entity.destroy() end
     end
     if saved_balance then player_state().balance = saved_balance end
+    player_state().overdraft_low = player_state().balance
     player_state().markets["energy/electricity"] = nil
     level_2().researched = false
   end)
@@ -77,9 +79,10 @@ describe("power module", function()
   test("buys only what the force can pay", function()
     local substation = place("gb-power-import", 3)
     substation.energy = 0
-    player_state().balance = 0.01
+    local floor = -account.overdraft_limit(player_state())
+    player_state().balance = floor + 0.01
     power.on_settle_tick()
-    assert.is_true(player_state().balance >= 0)
+    assert.is_true(player_state().balance >= floor)
     assert.is_true(substation.energy > 0 and substation.energy < substation.electric_buffer_size)
   end)
 

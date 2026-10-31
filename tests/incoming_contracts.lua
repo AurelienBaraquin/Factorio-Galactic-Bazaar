@@ -67,6 +67,7 @@ describe("incoming contracts", function()
     local saved = storage.gb_test_incoming
     if saved then
       state().balance, state().reputation = saved.balance, saved.reputation
+      state().overdraft_low = state().balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       force().technologies[incoming.TECHNOLOGY].researched = saved.researched
@@ -114,6 +115,14 @@ describe("incoming contracts", function()
     assert.are.equal(1, #capsules)
     assert.are.same({ "iron-plate", 10, 0, id },
       { capsules[1].name, capsules[1].count, capsules[1].unit_cost, capsules[1].contract })
+  end)
+
+  test("acceptance from a zero balance puts the guarantee on overdraft", function()
+    state().balance = 0
+    local id = contracts.offer(force().index, spec())
+    assert.is_true(incoming.accept(force().index, id, hub.unit_number))
+    assert.are.equal(-300, state().balance)
+    assert.are.equal(core.ACTIVE, contracts.get(force().index, id).state)
   end)
 
   test("acceptance after the offer's end is refused before anything ships", function()

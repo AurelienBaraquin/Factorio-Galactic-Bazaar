@@ -66,6 +66,10 @@ end
 --- digits ("0.42", "999.99", "1.23k", "45.6M"). A value that rounds up to 1000 of a unit is shown
 --- in the next one ("1.00k", not "1000.00").
 function catalog.format_credits(amount)
+  if amount ~= amount then return "?" end
+  if amount == math.huge then return "∞" end
+  if amount == -math.huge then return "-∞" end
+  if math.abs(amount) < 0.005 then amount = 0 end
   local sign = amount < 0 and "-" or ""
   local value = math.abs(amount)
   for i = #UNITS, 1, -1 do

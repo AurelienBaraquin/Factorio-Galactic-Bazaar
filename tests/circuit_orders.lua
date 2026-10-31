@@ -2,6 +2,8 @@
 -- signals, one per item and period, within a budget the force shares.
 local circuit_orders = require("scripts.circuit_orders")
 local freight = require("scripts.freight")
+local orders = require("scripts.core.orders")
+local price_signals = require("scripts.price_signals")
 
 local surface, created
 local function place(name, x, y)
@@ -70,6 +72,7 @@ describe("order combinator", function()
     end
     if saved_balance then player_state().balance = saved_balance end
     if saved_journal then player_state().journal = saved_journal end
+    player_state().overdraft_low = player_state().balance
     player_state().markets["item/" .. GEAR] = nil
   end)
 
@@ -105,10 +108,44 @@ describe("order combinator", function()
   test("refuses an input carrying a price combinator's balance signal", function()
     local combinator = place("gb-order-combinator", 3)
     emit({ combinator }, { { name = GEAR, count = 50 }, budget(1e5),
-      { type = "virtual", name = circuit_orders.REFUSED_SIGNAL, count = 1e6 } })
+      { type = "virtual", name = "gb-credits", count = 1e6 } })
     after_ticks(2, function()
       run_period(1)
       assert.are.equal(0, freight.queued(hub.unit_number))
+    end)
+  end)
+
+  test("buys on overdraft from a zero balance", function()
+    player_state().balance = 0
+    local combinator = place("gb-order-combinator", 3)
+    emit({ combinator }, { { name = GEAR, count = 50 }, budget(1e5) })
+    after_ticks(2, function()
+      run_period(1)
+      assert.are.equal(1, freight.queued(hub.unit_number))
+      assert.is_true(player_state().balance < 0)
+    end)
+  end)
+
+  test("refuses a price combinator's input even when the balance it emits is 0", function()
+    player_state().balance = 0
+    local combinator = place("gb-order-combinator", 3)
+    local prices = place("gb-buy-price-combinator", -3, 107)
+    prices.get_wire_connector(W.circuit_red, true).connect_to(combinator.get_wire_connector(W.circuit_red, true))
+    emit({ combinator }, { budget(1e5) }, -6)
+    storage.price_signals.snapshots, storage.price_signals.builders = {}, {}
+    repeat price_signals.on_pass_tick() until next(storage.price_signals.builders) == nil
+    for _ = 1, #storage.price_signals.order do price_signals.on_pass_tick() end
+    after_ticks(2, function()
+      local network = combinator.get_circuit_network(W.circuit_red)
+      assert.is_true(network.get_signal({ type = "item", name = GEAR, quality = "normal" }) > 0)
+      assert.are.equal(0, network.get_signal({ type = "virtual", name = "gb-credits", quality = "normal" }))
+      -- Its many price "orders" would mostly overflow the queue anyway: check the refusal itself.
+      local _, _, refused = orders.requests(combinator.get_signals(W.circuit_red, W.circuit_green),
+        circuit_orders.BUDGET_SIGNAL, circuit_orders.REFUSED_SIGNALS)
+      assert.is_true(refused)
+      run_period(1)
+      assert.are.equal(0, freight.queued(hub.unit_number))
+      assert.are.equal(0, player_state().balance)
     end)
   end)
 

@@ -15,7 +15,7 @@ describe("orders.requests", function()
       { signal = { type = "fluid", name = "water" }, count = 1000 },
       virtual("gb-budget", 500),
       { signal = { type = "item", name = "wood", quality = "normal" }, count = 3 },
-    }, "gb-budget", "gb-credits")
+    }, "gb-budget", { ["gb-credits"] = true })
     assert.are.same({
       { kind = "fluid", name = "water", units = 1000 }, { kind = "item", name = "coal", units = 50 },
       { kind = "item", name = "iron-plate", units = 100 }, { kind = "item", name = "wood", units = 3 },
@@ -24,22 +24,26 @@ describe("orders.requests", function()
     assert.is_false(refused)
   end)
 
-  it("flags an input that carries the refused signal", function()
-    local _, _, refused = orders.requests({ item("coal", 50), virtual("gb-credits", 1000) }, "gb-budget", "gb-credits")
-    assert.is_true(refused)
+  it("flags an input that carries any of the refused signals", function()
+    local refused_signals = { ["gb-credits"] = true, ["gb-price-feed"] = true }
+    for _, marker in ipairs({ "gb-credits", "gb-price-feed" }) do
+      local _, _, refused = orders.requests({ item("coal", 50), virtual(marker, 1) }, "gb-budget", refused_signals)
+      assert.is_true(refused)
+    end
   end)
 
   it("reads nothing from an empty or missing network", function()
-    assert.are.same({ {}, 0, false }, { orders.requests(nil, "gb-budget", "gb-credits") })
+    assert.are.same({ {}, 0, false }, { orders.requests(nil, "gb-budget", { ["gb-credits"] = true }) })
   end)
 end)
 
 describe("orders.allowance", function()
-  it("is the budget left for the force this period, within the balance", function()
+  it("is the budget left for the force this period, within its available funds", function()
     assert.are.equal(500, orders.allowance(500, 0, 10000))
     assert.are.equal(200, orders.allowance(500, 300, 10000))
     assert.are.equal(0, orders.allowance(500, 600, 10000))
     assert.are.equal(100, orders.allowance(500, 0, 100))
+    assert.are.equal(0, orders.allowance(500, 0, -20))
   end)
 
   it("is zero without a positive budget, so a zero or negative budget pauses buying", function()

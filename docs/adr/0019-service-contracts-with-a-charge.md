@@ -31,7 +31,9 @@ side-effect-free `can_serve`) has delivered the period; a period that cannot be 
 before the balance is checked, and one not delivered is not charged. Periods follow their schedule
 from acceptance, the last one at the deadline, whatever tick settlement runs at; the contract is
 fulfilled only once its last period was charged. A force whose balance cannot cover a charge
-defaults: the contract fails, its guarantee is kept, reputation −1. At the end of its term
+defaults: the contract fails, its guarantee is kept, reputation −1 (since
+[ADR-0020](0020-overdraft-and-debit-interest.md), the available funds, balance plus overdraft, must
+cover it). At the end of its term
 it is fulfilled: the guarantee comes back, reputation unchanged (paying rent is no feat). Abandoning
 it defaults it.
 

@@ -25,12 +25,17 @@ describe("power_settlement.wanted_units", function()
 end)
 
 describe("power_settlement.affordable", function()
-  it("keeps the cost within the balance when the price rises with the units", function()
+  it("keeps the cost within the funds when the price rises with the units", function()
     local function cost(units) return 100 * (math.exp(units / 50) - 1) end
     local units = settlement.affordable(200, cost(200), 300)
     assert.is_true(units > 0 and cost(units) <= 300)
     assert.are.equal(200, settlement.affordable(200, 10, 300))
     assert.are.equal(0, settlement.affordable(200, 10, 0))
+  end)
+
+  it("affords nothing when the funds are negative (balance beyond the overdraft limit)", function()
+    assert.are.equal(0, settlement.affordable(200, 10, -5))
+    assert.are.equal(0, settlement.affordable(200, 0, -5))
   end)
 end)
 

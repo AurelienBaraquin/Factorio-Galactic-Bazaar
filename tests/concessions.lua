@@ -1,5 +1,6 @@
 -- In-game tests of mining concessions (scripts/concessions.lua, #85): leasing a planet's slot, the
 -- charge per period shipped, defaults, the end of the term and the lease button of the planets window.
+local account = require("scripts.core.account")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
@@ -75,6 +76,7 @@ describe("mining concessions", function()
     local saved = storage.gb_test_concessions
     if saved then
       state().balance, state().reputation = saved.balance, saved.reputation
+      state().overdraft_low = state().balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       state().reservations = saved.reservations
@@ -134,6 +136,19 @@ describe("mining concessions", function()
     assert.is_true(math.abs(before - charge - state().balance) < 1e-6)
   end)
 
+  test("a force with no credits leases on overdraft, and its charge is paid, not defaulted", function()
+    state().balance = 0
+    local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
+    assert.is_truthy(id)
+    local contract = contracts.get(force_index(), id)
+    assert.is_true(math.abs(state().balance + contract.deposit) < 1e-6)
+    local reputation = state().reputation
+    run_period(id)
+    assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
+    assert.is_true(math.abs(state().balance + contract.deposit + contract.charge) < 1e-6)
+    assert.are.equal(reputation, state().reputation)
+  end)
+
   test("a period that cannot ship is not charged", function()
     local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
     local before = state().balance
@@ -145,7 +160,7 @@ describe("mining concessions", function()
 
   test("a force that cannot pay defaults, and the slot is released", function()
     local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore")
-    state().balance = 0
+    state().balance = -account.overdraft_limit(state())
     local reputation = state().reputation
     run_period(id)
     assert.is_nil(contracts.get(force_index(), id))
@@ -173,7 +188,7 @@ describe("mining concessions", function()
       { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore") })
     assert.are.same({ nil, "unknown-specialty" },
       { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "coal") })
-    state().balance = 0
+    state().balance = -account.overdraft_limit(state())
     assert.are.same({ nil, "insufficient-funds" },
       { concessions.lease(force_index(), hub.unit_number, "carbo", "coal") })
     state().balance = 1e6
