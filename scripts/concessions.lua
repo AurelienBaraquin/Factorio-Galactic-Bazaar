@@ -72,7 +72,7 @@ end
 
 -- The recipe of a booking as {energy, product, amount}, or nil and a reason: one of the force's
 -- enabled recipes, of the category, with one sure item product in a whole amount (#86).
-local function bookable(force, category, recipe_name)
+local function bookable(force, planet_name, category, recipe_name)
   local recipe = recipe_name and force.recipes[recipe_name]
   if not recipe then return nil, "no-recipe" end
   if not recipe.enabled or recipe.hidden then return nil, "recipe-locked" end
@@ -81,6 +81,7 @@ local function bookable(force, category, recipe_name)
     if name == category then in_category = true end
   end
   if not in_category then return nil, "wrong-category" end
+  if not planets.can_host(planet_name, recipe.prototype) then return nil, "wrong-planet" end
   local product = incoming.sole_product(recipe.products)
   if not product then return nil, "not-craftable" end
   return { energy = recipe.energy, product = product.name, amount = product.amount }
@@ -89,11 +90,11 @@ end
 --- Books one crafting slot of `category` on `planet_name` for a force's recipe `recipe_name`: the
 --- planet buys the ingredients, crafts and ships the products to a hub of the force every period
 --- (#86). Made whole or not at all. Returns the contract id, or nil and a reason (those of `lease`,
---- no-recipe, recipe-locked, wrong-category, not-craftable, too-slow).
+--- no-recipe, recipe-locked, wrong-category, wrong-planet, not-craftable, too-slow).
 function concessions.book(force_index, hub_unit_number, planet_name, category, recipe_name)
   local free, refusal = free_slot(force_index, planet_name, "crafting", category)
   if not free then return nil, refusal end
-  local recipe, reason = bookable(game.forces[force_index], category, recipe_name)
+  local recipe, reason = bookable(game.forces[force_index], planet_name, category, recipe_name)
   if not recipe then return nil, reason end
   local units = offers.outsourcing_units(recipe.energy, recipe.amount, 1)
   if units < 1 then return nil, "too-slow" end

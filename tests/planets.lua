@@ -58,6 +58,32 @@ describe("NPC planets", function()
     assert.are.equal("crafting:cryogenics", real.aquilo)
   end)
 
+  test("a real planet keeps its category while it can still host it, and hosts only its recipes", function()
+    if not script.active_mods["space-age"] then return end
+    local function category_of(name)
+      for _, planet in ipairs(planets.catalog()) do
+        if planet.name == name then return planet.specialties[#planet.specialties].name end
+      end
+    end
+    for _, planet in ipairs(planets.catalog()) do
+      if planet.name == "vulcanus" then planet.specialties[#planet.specialties].name = "cryogenics" end
+    end
+    planets.init()
+    local kept = category_of("vulcanus")
+    for _, planet in ipairs(planets.catalog()) do
+      if planet.name == "vulcanus" then planet.specialties[#planet.specialties].name = "chemistry-gone" end
+    end
+    planets.init()
+    assert.are.equal("cryogenics", kept)
+    assert.are.equal("metallurgy", category_of("vulcanus"))
+    local magnetic = prototypes.recipe["electromagnetic-science-pack"]
+    assert.is_false(planets.can_host("vulcanus", magnetic))
+    assert.is_true(planets.can_host("fulgora", magnetic))
+    assert.is_true(planets.can_host("fabrica-nova", magnetic))
+    assert.are.equal("space-location-name.vulcanus", planets.caption("vulcanus")[1])
+    assert.are.equal("gb-planets.name-carbo", planets.caption("carbo")[2][1])
+  end)
+
   test("a force reserves slots, which other forces do not lose", function()
     local other = game.create_force("gb-test-planets")
     assert.is_truthy(planets.reserve(force_index(), "ferrum-prime", "resource", "iron-ore", 3, game.tick + 600))

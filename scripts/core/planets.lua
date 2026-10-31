@@ -28,8 +28,8 @@ planets.CATALOG = {
 }
 
 -- Real planets (#87): any planet other than the home one (Space Age's Vulcanus, Fulgora, Gleba,
--- Aquilo, or a mod's) joins the catalog with the item resources it generates and the crafting
--- categories of the recipes only it can host, each with these slots; its distance in transit units
+-- Aquilo, or a mod's) joins the catalog with the item resources it generates and its signature
+-- crafting category (of the recipes only it can host), each with these slots; its distance in transit units
 -- is its distance from the home planet in space, DISTANCE_PER_UNIT per unit, at least 1.
 planets.REAL_RESOURCE_SLOTS = 3
 planets.REAL_CRAFTING_SLOTS = 2

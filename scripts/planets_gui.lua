@@ -23,10 +23,10 @@ end
 -- How a specialty reads: an item icon for a resource, the category's name for crafting.
 local function specialty_caption(specialty)
   if specialty.kind == "resource" then
-    return { "", "[item=" .. specialty.name .. "] ", { "item-name." .. specialty.name } }
+    return { "", "[item=" .. specialty.name .. "] ", prototypes.item[specialty.name].localised_name }
   end
-  return { "?", { "gb-planets.category-" .. specialty.name }, { "recipe-category-name." .. specialty.name },
-    specialty.name }
+  local category = prototypes.recipe_category[specialty.name]
+  return { "?", { "gb-planets.category-" .. specialty.name }, category and category.localised_name or specialty.name }
 end
 
 local function refresh(player, data)

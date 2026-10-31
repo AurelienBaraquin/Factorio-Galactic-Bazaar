@@ -70,17 +70,31 @@ local function planet_resources(location)
   return sorted_keys(items)
 end
 
--- The planet's signature crafting category: of the visible recipes it can host and the home planet
--- cannot, the category most of them belong to (ties to the first name); none without such recipes.
--- With Space Age: Vulcanus metallurgy, Fulgora electromagnetics, Gleba organic, Aquilo cryogenics.
-local function planet_categories(location, home)
-  local counts = {}
+-- The visible recipes the home planet cannot host: {conditions, categories} each, read once.
+local function off_home_recipes(home)
+  local list = {}
   for _, recipe in pairs(prototypes.recipe) do
     local conditions = recipe.surface_conditions
-    if conditions and not recipe.hidden and meets(location, conditions) and not (home and meets(home, conditions)) then
+    if conditions and not recipe.hidden and not (home and meets(home, conditions)) then
+      list[#list + 1] = { conditions = conditions, categories = recipe.categories }
+    end
+  end
+  return list
+end
+
+-- The planet's signature crafting category: of the visible recipes it can host and the home planet
+-- cannot, the category most of them belong to (ties to the first name); none without such recipes.
+-- The category it had before (`previous`) is kept while it still has such a recipe, so that another
+-- mod's recipes cannot flip it and void the bookings on it. With Space Age: Vulcanus metallurgy,
+-- Fulgora electromagnetics, Gleba organic, Aquilo cryogenics.
+local function planet_categories(location, recipes, previous)
+  local counts = {}
+  for _, recipe in ipairs(recipes) do
+    if meets(location, recipe.conditions) then
       for _, category in ipairs(recipe.categories) do counts[category] = (counts[category] or 0) + 1 end
     end
   end
+  if previous and counts[previous] then return { previous } end
   local best
   for _, category in ipairs(sorted_keys(counts)) do
     if not best or counts[category] > counts[best] then best = category end
@@ -88,19 +102,47 @@ local function planet_categories(location, home)
   return { best }
 end
 
--- Catalog entries of the real planets of the loaded game (#87), by name.
+-- The crafting category a real planet had in the catalog being replaced, or nil.
+local function previous_category(name)
+  local planet = storage.planets and core.find(storage.planets, name)
+  for _, specialty in ipairs(planet and planet.real and planet.specialties or {}) do
+    if specialty.kind == "crafting" then return specialty.name end
+  end
+end
+
+-- Whether a name is an abstract planet's: a real planet of that name would be shadowed.
+local function abstract_name(name)
+  for _, planet in ipairs(core.CATALOG) do
+    if planet.name == name then return true end
+  end
+  return false
+end
+
+-- Catalog entries of the real planets of the loaded game (#87), by name. Without a `nauvis`
+-- prototype (an overhaul), distances are measured from the centre of the star map and every
+-- planet-only recipe counts.
 local function real_planets()
   local home = prototypes.space_location[HOME]
   local origin = home or { distance = 0, orientation = 0 }
+  local recipes = off_home_recipes(home)
   local entries = {}
   for _, name in ipairs(sorted_keys(prototypes.space_location)) do
     local location = prototypes.space_location[name]
-    if location.type == "planet" and name ~= HOME then
+    if location.type == "planet" and name ~= HOME and not abstract_name(name) then
       entries[#entries + 1] = core.real_planet(name, core.distance_units(origin, location),
-        planet_resources(location), planet_categories(location, home))
+        planet_resources(location), planet_categories(location, recipes, previous_category(name)))
     end
   end
   return entries
+end
+
+--- Whether a planet can host a recipe: a real planet must meet its surface conditions; an abstract
+--- one hosts any recipe of its categories.
+function planets.can_host(planet_name, recipe_prototype)
+  local planet = core.find(storage.planets, planet_name)
+  if not (planet and planet.real) then return true end
+  local location = prototypes.space_location[planet_name]
+  return location ~= nil and meets(location, recipe_prototype.surface_conditions or {})
 end
 
 --- on_init and on_configuration_changed: builds the catalog for the loaded game and drops the
@@ -119,12 +161,12 @@ function planets.init()
   return dropped
 end
 
---- The localised name of a catalog planet: the game's own name for a real planet, the mod's for an
---- abstract one, the internal name when neither has a key.
+--- The localised name of a planet: the mod's for an abstract one, the game's own for a real one
+--- (even one gone from the catalog, while its prototype exists), else its internal name.
 function planets.caption(planet_name)
-  local planet = core.find(storage.planets, planet_name)
-  local key = planet and planet.real and "space-location-name." or "gb-planets.name-"
-  return { "?", { key .. planet_name }, planet_name }
+  if abstract_name(planet_name) then return { "?", { "gb-planets.name-" .. planet_name }, planet_name } end
+  local location = prototypes.space_location[planet_name]
+  return location and location.localised_name or planet_name
 end
 
 --- The catalog of NPC planets: {{name, distance, real, specialties = {{kind, name, slots}...}}...}.
