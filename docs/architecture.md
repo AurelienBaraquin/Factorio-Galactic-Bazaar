@@ -81,7 +81,7 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Loans**: the contracts window's credit line borrows a tier (`loans.borrow`: a loan contract
   offered and accepted at once, its principal paid); its installments run in the contract
   settlement with no service; every `loans.COLLECT_TICKS`, arrears a defaulted loan left are taken
-  from each force's balance ([contracts.md](contracts.md)).
+  from each force's available funds, down to its overdraft limit ([contracts.md](contracts.md)).
 - **Concessions and outsourcing**: their periods run in the contract settlement (the service
   registered for each kind checks it can ship, ships the ore or the products, then the charge is
   taken); every `concessions.SWEEP_TICKS`, ended leases release their slot ([planets.md](planets.md)).

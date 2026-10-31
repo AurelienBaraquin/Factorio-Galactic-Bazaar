@@ -50,14 +50,17 @@ changes.
   count among the contracts window's rows (`contracts.MAX_LISTED`).
 - **Funds**: borrowing needs no guarantee, but acceptance checks the available funds like any
   contract's: a force whose balance is beyond its overdraft limit (available funds below zero) is
-  refused (`insufficient-funds`), and the Borrow buttons say so.
+  refused (`overdrawn`), and the Borrow buttons say so.
 - **Installments**: one the available funds can pay is paid, even if it takes the balance into
   the overdraft (which then pays its debit interest), like any service charge.
 - **Default**: an installment the available funds cannot cover fails the loan (ADR-0019: −1
   reputation), and that installment plus every one left, interest included, become the force's
-  **arrears** (`storage.forces[i].arrears`). Every second, arrears are taken from what a positive
-  balance holds (`loan-arrears`), never from the overdraft, so collecting them never creates debit
-  interest; no loan is granted while any are owed.
+  **arrears** (`storage.forces[i].arrears`). Every second, arrears are taken from the available
+  funds, down to the overdraft limit (`loan-arrears`): unpaid loan debt becomes overdraft debt, which
+  pays debit interest and blocks spending until income brings the balance back; arrears beyond the
+  overdraft stay owed and are taken from income as it comes. No loan is granted while any are owed.
+  Taking them from a positive balance only would let a force with income defer them forever by
+  keeping its balance just below zero, for at most the overdraft's interest.
 - **Void**: a loan has no goods and is never voided (on a configuration change), which would cancel
   its debt.
 - **Abandon**: a loan is repaid, not abandoned. The contracts window's button repays every
@@ -70,9 +73,10 @@ changes.
 
 - Positive: loans share the contract lifecycle, settlement, window and journal; neither a default
   nor an abandon lets a force keep the principal; borrowing is bounded by reputation.
-- Trade-offs accepted: the force pays the same total whether it repays early or late; arrears earn
-  no further interest and nothing but a positive balance collects them, so a force with no income keeps
-  owing them until bankruptcy (#97) decides otherwise; fixed tiers and one term; forces created
+- Trade-offs accepted: the force pays the same total whether it repays early or late; arrears
+  cannot be deferred: they draw the overdraft down at once, so a default also costs overdraft
+  interest; arrears beyond the overdraft earn no further interest and wait for income, or for
+  bankruptcy (#97) to decide otherwise; fixed tiers and one term; forces created
   for the purpose (a console or another mod) each get a reputation-0 cap and rate before a merge.
 - Follow-up: overdraft (#95): done, ADR-0020; bankruptcy (#97) will decide what happens to arrears
   a force cannot pay.

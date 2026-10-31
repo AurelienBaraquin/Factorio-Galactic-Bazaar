@@ -1,8 +1,8 @@
 -- Loans (#96, ADR-0021): the runtime side of borrowing. A force borrows one of the principal tiers
 -- (scripts/core/loans.lua) as a contract of kind "loan" (scripts/contracts.lua): the principal is paid
 -- at acceptance, installments are charged at the contract settlement. Arrears a defaulted loan left
--- are taken from the force's balance as it comes in. State: the loan contracts in each force's book
--- and storage.forces[i].arrears.
+-- are taken from the force's available funds, overdraft included, as they allow. State: the loan
+-- contracts in each force's book and storage.forces[i].arrears.
 local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.loans")
@@ -25,7 +25,7 @@ end
 -- guarantee, contracts.can_accept).
 local function refusal_for_all(force_index, state)
   if #contracts.listed(force_index) >= contracts.MAX_LISTED then return "too-many-contracts" end
-  if account.available(state) < 0 then return "insufficient-funds" end
+  if account.available(state) < 0 then return "overdrawn" end
   return nil
 end
 
@@ -47,8 +47,8 @@ end
 
 --- Borrows the principal of tier `tier` (an index of core.TIERS) for a force: the loan contract is
 --- offered and accepted at once, its principal paid to the force, or nothing changes. Returns the
---- contract id, or nil and a reason (invalid-amount, too-many-contracts, insufficient-funds,
---- in-arrears, debt-cap).
+--- contract id, or nil and a reason (invalid-amount, too-many-contracts, overdrawn, in-arrears,
+--- debt-cap; insufficient-funds should acceptance still refuse).
 function loans.borrow(force_index, tier)
   local state = storage.forces[force_index]
   local principal = core.TIERS[tier]
@@ -66,11 +66,12 @@ function loans.borrow(force_index, tier)
   return id
 end
 
---- on_nth_tick(COLLECT_TICKS): each force owing arrears pays what its positive balance can of them;
---- collection never draws on the overdraft (ADR-0021).
+--- on_nth_tick(COLLECT_TICKS): each force owing arrears pays what its available funds can of them,
+--- down to its overdraft limit: unpaid loan debt becomes overdraft debt, which pays debit interest
+--- and blocks spending (ADR-0021). Arrears beyond the overdraft stay owed.
 function loans.on_collect_tick(event)
   for _, state in pairs(storage.forces) do
-    local paid = core.collect(state.arrears or 0, state.balance)
+    local paid = core.collect(state.arrears or 0, account.available(state))
     if paid > 0 then
       account.apply(state, -paid, { tick = event.tick, kind = "loan-arrears", key = "loans",
         merge_ticks = COLLECT_MERGE_TICKS })

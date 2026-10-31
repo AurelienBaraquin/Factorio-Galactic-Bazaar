@@ -118,9 +118,12 @@ end
 -- settled only once that debit went through. Returns the outcome, or nil and maybe a reason.
 local function repay(state, id, contract)
   if contract.state ~= core.ACTIVE then return nil end
-  local ok, reason = account.apply(state, -core.payoff(contract),
-    { tick = game.tick, kind = "contract-repaid", key = "contract/" .. id })
-  if not ok then return nil, reason end
+  local owed = core.payoff(contract)
+  if owed > 0 then
+    local ok, reason = account.apply(state, -owed,
+      { tick = game.tick, kind = "contract-repaid", key = "contract/" .. id })
+    if not ok then return nil, reason end
+  end
   local outcome = core.repay(contract, game.tick)
   apply(state, id, outcome)
   return outcome

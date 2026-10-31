@@ -3,8 +3,8 @@
 -- whose charge repays principal plus interest in equal installments over the term. The interest rate
 -- falls as reputation rises; a cap on the debt, scaled like the contracts a force is offered, bounds
 -- borrowing; it counts loans only, not the overdraft. A loan that defaults leaves what was not repaid
--- owed as the force's `arrears`, taken from its positive balance as it comes in (never from the
--- overdraft); no loan is granted while arrears are owed.
+-- owed as the force's `arrears`, taken from its available funds (overdraft included) as they allow,
+-- so unpaid loan debt becomes overdraft debt; no loan is granted while arrears are owed.
 local contracts = require("scripts.core.contracts")
 local reputation = require("scripts.core.reputation")
 
@@ -68,9 +68,9 @@ function loans.refusal(principal, score, open, arrears)
   return nil
 end
 
---- What a balance of `balance` pays now of `arrears`.
-function loans.collect(arrears, balance)
-  return math.min(arrears, math.max(0, balance))
+--- What available funds of `available` (balance plus overdraft) pay now of `arrears`.
+function loans.collect(arrears, available)
+  return math.min(arrears, math.max(0, available))
 end
 
 --- Gives a force state its arrears if it lacks them (saves made before loans had none).

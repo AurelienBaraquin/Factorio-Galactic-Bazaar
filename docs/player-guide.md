@@ -134,8 +134,9 @@ installments, or why it is refused.
 - **Repay** on a loan's row pays every installment left at once, interest included; it is refused if
   your available funds cannot cover it. A loan cannot be abandoned.
 - If your available funds cannot cover an installment, the loan **defaults**: reputation −1, and that
-  installment and every one left become **arrears**, taken from your balance whenever it is above
-  zero (never from the overdraft). No new loan until they are paid.
+  installment and every one left become **arrears**, taken at once from your available funds, down to
+  your overdraft limit: your balance drops into the overdraft (and pays its interest), and what does
+  not fit is taken from your income as it comes. No new loan until they are paid.
 - No loan either while your balance is beyond the overdraft limit.
 - Loans take rows of the Contracts window (8 at most, with your other contracts).
 
