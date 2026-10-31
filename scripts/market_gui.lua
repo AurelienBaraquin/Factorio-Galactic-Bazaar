@@ -75,8 +75,14 @@ local function refresh_status(player, data)
     elements.solvency.tooltip = { "gb-gui.insolvent-terms",
       catalog.format_credits(insolvency.recovery_balance(state)) }
   elseif ban then
-    elements.solvency.caption = { "gb-gui.credit-ban", catalog.format_duration(ban),
-      catalog.format_credits(state.bankruptcy_debt or 0) }
+    local debt = state.bankruptcy_debt or 0
+    if ban <= 0 then
+      elements.solvency.caption = { "gb-gui.credit-ban-debt", catalog.format_credits(debt) }
+    elseif debt > 0 then
+      elements.solvency.caption = { "gb-gui.credit-ban", catalog.format_duration(ban), catalog.format_credits(debt) }
+    else
+      elements.solvency.caption = { "gb-gui.credit-ban-time", catalog.format_duration(ban) }
+    end
     elements.solvency.tooltip = { "gb-gui.credit-ban-terms" }
   end
   elements.reputation.caption = { "gb-gui.reputation", state.reputation }

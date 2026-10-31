@@ -4,10 +4,11 @@
 -- arrears exceeded its available funds. It recovers once its available funds stayed at or above a
 -- margin, with no arrears, for a whole interest period; still insolvent GRACE_TICKS after it became
 -- so, it goes bankrupt: its open contracts end (offers declined, active ones failed, their guarantees
--- kept), everything it owes (a negative balance, arrears, the installments left on its loans) becomes
--- a frozen `bankruptcy_debt` that earns no interest and is taken from its positive balance at every
--- check, its reputation falls to the minimum, and credit (loans and the overdraft) is refused until a
--- ban that doubles with each bankruptcy has passed and that debt is repaid. Nothing is written off.
+-- kept), everything it owes (a negative balance, arrears, the installments left on its loans), plus a
+-- restructuring surcharge, becomes a frozen `bankruptcy_debt` that earns no interest and is taken
+-- from every credit to its balance (core/account.lua) and from its positive balance at every check,
+-- its reputation falls to the minimum, and credit (loans and the overdraft) is refused until a ban
+-- that doubles with each bankruptcy has passed and that debt is repaid. Nothing is written off.
 local account = require("scripts.core.account")
 local contracts = require("scripts.core.contracts")
 local reputation = require("scripts.core.reputation")
@@ -25,10 +26,12 @@ insolvency.MAX_BAN_DOUBLINGS = 3
 -- declared insolvent and solvent again every minute.
 insolvency.RECOVERY_SHARE = 0.05
 insolvency.RECOVERY_TICKS = account.INTEREST_TICKS
+-- Share added to everything owed when a bankruptcy freezes it into the bankruptcy debt: it stands in
+-- for the overdraft interest the frozen debt no longer pays, so that going bankrupt on purpose costs
+-- more than repaying, unless the force would need over about 100 minutes of income to repay (ADR-0022).
+insolvency.RESTRUCTURING_SURCHARGE = 0.25
 insolvency.RESTRUCTURED_KIND = "bankruptcy-restructured"
-insolvency.DEBT_KIND = "bankruptcy-debt"
--- Ticks over which a force's bankruptcy debt payments share one journal entry.
-insolvency.DEBT_MERGE_TICKS = 3600
+insolvency.DEBT_KIND = account.DEBT_KIND
 
 --- Gives a force state its insolvency fields if it lacks them: `bankruptcies` (a count) and
 --- `bankruptcy_debt` (credits); `insolvent_since`, `recovering_since` and `credit_ban_until` (ticks)
@@ -77,14 +80,10 @@ function insolvency.ban_ticks(count)
 end
 
 --- Takes what the force's positive balance can pay of its bankruptcy debt at `tick` (never into the
---- overdraft), journaled as `bankruptcy-debt`. Returns the credits taken.
+--- overdraft), journaled as `bankruptcy-debt`; credits already go to it as they come, this takes a
+--- balance that was positive before the bankruptcy or came by a merge. Returns the credits taken.
 function insolvency.collect(state, tick)
-  local paid = math.min(state.bankruptcy_debt or 0, math.max(0, state.balance))
-  if paid <= 0 then return 0 end
-  account.apply(state, -paid, { tick = tick, kind = insolvency.DEBT_KIND, key = "account/bankruptcy",
-    merge_ticks = insolvency.DEBT_MERGE_TICKS })
-  state.bankruptcy_debt = state.bankruptcy_debt - paid
-  return paid
+  return account.repay_debt(state, tick)
 end
 
 -- Ends a force's open contracts at `tick`, in id order: offers are declined, active contracts fail
@@ -99,8 +98,10 @@ local function end_contracts(state, tick)
     local contract = state.contracts.open[id]
     if not contracts.decline(contract, tick) then
       local outcome = contracts.default(contract, tick, 0)
-      owed = owed + (outcome.arrears or 0)
-      account.apply(state, 0, { tick = tick, kind = "contract-" .. contracts.FAILED, key = "contract/" .. id })
+      if outcome then
+        owed = owed + (outcome.arrears or 0)
+        account.apply(state, 0, { tick = tick, kind = "contract-" .. contracts.FAILED, key = "contract/" .. id })
+      end
     end
     contracts.close(state, id)
   end
@@ -108,15 +109,17 @@ local function end_contracts(state, tick)
 end
 
 --- Declares a force bankrupt at `tick`. Returns {name = "bankrupt", debt (what was moved into the
---- bankruptcy debt: a negative balance, the arrears and the installments left on its loans), ban_ticks,
---- contracts (the ids closed, in order)}.
+--- bankruptcy debt: a negative balance, the arrears and the installments left on its loans, plus the
+--- restructuring surcharge), ban_ticks, contracts (the ids closed, in order)}.
 function insolvency.bankrupt(state, tick)
   local ids, loans_owed = end_contracts(state, tick)
   local overdrawn = math.max(0, -state.balance)
-  local debt = overdrawn + (state.arrears or 0) + loans_owed
+  local owed = overdrawn + (state.arrears or 0) + loans_owed
+  local surcharge = owed * insolvency.RESTRUCTURING_SURCHARGE
+  local debt = owed + surcharge
   if debt > 0 then
     account.apply(state, overdrawn, { tick = tick, kind = insolvency.RESTRUCTURED_KIND, key = "account/bankruptcy",
-      debt = debt })
+      owed = owed, surcharge = surcharge, debt = debt })
   end
   state.arrears = 0
   state.bankruptcy_debt = (state.bankruptcy_debt or 0) + debt

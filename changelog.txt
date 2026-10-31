@@ -3,11 +3,12 @@ Version: 0.1.28
 Date: 2026-10-31
   Features:
     - Insolvency: a force whose balance goes past its overdraft limit, or that owes loan arrears it cannot pay, is insolvent; it has 10 minutes to recover, during which no contract or loan is accepted (selling still works).
-    - Bankruptcy at the end of the grace: open contracts end, guarantees kept; everything owed (negative balance, arrears, loan installments left) becomes a frozen debt without interest, repaid from income; reputation falls to -20.
+    - Bankruptcy at the end of the grace: open contracts end, guarantees kept; everything owed (negative balance, arrears, loan installments left) plus a 25% restructuring surcharge becomes a frozen debt without interest; every credit received goes to it first; reputation falls to -20.
     - Credit ban after a bankruptcy: no loan and no overdraft for 60 minutes (doubled with each bankruptcy, up to 8 hours) and until the bankruptcy debt is repaid.
-    - The market window shows insolvency with the time left before bankruptcy, or the credit ban with the debt left to repay; the force is told of each change in the chat.
+    - The market window shows insolvency with the time left before bankruptcy, or the credit ban with the time and debt left; the force is told of each change in the chat.
   Changes:
-    - Existing saves: each force gets its insolvency fields (no bankruptcy, no debt) on load.
+    - Existing saves: each force gets its insolvency fields (no bankruptcy, no debt) on configuration change.
+    - Existing saves: a force already beyond its overdraft limit, or owing arrears its funds cannot cover, becomes insolvent at the first check and goes bankrupt 10 minutes later unless it recovers.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.27
 Date: 2026-10-31

@@ -21,6 +21,10 @@ account.INTEREST_RATE = 0.005
 account.INTEREST_MIN = 0.005
 account.INTEREST_MERGE_TICKS = 36000
 account.INTEREST_KIND = "overdraft-interest"
+-- Bankruptcy debt (ADR-0022): what a bankrupt force still owes, taken from its positive balance at
+-- every credit, journaled as one entry per DEBT_MERGE_TICKS.
+account.DEBT_KIND = "bankruptcy-debt"
+account.DEBT_MERGE_TICKS = 3600
 
 --- Gives a force state its account fields if it lacks them (new force, or a save made before the
 --- account, the overdraft or insolvency existed). `overdraft_low` is the lowest balance since the last
@@ -107,12 +111,26 @@ end
 --- with `merge_ticks` (a recurring transaction, such as power settlements) is added to a recent entry
 --- of the same kind and key started less than `merge_ticks` before, which then holds the totals, its
 --- last tick and the balance after it, and moves to the end so the journal stays in tick order.
---- Atomic: when it refuses (`invalid-amount`, `insufficient-funds`), the state is unchanged.
+--- Atomic: when it refuses (`invalid-amount`, `insufficient-funds`), the state is unchanged. A credit
+--- to a force that owes a bankruptcy debt goes to that debt first, as far as the balance is positive
+--- (`repay_debt`), so income cannot be spent before the debt is paid.
 function account.apply(state, amount, entry)
   if not is_finite(amount) then return false, "invalid-amount" end
   if amount < 0 and amount + account.available(state) < 0 then return false, "insufficient-funds" end
   record(state, amount, entry)
+  if amount > 0 then account.repay_debt(state, entry.tick) end
   return true
+end
+
+--- Takes what a force's positive balance can pay of its bankruptcy debt (`bankruptcy_debt`) at
+--- `tick`, never into the overdraft, journaled as `bankruptcy-debt`. Returns the credits taken.
+function account.repay_debt(state, tick)
+  local paid = math.min(state.bankruptcy_debt or 0, math.max(0, state.balance))
+  if paid <= 0 then return 0 end
+  record(state, -paid, { tick = tick, kind = account.DEBT_KIND, key = "account/bankruptcy",
+    merge_ticks = account.DEBT_MERGE_TICKS })
+  state.bankruptcy_debt = state.bankruptcy_debt - paid
+  return paid
 end
 
 --- Charges a force one period of interest at `tick`, on the lowest balance it had since the last

@@ -12,9 +12,9 @@ interest, which may push the balance beyond `-limit` (ADR-0020), and loan arrear
 overdraft, which wait for income (ADR-0021). Until now neither had an end: a force beyond its limit
 could simply not spend, and its arrears stayed owed for ever. The brief lists bankruptcy in scope.
 Constraints: state keyed by force (ADR-0001), deterministic periodic checks, no exploit that lets a
-force keep borrowed money for free, and research (#98, in parallel) will make the overdraft limit
-depend on the force, so every rule reads `account.overdraft_limit(state)` and
-`account.available(state)`, never a constant.
+force keep borrowed money for free, and the overdraft limit depends on the force (its research and
+reputation, #98, [contracts.md](../contracts.md#research)), so every rule reads
+`account.overdraft_limit(state)` and `account.available(state)`, never a constant.
 
 ## Options considered
 
@@ -46,8 +46,8 @@ force in force index order:
   arrears exceed the available funds (collection has then taken all it could). It is stored as
   `insolvent_since` (a tick). The force is told, with the balance to reach and the time left.
   Each check reads the limit in force at that check (`account.overdraft_limit(state)`), so a limit
-  that drops under an existing debt (a credit ban, or research and reputation once #98 makes the
-  limit vary) starts the grace period like any other cause: a force is never bankrupted at once.
+  that drops under an existing debt (a credit ban, research reversed, reputation falling, a merge)
+  starts the grace period like any other cause: a force is never bankrupted at once.
 - **Recovery**: once every check over `RECOVERY_TICKS` (an interest period, one minute) found the
   period's lowest balance leaving at least `RECOVERY_SHARE` (5 %) of the limit available, with no
   arrears owed (`recovering_since` records the first of them; a check that misses the margin clears
@@ -64,11 +64,16 @@ force in force index order:
   whose period missed the margin: every open contract ends — offers are declined, active ones fail
   with their guarantees kept (each journaled as a 0-credit `contract-failed`). **Nothing is written
   off**: the negative balance, the arrears and each active loan's installments left
-  (`contracts.payoff`) move into `bankruptcy_debt`; the balance is set to 0 and arrears to 0, the
-  move journaled as one `bankruptcy-restructured` entry (its amount brings the balance to 0, its
-  `debt` field the total moved). The debt is frozen — no interest — and at every check it takes the
-  whole positive balance it can, never into the overdraft (`bankruptcy-debt` entries, merged per
-  minute), so sales, exports and contract rewards repay it. Reputation falls to the minimum (−20).
+  (`contracts.payoff`), plus a **restructuring surcharge** of `RESTRUCTURING_SURCHARGE` (25 %) of
+  them, move into `bankruptcy_debt`; the balance is set to 0 and arrears to 0, the move journaled as
+  one `bankruptcy-restructured` entry (its amount brings the balance to 0; its `owed`, `surcharge`
+  and `debt` fields hold what was owed, the surcharge and the total). The debt is frozen — no
+  interest. It is garnished at the point of credit: `account.apply` sends every credit (sales,
+  exports, contract rewards, refunds) to the debt first, as far as the balance is positive, so
+  income cannot be spent before the debt is paid; each check also takes a positive balance already
+  there (one left by the bankruptcy, or brought by a merge). Payments are journaled as
+  `bankruptcy-debt`, merged per minute; none goes into the overdraft, so a credit first brings a
+  negative balance back to zero. Reputation falls to the minimum (−20).
   Credit is refused (`credit_ban_until`) until **both** `BAN_TICKS` (60 minutes, doubled with each
   bankruptcy up to 8 hours, `bankruptcies` counts them) have passed **and** `bankruptcy_debt` is 0.
   Meanwhile `account.overdraft_limit` is 0 (no overdraft, no interest), whatever the force's overdraft
@@ -84,23 +89,35 @@ force in force index order:
 - **Force merge**: the destination keeps the earliest `insolvent_since` (its recovery starts
   afresh), the latest `credit_ban_until` and the most `bankruptcies`; bankruptcy debts and lowest
   balances add up. A healthy force can thus inherit another's ban and debt.
-- The market window shows the state and the time left (insolvency), or the ban's time left and the
-  debt still to repay (credit ban); the Borrow buttons say why they are disabled.
+- The market window shows the state and the time left (insolvency), or during a credit ban the
+  time left and the debt still to repay, the debt alone once the time has passed; the Borrow buttons
+  say why they are disabled.
+- **Why a surcharge**: the frozen debt earns no interest, which without a price would make a
+  deliberate bankruptcy cheaper than repaying a large overdraft. Repaying a debt `D` from an income
+  `I` per minute takes `D / I` minutes, during which the overdraft charges 0.5 % a minute on a debt
+  falling from `D` to 0: about 0.25 % × `D` × `D / I`. The 25 % surcharge equals that when
+  `D / I` is about **100 minutes**. Below, bankruptcy costs more than repaying; above, it costs less
+  in credits, and still costs every open contract, a reputation of −20 and the credit ban.
 
 ## Consequences
 
-- Positive: no debt is ever cancelled, so borrowing or overdrawing and then going bankrupt gains
-  nothing: there is no walk-away. Bankruptcy is a restructuring: it stops interest from growing a
-  debt the force cannot serve, at the price of every open contract, a reputation of −20 (fees ×1.5,
-  smaller contracts) and no credit until the debt is repaid. Dodging bankruptcy needs real income
-  held for a minute; repeated bankruptcies cost more each time.
-- Trade-offs accepted: a frozen debt earns no interest, so a bankrupt force repays less than it
-  would have with interest running; it repays only from income, so a force with none stays without
-  credit indefinitely; to escape bankruptcy, a force must reach the margin for a whole check period
-  before the grace ends; after a bankruptcy a force has no credit at all, so a contract needing a
-  guarantee needs a positive balance, which the debt takes first.
+- Positive: no debt is ever cancelled. A loan's principal and interest stay owed in full, the
+  overdraft used stays owed, so there is no walk-away: borrowing or overdrawing and then going
+  bankrupt keeps no money. Bankruptcy is a restructuring: overdraft interest stops, replaced by the
+  25 % surcharge, at the price of every open contract, a reputation of −20 (fees ×1.5, smaller
+  contracts) and no credit until the debt is repaid. Garnishing at the point of credit means income
+  cannot be spent ahead of the debt. Dodging bankruptcy needs real income held for a minute;
+  repeated bankruptcies cost more each time.
+- Trade-offs accepted: for a debt that would take more than about 100 minutes of income to repay,
+  bankruptcy costs fewer credits than repaying with overdraft interest; the other costs are judged
+  enough to keep it a last resort. A force with no income stays without credit indefinitely; to
+  escape bankruptcy, a force must reach the margin for a whole check period before the grace ends;
+  after a bankruptcy a force has no credit at all, so a contract needing a guarantee needs a positive
+  balance, which the debt takes first.
 - New per-force fields: `solvency_low`, `insolvent_since`, `recovering_since`, `credit_ban_until`,
   `bankruptcies`, `bankruptcy_debt`, given to older saves by `force_registry.ensure` on
-  configuration change where they have a starting value.
-- Follow-up: #98 (research raising the limit) changes `account.overdraft_limit`; the ban must keep
-  returning 0 there.
+  configuration change where they have a starting value. A save already beyond its limit, or owing
+  arrears its funds cannot cover, becomes insolvent at its first check and goes bankrupt 10 minutes
+  later unless it recovers.
+- `account.overdraft_limit` returns 0 during a ban before it applies the research level and the
+  reputation scale (#98).

@@ -172,7 +172,9 @@ describe("insolvency.bankrupt", function()
     return found
   end
 
-  it("ends contracts and moves everything owed, loans included, into a frozen debt", function()
+  local SURCHARGED = 1 + insolvency.RESTRUCTURING_SURCHARGE
+
+  it("ends contracts and moves everything owed, loans included, into a frozen debt with a surcharge", function()
     local state = new_state(-12000, 3000)
     state.reputation = 7
     local offered, loan = book(state)
@@ -187,11 +189,13 @@ describe("insolvency.bankrupt", function()
     assert.are.equal(0, state.overdraft_low)
     assert.are.equal(0, state.solvency_low)
     assert.are.equal(reputation.MIN, state.reputation)
-    assert.are.equal(12000 + 3000 + loan_left, outcome.debt)
+    local owed = 12000 + 3000 + loan_left
+    assert.is_true(math.abs(owed * SURCHARGED - outcome.debt) < 1e-6)
     assert.are.equal(outcome.debt, state.bankruptcy_debt)
     assert.are.same({ 1, 2 }, outcome.contracts)
     local restructured = entries(state, insolvency.RESTRUCTURED_KIND)[1]
-    assert.are.same({ 12000, outcome.debt }, { restructured.amount, restructured.debt })
+    assert.are.same({ 12000, owed, outcome.debt }, { restructured.amount, restructured.owed, restructured.debt })
+    assert.is_true(math.abs(owed * insolvency.RESTRUCTURING_SURCHARGE - restructured.surcharge) < 1e-6)
     local failed = entries(state, "contract-failed")
     assert.are.same({ 1, 0, "contract/2" }, { #failed, failed[1].amount, failed[1].key })
   end)
@@ -199,27 +203,30 @@ describe("insolvency.bankrupt", function()
   it("takes the debt from a positive balance at once, never into the overdraft", function()
     local state = new_state(250, 100)
     insolvency.bankrupt(state, 1000)
-    assert.are.equal(150, state.balance)
+    assert.are.equal(250 - 100 * SURCHARGED, state.balance)
     assert.are.equal(0, state.bankruptcy_debt)
     local other = new_state(250, 1000)
     insolvency.bankrupt(other, 1000)
     assert.are.equal(0, other.balance)
-    assert.are.equal(750, other.bankruptcy_debt)
+    assert.are.equal(1000 * SURCHARGED - 250, other.bankruptcy_debt)
   end)
 
   it("keeps the debt frozen and takes it from later income, holding credit until it is repaid", function()
     local state = new_state(-20000)
     insolvency.bankrupt(state, 1000)
     local after_ban = 1000 + insolvency.BAN_TICKS
+    local debt = 20000 * SURCHARGED
     assert.are.same({}, insolvency.check(state, after_ban))
-    assert.are.equal(20000, state.bankruptcy_debt)
+    assert.are.equal(debt, state.bankruptcy_debt)
     assert.are.equal(0, account.charge_interest(state, after_ban))
     assert.is_true(insolvency.credit_banned(state))
+    -- A sale goes to the debt at once, before any check.
     assert.is_true(account.apply(state, 5000, { tick = after_ban + 1, kind = "sell" }))
-    assert.are.same({}, insolvency.check(state, after_ban + 60))
-    assert.are.same({ 0, 15000 }, { state.balance, state.bankruptcy_debt })
+    assert.are.same({ 0, debt - 5000 }, { state.balance, state.bankruptcy_debt })
     assert.are.equal(insolvency.DEBT_KIND, state.journal[#state.journal].kind)
-    assert.is_true(account.apply(state, 16000, { tick = after_ban + 61, kind = "sell" }))
+    assert.are.same({}, insolvency.check(state, after_ban + 60))
+    assert.is_true(account.apply(state, debt - 5000 + 1000, { tick = after_ban + 61, kind = "sell" }))
+    assert.are.same({ 1000, 0 }, { state.balance, state.bankruptcy_debt })
     assert.are.same({ "credit-restored" }, names(insolvency.check(state, after_ban + 120)))
     assert.are.same({ 1000, 0 }, { state.balance, state.bankruptcy_debt })
     assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(state))

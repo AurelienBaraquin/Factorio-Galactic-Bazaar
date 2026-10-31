@@ -7,6 +7,24 @@ local function new_account(balance)
 end
 
 describe("account.apply", function()
+  it("sends a credit to a bankruptcy debt first, journaled, and keeps only the rest", function()
+    local state = new_account(0)
+    state.bankruptcy_debt = 300
+    assert.is_true(account.apply(state, 500, { tick = 1, kind = "sell" }))
+    assert.are.same({ 200, 0 }, { state.balance, state.bankruptcy_debt })
+    assert.are.same({ "sell", 500 }, { state.journal[1].kind, state.journal[1].amount })
+    assert.are.same({ account.DEBT_KIND, -300 }, { state.journal[2].kind, state.journal[2].amount })
+    assert.is_true(account.apply(state, -50, { tick = 2, kind = "buy" }))
+    assert.are.equal(150, state.balance)
+  end)
+
+  it("lets a credit bring a negative balance back to zero before it pays a bankruptcy debt", function()
+    local state = new_account(-100)
+    state.bankruptcy_debt = 300
+    assert.is_true(account.apply(state, 250, { tick = 1, kind = "sell" }))
+    assert.are.same({ 0, 150 }, { state.balance, state.bankruptcy_debt })
+  end)
+
   it("credits and debits, recording each entry with its amount and resulting balance", function()
     local state = new_account()
     assert.is_true(account.apply(state, 100, { tick = 1, kind = "sell" }))

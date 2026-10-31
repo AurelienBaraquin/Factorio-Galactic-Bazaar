@@ -158,15 +158,19 @@ shows **Insolvent: bankruptcy in m:ss**.
   export chests, export manifolds and power substations, and deliver to your contracts.
 - Still insolvent after 10 minutes, your force goes **bankrupt**. Nothing you owe is cancelled:
   - every open contract ends (offers declined, active contracts failed, their guarantees kept);
-  - everything you owe — a negative balance, arrears, the installments left on your loans — becomes
-    one **bankruptcy debt**, frozen: it earns no interest. Your balance is set to 0, and every second
-    the debt takes whatever your balance holds above 0, so your sales repay it;
+  - everything you owe — a negative balance, arrears, the installments left on your loans — plus a
+    **25 % restructuring surcharge** becomes one **bankruptcy debt**, frozen: it earns no interest.
+    Your balance is set to 0, and every credit you receive (sales, exports, rewards) goes to the debt
+    first, so you cannot spend income before it is repaid;
   - your reputation falls to −20;
   - you get **no credit**: no loan and an overdraft limit of 0, for **60 minutes and until the debt is
     repaid**. Each new bankruptcy doubles that time, up to 8 hours. When credit returns, a researched
     overdraft gives only half its extra at reputation −20, until your reputation recovers.
-- The market window shows **Bankrupt: no credit for m:ss, X of debt to repay**; you are told when
-  credit returns.
+- The market window shows **Bankrupt: no credit for m:ss, X of debt to repay**, then **no credit
+  until X of debt is repaid** once the time has passed; you are told when credit returns.
+- Going bankrupt on purpose rarely pays: the surcharge costs more than the overdraft's interest
+  unless your debt would take you more than about 100 minutes of income to repay, and you still
+  lose every contract, your reputation and your credit.
 - What was already paid still arrives: capsules in flight, shipments from planets in transit.
 
 ## Machine rental
