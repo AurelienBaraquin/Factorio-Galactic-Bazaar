@@ -30,11 +30,12 @@ local function specialty_caption(specialty)
 end
 
 local function refresh(player, data)
+  local can_lease = concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY)
   local can_book = concessions.researched(player.force, concessions.OUTSOURCING_TECHNOLOGY)
   for _, row in ipairs(data.elements.rows) do
     local free = planets.free(player.force_index, row.planet, row.kind, row.name) or 0
     row.slots.caption = { "gb-planets.slots", free, row.total }
-    if row.lease then row.lease.enabled = free > 0 end
+    if row.lease then row.lease.enabled = can_lease and free > 0 end
     if row.book then
       row.book.enabled = can_book and free > 0
       row.book.tooltip = can_book and { "gb-planets.book-terms" } or { "gb-planets.book-locked" }
@@ -133,6 +134,10 @@ local function lease(player, data, element)
     player.print({ "gb-planets.leased", planets.caption(tags.planet),
       lease_record.units, "[item=" .. lease_record.item .. "]", string.format("%.0f", contract.charge),
       string.format("%.0f", contract.deposit) })
+  elseif reason == "not-researched" then
+    local technology = tags.gb_action == "planets-book" and concessions.OUTSOURCING_TECHNOLOGY
+      or concessions.CONCESSION_TECHNOLOGY
+    player.print({ "gb-planets.refused-not-researched", prototypes.technology[technology].localised_name })
   else
     player.print({ "gb-planets.refused-" .. reason })
   end

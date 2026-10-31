@@ -97,6 +97,20 @@ describe("mining concessions", function()
     assert.is_truthy(concessions.lease(force_index(), hub.unit_number, "carbo", "coal"))
     assert.are.same({ nil, "not-researched" },
       { concessions.book(force_index(), hub.unit_number, "fabrica-nova", "crafting", "iron-gear-wheel") })
+    market_gui.close(1)
+    market_gui.open(player, hub)
+    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+    local book
+    for _, row in ipairs(storage.planets_gui[1].elements.rows) do
+      if row.book then book = row.book end
+    end
+    assert.is_false(book.enabled)
+    assert.are.equal("gb-planets.book-locked", book.tooltip[1])
+    planets_gui.close(1)
+    technology(concessions.CONCESSION_TECHNOLOGY).researched = false
+    market_gui.open(player, hub)
+    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+    assert.is_nil(player.gui.screen.gb_planets)
   end)
 
   test("a lease reserves a slot and holds one period's charge as guarantee", function()
