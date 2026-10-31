@@ -22,20 +22,46 @@ control; `prototypes/inputs.lua`) opens the window on this tab, bound to that hu
 mod button open the window anywhere. Prices can be read anywhere, but buying and selling go
 through the window's hub, which must be within reach when the action runs: there is no remote
 trading, and selling takes items from the player's own inventory. Code: `scripts/market_gui.lua`,
-with the pure list logic in `scripts/core/catalog.lua`.
+with the pure list logic in `scripts/core/catalog.lua`; the item detail in `scripts/item_detail_gui.lua`,
+its figures computed by `scripts/core/item_detail.lua` (pure).
 
 | Part | Behaviour |
 |---|---|
 | Status | the force's balance, the overdraft it has left out of its limit (tooltip: the interest terms, [ADR-0020](adr/0020-overdraft-and-debit-interest.md)), while it applies the force's insolvency with the time left before bankruptcy or the credit ban with the time left and the bankruptcy debt still to repay (tooltip: what to do or what is refused, [contracts.md](contracts.md)), its reputation (tooltip: its freight fee and contract size factors, [contracts.md](contracts.md)), whether the window's hub has power (or that no hub is within reach), and with a hub its delivery tier and the capsules queued out of `max_capsules` |
 | List | tradeable items then fluids (`storage.tradeable_items`, `storage.tradeable_fluids`, built with the base values; keys `item/<name>` and `fluid/<name>`), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price as the force sees them (`telecom.quote`, at most its telecommunications period old, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)), and with telecommunications 2 the trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
-| Detail | for the selected item: with telecommunications 2, a history line (sparkline of the last 30 NPC steps); a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee of the tier the window's hub would ship by (the orbital capsule's without a hub). A purchase is exactly the preview shown in the same tick (a price, tier or reputation change between the refresh and the click shows in the printed result); a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
+| Detail | beside the list, for the selected item, in a panel that scrolls beyond 640 px: a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee of the tier the window's hub would ship by (the orbital capsule's without a hub). A purchase is exactly the preview shown in the same tick (a price, tier or reputation change between the refresh and the click shows in the printed result); a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers. Below it, the [item detail](#item-detail) |
 | Buy | needs a powered hub with an import chest of its force (items) or an import manifold of its force that is empty or already holds the fluid (fluids); pays the market cost plus the freight fee at once and queues the units in orbital capsules (`freight.order`, see below); the printed result says when the last capsule lands |
 | Sell | items only (fluids are sold by export manifolds); needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
-| Refresh | while shown, once a second, by the window ([window.md](window.md)); a hub gone, foreign or out of reach is no longer the window's, which stays open. Measured on 2.1.24: 0.32 to 0.66 ms per refresh (208 items in vanilla, 296 with Space Age), within the window's budget of 0.7 ms ([window.md](window.md#refresh-and-budget)) |
+| Refresh | while shown, once a second, by the window ([window.md](window.md)); a hub gone, foreign or out of reach is no longer the window's, which stays open. Measured on 2.1.24: 0.32 to 0.66 ms per refresh without a selected item (208 items in vanilla, 296 with Space Age), 0.45 to 0.62 ms with a selected item, its preview and its [item detail](#item-detail) (averages of 10 or 20, vanilla and Space Age, run alone; one run measured 0.93 ms, costlier with nothing to rewrite than with the price changed, which points to a garbage collection), within the window's budget of 0.7 ms ([window.md](window.md#refresh-and-budget)) |
 
 Every action re-checks the hub (exists, same force, within reach, powered), the item and the
 quantity, since GUI events are player input; only elements created by this mod trigger actions.
 Results are printed to the player. The tab's layout has only been checked by tests, not by eye.
+
+### Item detail
+
+Why the selected item's prices are what they are (#110). `item_detail_gui.read(force, kind, name,
+quality_name, quantity)` reads the key once and returns plain figures; the panel shows them, each
+market line with a tooltip giving its rule in plain words (EN and FR locale section `gb-detail`).
+
+| Part | Shows | Computed by |
+|---|---|---|
+| Order impact | for the quantity typed, buying and selling: the average unit price and the next unit's price after the order, or why the market cannot take it; live prices, like the preview | `item_detail.impact` (`market.quote_buy`, `quote_sell`) |
+| Market | buy, sell and mid prices; base value; gap of the mid price from the base value in percent, with the shortage or surplus in units (the displacement, [market.md](market.md)); liquidity left on each side before the bound and the bounds of the mid price; spread in percent and credits; NPC drift per step in units, with the largest rise and fall of the mid price it causes; half-life and the mid price after it without trades; how old the prices are and the force's telecommunications period | `item_detail.market`, from the price the force sees (its feed, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)): the displacement is found back from the seen buy price (`item_detail.displacement_from_buy`), so the panel never shows fresher prices than the list |
+| Price history | with telecommunications 2, the sparkline of the last 30 NPC steps, its lowest and highest points, the current mid price and the change over the period; once the market has two points. Below level 2, the research that unlocks it | `item_detail.history`, `telecom.sparkline` |
+| Why it is worth | the source the valuation chose ([pricing.md](pricing.md#value-sources)): a recipe (rich-text icon and name), mining (gathering for a natural source), pumping, a rocket launch or burning a fuel; up to `MAX_INPUTS` (10) ingredient lines (amount × value = total; more are counted), the crafting or mining time cost, the run's total divided over its products and the amount made; a value set by a mod, or the factor a mod applies; a note when the key was priced in the fallback tier (from a planet-bound process, its own or its ingredients'); the base value multiplier when not 1 (not for a value a mod set, which it does not scale); for items with a quality mod, the value of each higher quality | `item_detail.breakdown`, `item_detail.quality_ladder` |
+
+When the selected key has no market any more (its value was removed since the list was taken), the
+panel's figures and breakdown are hidden and its marks reset. The quality of the list is normal; `item_detail_gui.read` also takes a quality (figures live, as the
+feed holds normal quality only). Elements are built once with the tab and updated in place; a
+refresh writes only what may have changed: the order impact and the prices' age always, the market
+figures and history when the seen buy price or the telecommunications level changes, the tooltips
+and the breakdown when the item or its base value changes (marks kept in the view,
+[data-model.md](data-model.md#storagebazaar_gui)); the breakdown is computed only then. Budget:
+0.1 ms per detail refresh, within the tab's. Measured on 2.1.24 (averages of 10 or 20, run alone):
+0.04 to 0.055 ms when nothing changed and 0.07 to 0.10 ms when the price seen changed, vanilla and
+Space Age; 0.17 ms when everything is rewritten, which happens when the player selects an item (an
+action, not the periodic refresh) or base values are rebuilt. See the Refresh line above for the tab.
 
 ## Building status
 
@@ -227,14 +253,14 @@ Code: `scripts/telecom.lua`, levels and sparkline in `scripts/core/telecom.lua`.
 |---|---|---|---|
 | 0 | none | at most 30 s old | |
 | 1 | `gb-telecommunications-1` (after the Galactic Bazaar and logistic science; 100 × red and green) | at most 10 s old | |
-| 2 | `gb-telecommunications-2` (after level 1 and advanced circuits; 200 × red and green) | at most 2 s old | trend column and history line in the Market tab |
+| 2 | `gb-telecommunications-2` (after level 1 and advanced circuits; 200 × red and green) | at most 2 s old | trend column and price history in the Market tab's item detail |
 
 `telecom.quote(force_index, kind, name, period)` returns `{buy, sell, history}` from the force's
 feed (`storage.forces[i].feed[key]`), quoted again when older than the period; the feed is cleared
 whenever base values are rebuilt. Trade previews and executions always use live prices
 (`market.quote`, `market.preview`). Below level 2 the trend column stays in place with empty cells
-(hiding table cells would shift the others); the history line appears once the item's market has
-two history points.
+(hiding table cells would shift the others), and the item detail names the research that shows the
+price history; the history appears once the item's market has two history points.
 
 A price combinator snapshot's period runs from the end of its build. At level 2, a force's
 snapshot is rebuilt every 2 s and, while prices move, its combinators are rewritten one per pass:

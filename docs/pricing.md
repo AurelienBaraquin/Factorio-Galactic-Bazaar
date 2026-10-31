@@ -10,10 +10,10 @@ this page describes what the code does now.
 |---|---|---|
 | Copy the prototypes into plain tables (recipes, mined sources, tile fluids, rocket launches, tradeable keys) | `scripts/recipe_graph.lua` | `on_init`, `on_configuration_changed` |
 | Build the production graph: expected amounts, catalyst netting, exclusions, main / fallback / natural tiers | `scripts/core/recipe_graph.lua` | same |
-| Compute values: propagation with an ancestor guard, tier by tier, from the fixed values of the overrides | `scripts/core/valuation.lua` | same |
+| Compute values: propagation with an ancestor guard, tier by tier, from the fixed values of the overrides; remember the offer that set each value ([value sources](#value-sources)) | `scripts/core/valuation.lua` | same |
 | Apply overrides and the global multiplier | `scripts/core/overrides.lua`, `scripts/pricing.lua` | same, and after every remote override call |
 | Rebase every market on the new values | `scripts/value_overrides.lua` (`rebuild`), `market.rebase_all` ([market.md](market.md)) | same |
-| Store and read values | `scripts/pricing.lua` (`storage.base_values`, `pricing.base_value(kind, name)`) | same |
+| Store and read values and their sources | `scripts/pricing.lua` (`storage.base_values`, `pricing.base_value(kind, name)`; `storage.value_sources`, `pricing.value_source(key)`) | same |
 
 Keys are `item/<name>` and `fluid/<name>`. Tradeable keys are every item and fluid that is not
 hidden, not a parameter and not `spawnable` (blueprints, planners, remotes, wires). One of them
@@ -65,8 +65,8 @@ its base value.
 Each call raises an error when `kind`/`name` is not a tradeable item or fluid (unknown, hidden, a
 parameter or a cursor-only tool), when `credits`/`factor` is missing or out of range, or when it
 is made during `on_load`; nothing changes then. A call made before this mod's own `on_init` (a mod
-without a dependency on it may run first) works and is kept. Each change recomputes every base value: 17 ms in vanilla, 47 ms with Space
-Age (2.1.24), so call it from `on_init` or `on_configuration_changed`, not every tick. An override
+without a dependency on it may run first) works and is kept. Each change recomputes every base value: 22 to 24 ms in vanilla, 56 to 77 ms with Space
+Age (2.1.24, averages of 10 in one run, [value sources](#value-sources) included), so call it from `on_init` or `on_configuration_changed`, not every tick. An override
 of a key that stops being tradeable (its mod removed) is kept but ignored, and logged.
 
 ```lua
@@ -80,6 +80,24 @@ end
 script.on_init(set_values)
 script.on_configuration_changed(set_values)
 ```
+
+## Value sources
+
+The valuation remembers, for every value an offer set, that offer: the recipe (or `mine/<entity>`,
+`pump/<fluid>`, `launch/<item>`, `burn/<fuel>` from the production graph), its cost, its number of
+outputs (`share`), the expected amount of the key per run, and each input with its amount and the
+value it had when the offer was accepted, so that
+`value = max((cost + Σ amount × value) / share / amount, valuation.MIN_VALUE)` exactly, before the
+multiplier ([data-model.md](data-model.md#storagevalue_sources)). Values fixed by an override have
+none; a key scaled by a factor keeps the source of the first pass, which the factor multiplies.
+`pricing.init` keeps the sources of the keys that have a value, with the tier that priced them, in
+`storage.value_sources`; the Market tab's item detail shows them ([terminal.md](terminal.md#item-detail)).
+Measured on 2.1.24 against the valuation without them, in the same run (averages of 10, two
+rounds): a rebuild is 22 to 24 ms in vanilla, of which 14 to 15 ms reading the prototypes and building
+the graph and 7 to 9 ms valuing it (6 to 7.5 ms without sources); with Space Age 56 to 77 ms, of
+which 36 to 42 ms for the graph and 15 to 19 ms valuing it (13 to 19 ms without). Recording the
+sources thus adds at most about 3 ms in vanilla and 2 ms with Space Age, within the run-to-run
+noise; it runs only when base values are rebuilt.
 
 ## Electricity
 

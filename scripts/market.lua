@@ -60,6 +60,15 @@ function market.quote(force_index, kind, name, quality_name)
   }
 end
 
+--- The live market position of `kind`/`name` for a force: its base value, its displacement and the
+--- market parameters of its quality (scripts/core/market.lua), for figures computed from them (the
+--- Market tab's detail); nil when it is not tradeable.
+function market.position(force_index, kind, name, quality_name)
+  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  if not entry then return nil end
+  return base_value, entry.displacement, params
+end
+
 local function trade(force_index, key, quantity, side, merge_ticks, value_factor)
   local entry, base_value, state, params = current_entry(force_index, key)
   if not entry then return false, "not-tradeable" end

@@ -16,6 +16,7 @@ how they move on their own, and how a force trades. The reasoning is in
 | `market.sellable(force_index, kind, name, min_price_ratio)` | units sellable while each still fetches at least `min_price_ratio` × base value |
 | `market.preview(force_index, kind, name, side, quantity)` | what buying (`"buy"`) or selling (`"sell"`) would cost or bring now, without trading; or `nil, reason` |
 | `market.buyable(force_index, kind, name, quality_name)` | units buyable before the shortage bound (funds not checked) |
+| `market.position(force_index, kind, name, quality_name)` | the live base value, displacement and market parameters of the key, or `nil` if not tradeable; the Market tab's item detail computes its figures from them ([terminal.md](terminal.md#item-detail)) |
 | `market.rebase_all(old_values)` | after base values are rebuilt: brings every entry up to date with its old value, rebases it on the new one, drops entries of keys that lost their value |
 
 `kind` is `"item"`, `"fluid"` or `"energy"` (`energy/electricity`, in megajoules, traded by the

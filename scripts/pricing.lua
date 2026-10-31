@@ -38,24 +38,41 @@ local function active_overrides(keys)
 end
 
 -- Base values with the multiplier and the overrides applied: one valuation pass with the fixed
--- values, and a second one when a factor needs the first pass's value of its key.
+-- values, and a second one when a factor needs the first pass's value of its key. Also returns the
+-- source of each value before the multiplier (valuation.compute): a key scaled by a factor keeps the
+-- source the first pass gave it, which the factor multiplies.
 local function compute()
   local graph = recipe_graph.build(raw_graph.extract())
   local multiplier = settings.startup[pricing.MULTIPLIER_SETTING].value
   local entries = active_overrides(graph.keys)
   local result = valuation.compute(graph, graph.keys, overrides.fixed(entries, multiplier))
+  local sources = result.sources
   if overrides.has_factors(entries) then
-    result = valuation.compute(graph, graph.keys, overrides.fixed(entries, multiplier, result))
+    local first_pass = result
+    result = valuation.compute(graph, graph.keys, overrides.fixed(entries, multiplier, first_pass))
+    sources = result.sources
+    for key, entry in pairs(entries) do
+      if entry.factor then sources[key] = first_pass.sources[key] end
+    end
   end
-  return overrides.apply_multiplier(result.values, entries, multiplier), result.unpriced
+  return overrides.apply_multiplier(result.values, entries, multiplier), result.unpriced, sources, result.tiers
 end
 
 --- Rebuilds storage.base_values (on_init, on_configuration_changed, after an override changes;
 --- callers then rebase the markets, see scripts/value_overrides.lua).
 function pricing.init()
   storage.value_overrides = storage.value_overrides or {}
-  local values, unpriced = compute()
+  local values, unpriced, sources, tiers = compute()
   storage.base_values = values
+  -- Why each value is what it is, for the Market tab's detail: kept for the keys with a value only.
+  storage.value_sources = {}
+  for key in pairs(values) do
+    local source = sources[key]
+    if source then
+      source.tier = tiers[key]
+      storage.value_sources[key] = source
+    end
+  end
   storage.tradeable_items = {}
   for key in pairs(values) do
     local name = key:match("^item/(.+)$")
@@ -91,6 +108,14 @@ function pricing.key_value(key, values, levels)
   if not (normal_value and level) or base_key:sub(1, 5) ~= "item/" then return nil end
   local value = quality.value(normal_value, level)
   return value, value / normal_value
+end
+
+--- Why the normal key `key` is worth what it is: the valuation's record of the offer that set its value
+--- before the multiplier, {recipe, cost, share, amount, inputs = {{key, amount, value}...}, tier};
+--- nil for a value fixed by an override, a key without a value, or a save whose values were last
+--- built before 0.1.32 (until its configuration change rebuilds them).
+function pricing.value_source(key)
+  return storage.value_sources and storage.value_sources[key]
 end
 
 --- Base value of an item or fluid in credits at a quality (default normal), or nil when it has none

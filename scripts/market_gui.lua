@@ -1,7 +1,8 @@
 -- The Market tab of the Galactic Bazaar window (scripts/bazaar_gui.lua): balance and overdraft left,
 -- the force's insolvency or credit ban with the time left (ADR-0022), the window's hub and its
 -- delivery tier, a searchable and paged list of tradeable items with their prices, and a panel to buy
--- into the hub's import chests or sell from the player's inventory. Prices can be read anywhere;
+-- into the hub's import chests or sell from the player's inventory, with the selected item's detail
+-- (scripts/item_detail_gui.lua). Prices can be read anywhere;
 -- buying and selling need the window's hub within reach. Interface state is the tab's view in
 -- storage.bazaar_gui; economy state stays per force. Every action is re-validated, since GUI events
 -- are player input.
@@ -11,16 +12,16 @@ local account = require("scripts.core.account")
 local catalog = require("scripts.core.catalog")
 local freight = require("scripts.freight")
 local insolvency = require("scripts.core.insolvency")
+local item_detail_gui = require("scripts.item_detail_gui")
 local market = require("scripts.market")
 local reputation = require("scripts.core.reputation")
 local telecom = require("scripts.telecom")
-local telecom_core = require("scripts.core.telecom")
 
 local market_gui = {}
 
 local TREND_CAPTIONS = { up = "▲", down = "▼", flat = "–" }
--- Price history points shown in the detail panel (telecommunications level 2).
-local HISTORY_WIDTH = 30
+-- Most height of the detail panel, in pixels: it scrolls beyond.
+local DETAIL_HEIGHT = 640
 
 -- The list shows keys: "item/<name>" and "fluid/<name>" (fluids are bought into import manifolds).
 local function split(key)
@@ -121,12 +122,8 @@ local function refresh_detail(player, view, window)
   local kind, item = split(name)
   elements.detail_icon.sprite = name
   elements.detail_name.caption = label(name)
-  local seen = telecom.shows_history(player.force) and telecom.quote(player.force_index, kind, item)
-  -- A market entry has no history for its first NPC steps: nothing to draw yet.
-  seen = seen and #seen.history >= 2 and seen
-  elements.history.visible = seen and true or false
-  if seen then elements.history.caption = { "gb-gui.history", telecom_core.sparkline(seen.history, HISTORY_WIDTH) } end
   local quantity = catalog.parse_quantity(elements.quantity.text)
+  item_detail_gui.refresh(player, elements, kind, item, quantity)
   if not quantity then
     elements.preview.caption = { "gb-gui.enter-quantity" }
     return
@@ -212,10 +209,13 @@ local function build(_, container, view)
   elements.page = controls.add({ type = "label" })
   controls.add({ type = "button", caption = ">", tags = { gb_action = "next-page" } })
 
-  add_list(body, elements)
-
-  local detail = body.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
-  elements.detail = detail
+  -- The list, and the selected item's detail beside it.
+  local columns = body.add({ type = "flow", direction = "horizontal" })
+  add_list(columns, elements)
+  local pane = columns.add({ type = "scroll-pane", horizontal_scroll_policy = "never" })
+  pane.style.maximal_height = DETAIL_HEIGHT
+  elements.detail = pane
+  local detail = pane.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   local heading = detail.add({ type = "flow", direction = "horizontal" })
   elements.detail_icon = heading.add({ type = "sprite" })
   elements.detail_name = heading.add({ type = "label", style = "bold_label" })
@@ -225,8 +225,10 @@ local function build(_, container, view)
     tags = { gb_action = "quantity" } })
   actions.add({ type = "button", caption = { "gb-gui.buy" }, style = "green_button", tags = { gb_action = "buy" } })
   actions.add({ type = "button", caption = { "gb-gui.sell" }, style = "red_button", tags = { gb_action = "sell" } })
-  elements.history = detail.add({ type = "label" })
   elements.preview = detail.add({ type = "label" })
+  elements.preview.style.single_line = false
+  elements.preview.style.maximal_width = item_detail_gui.TEXT_WIDTH
+  item_detail_gui.build(detail, elements)
 
   view.filter, view.page, view.matches = "", 1, catalog.search(tradeable_keys(), "")
   view.elements = elements

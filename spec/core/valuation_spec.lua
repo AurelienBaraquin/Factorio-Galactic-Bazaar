@@ -133,6 +133,75 @@ describe("valuation.compute", function()
     assert.are.same(forward, backward)
   end)
 
+  describe("records the source of each value", function()
+    -- The value a source record gives back: its cost plus its inputs, shared over its outputs.
+    local function value_of(source)
+      local total = source.cost
+      for _, input in ipairs(source.inputs) do total = total + input.amount * input.value end
+      return math.max(total / source.share / source.amount, valuation.MIN_VALUE)
+    end
+
+    it("names the recipe that set a value, with the input values it used", function()
+      local result = compute({
+        recipe("mine/ore", 1, {}, { ore = 1 }),
+        recipe("plate", 0.32, { ore = 1 }, { plate = 1 }),
+        recipe("gear", 0.05, { plate = 2 }, { gear = 1 }),
+      })
+      local gear = result.sources.gear
+      assert.are.same({ recipe = "gear", cost = 0.05, share = 1, amount = 1 },
+        { recipe = gear.recipe, cost = gear.cost, share = gear.share, amount = gear.amount })
+      assert.are.equal(1, #gear.inputs)
+      assert.are.same({ "plate", 2 }, { gear.inputs[1].key, gear.inputs[1].amount })
+      assert.is_true(near(result.values.plate, gear.inputs[1].value))
+      assert.are.same({}, result.sources.ore.inputs)
+    end)
+
+    it("keeps the recipe of the cheapest offer, with its outputs and amount", function()
+      local result = compute({
+        recipe("mine/ore", 1, {}, { ore = 1 }),
+        recipe("slow", 5, { ore = 1 }, { plate = 1 }),
+        recipe("fast", 1, { ore = 2 }, { plate = 4, slag = 1 }),
+      })
+      local plate = result.sources.plate
+      assert.are.same({ "fast", 2, 4 }, { plate.recipe, plate.share, plate.amount })
+      assert.is_true(near(result.values.plate, value_of(plate)))
+    end)
+
+    it("keeps the source that set the value when a loop or a by-product offers another", function()
+      local result = compute({
+        recipe("mine/ore", 1, {}, { ore = 1 }),
+        recipe("smelt", 0.32, { ore = 1 }, { plate = 1 }),
+        recipe("cut", 0.01, { plate = 1 }, { strip = 1, scrap = 1 }),
+        recipe("weld", 0.01, { strip = 1 }, { plate = 1 }),
+        recipe("processing", 0, { ore = 10 }, { u238 = 0.993, u235 = 0.007 }),
+        recipe("kovarex", 6, { u238 = 3 }, { u235 = 1 }),
+      })
+      assert.are.same({ "smelt", "kovarex" }, { result.sources.plate.recipe, result.sources.u235.recipe })
+    end)
+
+    it("gives back every value it computed, in every tier, and none for fixed values", function()
+      local result = compute({
+        recipe("mine/ore", 1, {}, { ore = 1 }),
+        recipe("oil", 1, { ore = 3 }, { heavy = 25, light = 45, gas = 55 }),
+        recipe("cracking", 0.2, { heavy = 40 }, { light = 30 }),
+        recipe("crushing", 0.1, { chunk = 1 }, { ore = 20 }),
+        recipe("free", 0, {}, { thing = 1 }),
+      }, {
+        recipe("mine/asteroid", 0.2, {}, { chunk = 1 }),
+      }, {
+        recipe("tree", 0.5, {}, { wood = 1 }),
+      }, nil, { gas = { value = 3 } })
+      for key, value in pairs(result.values) do
+        if key == "gas" then
+          assert.is_nil(result.sources.gas)
+        else
+          assert.is_true(near(value, value_of(result.sources[key])), key)
+        end
+      end
+      assert.are.same({ "mine/asteroid", "tree" }, { result.sources.chunk.recipe, result.sources.wood.recipe })
+    end)
+  end)
+
   describe("with fixed values", function()
     local chain = {
       recipe("mine/ore", 1, {}, { ore = 1 }),

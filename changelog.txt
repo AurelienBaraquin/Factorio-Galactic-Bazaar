@@ -1,4 +1,20 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.32
+Date: 2026-10-31
+  Features:
+    - Market tab: a detail panel beside the list for the selected item, with its buy, sell and mid prices, base
+      value, gap from it (percent and units of shortage or surplus), liquidity left on each side, spread, NPC
+      drift and return to balance, each with a tooltip explaining the rule.
+    - The quantity typed shows the average unit price and the next unit's price after buying or selling it.
+    - Price history with its lowest, highest and current price at Galactic telecommunications 2; below it, the
+      panel names the research that unlocks it.
+    - Why an item is worth its base value: the recipe, mining, pumping, rocket launch or fuel chosen by the
+      valuation, its ingredients with their values, the crafting or mining time cost, a value set or scaled by
+      a mod, the base value multiplier and the value of each higher quality.
+  Changes:
+    - Base values now record the source of each value; rebuilding them takes a few milliseconds longer.
+    - Existing saves: the breakdown appears once base values are rebuilt on configuration change.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.31
 Date: 2026-10-31
   Features:

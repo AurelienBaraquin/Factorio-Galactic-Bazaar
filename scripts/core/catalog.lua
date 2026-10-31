@@ -91,6 +91,14 @@ function catalog.format_credits(amount)
   end
 end
 
+--- A number of units as short text: rounded to a whole number below 1000 ("450"), then like
+--- format_credits ("12.3k").
+function catalog.format_units(amount)
+  local rounded = amount < 0 and -math.floor(-amount + 0.5) or math.floor(amount + 0.5)
+  if math.abs(rounded) < 1000 then return string.format("%d", rounded) end
+  return catalog.format_credits(rounded)
+end
+
 --- A whole quantity typed by the player: a positive integer up to MAX_QUANTITY, or nil.
 function catalog.parse_quantity(text)
   local n = tonumber(text)
