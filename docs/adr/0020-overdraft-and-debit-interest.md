@@ -1,6 +1,6 @@
 # ADR-0020 — Overdraft: spending below zero, with debit interest
 
-- **Status**: Accepted
+- **Status**: Accepted; amended 2026-10-31 by #98 (research levels of the limit, see "Amendment" below)
 - **Date**: 2026-10-31
 - **Deciders**: Aurélien Baraquin (owner, delegated to the agent for M6)
 - **Supersedes**: none. Amends [ADR-0001](0001-economy-state-scoped-by-force.md)'s account (the balance was never negative), [ADR-0010](0010-price-signals-from-script-written-combinators.md) (price combinators also emit a Price feed marker), [ADR-0011](0011-circuit-orders-by-period.md) ("never more than the balance") and [ADR-0019](0019-service-contracts-with-a-charge.md) ("a charge the balance cannot cover")
@@ -57,6 +57,26 @@ spend, so a price combinator wired by mistake into an order combinator would buy
 orders. Price combinators therefore always emit a **Price feed** marker (`gb-price-feed`, 1), and the
 order combinator refuses that too.
 
+## Amendment (2026-10-31, #98)
+
+The limit above is no longer a constant for every force. The financial engineering research raises
+it: `gb-overdraft-1` to 25 000, `gb-overdraft-2` to 100 000 (`account.OVERDRAFT_LEVEL_LIMITS`), the
+level a force researched being recorded in `state.overdraft_level` by `scripts/finance.lua` (on
+research events, force resets, init, configuration change and before each interest charge). A
+level's extra over the base is scaled by the reputation's contract scale, capped at 1:
+`BASE + (level limit − BASE) × min(1, contract_scale(reputation))`, so a force at −5 or below gets
+half the extra and a force at 0 or above the full extra, never more. The base 10 000 is never scaled,
+so no existing save loses limit; a reputation drop or an un-researched level can lower the limit
+and leave a balance beyond it, which then spends nothing until it comes back.
+
+Consequently the interest cap is 0.5 % of the force's limit a minute (up to 500 credits at
+100 000), not "at most 50 credits", and the overdraft is no longer only short-term slack of a fixed
+size: it becomes a researched line of credit. It stays coherent with loans
+([ADR-0021](0021-loans.md)): its rate (about 35 % per hour within the limit) remains far above a
+loan's 5–15 % over an hour, so long borrowing still goes through loans, and its extra follows
+reputation like the loans' debt cap, so research cannot buy a poor-reputation force more credit than
+its counterparties would give.
+
 ## Consequences
 
 - Positive: one place decides what a force can spend; purchases a few credits short go through;
@@ -65,4 +85,4 @@ order combinator refuses that too.
   brief dip pays a full minute; a force beyond the limit has no further consequence until bankruptcy
   exists. The `gb-credits` signal and the window show a negative balance.
 - Follow-up: #96 (loans, [ADR-0021](0021-loans.md)), #97 (bankruptcy, what happens beyond `-limit`), #98 (research raising the
-  limit).
+  limit: done, `state.overdraft_level` read by `overdraft_limit`, [contracts.md](../contracts.md#research)).

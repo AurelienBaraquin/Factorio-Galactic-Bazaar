@@ -8,6 +8,7 @@
 local catalog = require("scripts.core.catalog")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
+local finance = require("scripts.finance")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
 local loans = require("scripts.loans")
@@ -49,6 +50,13 @@ local function minutes(ticks)
   return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
+-- Why a loan action (Borrow, or any refused abandon: a loan's Repay included) is refused, as a
+-- localised string; the credit technology's name is its parameter (used by `not-researched`, ignored
+-- by the other reasons).
+local function loan_refusal(reason)
+  return { "gb-loans.refused-" .. reason, prototypes.technology[finance.CREDIT_TECHNOLOGY].localised_name }
+end
+
 -- The credit line: the force's debt against its cap, arrears if any, and a button per principal tier
 -- with its terms, enabled when the force may borrow it.
 local function refresh_credit(player, elements)
@@ -65,7 +73,7 @@ local function refresh_credit(player, elements)
     button.tooltip = { "", { "gb-loans.borrow-terms", string.format("%.4g", offer.rate * 100),
       loans_core.TERM_TICKS / 3600, catalog.format_credits(offer.charge), loans_core.periods(),
       loans_core.PERIOD_TICKS / 3600, catalog.format_credits(offer.charge * loans_core.periods()) },
-      offer.refusal and { "", "\n", { "gb-loans.refused-" .. offer.refusal } } or "" }
+      offer.refusal and { "", "\n", loan_refusal(offer.refusal) } or "" }
   end
 end
 
@@ -197,13 +205,13 @@ actions["contract-abandon"] = function(player, data, tags)
   local contract = contracts.get(player.force_index, tags.id)
   if contract and contract.kind == "loan" and not hub_usable(player, data) then return end
   local outcome, reason = contracts.abandon(player.force_index, tags.id)
-  if not outcome and reason then player.print({ "gb-loans.refused-" .. reason }) end
+  if not outcome and reason then player.print(loan_refusal(reason)) end
 end
 
 actions["loan-borrow"] = function(player, data, tags)
   if not hub_usable(player, data) then return end
   local id, reason = loans.borrow(player.force_index, tags.tier)
-  if not id then return player.print({ "gb-loans.refused-" .. reason }) end
+  if not id then return player.print(loan_refusal(reason)) end
   local contract = contracts.get(player.force_index, id)
   player.print({ "gb-loans.borrowed-message", catalog.format_credits(contract.advance),
     catalog.format_credits(contract.charge), contract.installment_ticks / 3600, loans_core.periods() })

@@ -1,5 +1,7 @@
 -- Credit account of one force: its balance and a bounded journal of transactions (ADR-0001).
 -- Pure Lua: operates on the force's state table from storage.forces.
+local reputation = require("scripts.core.reputation")
+
 local account = {}
 
 -- Journal entries kept per force; older ones are dropped.
@@ -9,6 +11,11 @@ account.JOURNAL_SIZE = 100
 -- balance went below zero in the period pays INTEREST_RATE of its deepest debt, counted up to the
 -- limit, journaled as one entry per INTEREST_MERGE_TICKS; interest under INTEREST_MIN is waived.
 account.BASE_OVERDRAFT_LIMIT = 10000
+-- Limits the overdraft research raises it to (#98): at level n (gb-overdraft-n, the highest the force
+-- researched, recorded by the adapter in `state.overdraft_level`), OVERDRAFT_LEVEL_LIMITS[n] at
+-- reputation 0 and above; below, the extra over the base shrinks with the contract scale (half from
+-- -5 down). The base is never scaled.
+account.OVERDRAFT_LEVEL_LIMITS = { 25000, 100000 }
 account.INTEREST_TICKS = 3600
 account.INTEREST_RATE = 0.005
 account.INTEREST_MIN = 0.005
@@ -24,9 +31,15 @@ function account.init(state)
   state.overdraft_low = state.overdraft_low or state.balance
 end
 
---- The overdraft limit of a force: how far below zero its balance may go by spending.
-function account.overdraft_limit(_state)
-  return account.BASE_OVERDRAFT_LIMIT
+--- The overdraft limit of a force: how far below zero its balance may go by spending. The base limit
+--- at research level 0 (also when `overdraft_level` is absent), the highest level's beyond the last;
+--- a level's extra over the base is scaled by the reputation's contract scale, at most 1.
+function account.overdraft_limit(state)
+  local level = math.min(state.overdraft_level or 0, #account.OVERDRAFT_LEVEL_LIMITS)
+  local limit = account.OVERDRAFT_LEVEL_LIMITS[level]
+  if not limit then return account.BASE_OVERDRAFT_LIMIT end
+  local scale = math.min(1, reputation.contract_scale(state.reputation or 0))
+  return account.BASE_OVERDRAFT_LIMIT + (limit - account.BASE_OVERDRAFT_LIMIT) * scale
 end
 
 --- The funds a force can spend now: its balance plus its overdraft limit. Every check of a purchase,

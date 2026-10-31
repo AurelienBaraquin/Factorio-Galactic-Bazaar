@@ -73,6 +73,11 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   charges interest to every force whose balance is negative; purchases, guarantees and charges are
   checked against the available funds, balance plus overdraft limit
   ([data-model.md](data-model.md), [ADR-0020](adr/0020-overdraft-and-debit-interest.md)).
+- **Financial engineering research**: `finance.on_research_changed` (research finished or
+  reversed) and `finance.on_force_event` (force reset, technology effects reset) record a force's
+  overdraft research level in its state, which `account.overdraft_limit` reads with the force's
+  reputation; `finance.init` does it for every force on init, configuration change and at the start
+  of each interest tick ([contracts.md](contracts.md#research)).
 - **Incoming contracts**: every `incoming.OFFER_TICKS`, forces that researched contracts get an
   offer; every `incoming.COLLECT_TICKS`, contract chests hand over what active contracts need; every
   `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).

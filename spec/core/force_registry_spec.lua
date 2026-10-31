@@ -67,6 +67,13 @@ describe("force_registry.merge", function()
     assert.are.equal(-400, forces[1].overdraft_low)
   end)
 
+  it("keeps the destination's overdraft level, which its own research sets", function()
+    local forces = { [1] = new_state(), [2] = new_state() }
+    forces[1].overdraft_level, forces[2].overdraft_level = 0, 2
+    force_registry.merge(forces, 2, 1)
+    assert.are.equal(0, forces[1].overdraft_level)
+  end)
+
   it("creates the destination state when it is missing", function()
     local forces = { [2] = new_state() }
     force_registry.merge(forces, 2, 1)

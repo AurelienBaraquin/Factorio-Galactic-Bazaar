@@ -3,6 +3,7 @@
 local cargo = require("scripts.cargo")
 local catapult = require("scripts.catapult")
 local forces = require("scripts.forces")
+local finance = require("scripts.finance")
 local docking_bay = require("scripts.docking_bay")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
@@ -24,6 +25,7 @@ local value_overrides = require("scripts.value_overrides")
 
 local function init()
   forces.init()
+  finance.init()
   local dropped = planets.init()
   value_overrides.rebuild()
   hubs.init()
@@ -49,6 +51,10 @@ remote.add_interface("galactic-bazaar", value_overrides.REMOTE)
 script.on_init(init)
 script.on_configuration_changed(init)
 script.on_event(defines.events.on_force_created, forces.on_force_created)
+script.on_event({ defines.events.on_research_finished, defines.events.on_research_reversed },
+  finance.on_research_changed)
+script.on_event({ defines.events.on_force_reset, defines.events.on_technology_effects_reset },
+  finance.on_force_event)
 script.on_event(defines.events.on_forces_merging, function(event)
   freight.on_forces_merging(event)
   forces.on_forces_merging(event)
@@ -194,7 +200,7 @@ end)
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/overdraft", "tests/contracts", "tests/loans", "tests/incoming_contracts",
+    { "tests/forces", "tests/overdraft", "tests/contracts", "tests/loans", "tests/finance", "tests/incoming_contracts",
       "tests/rental", "tests/planets",
       "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
