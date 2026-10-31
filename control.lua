@@ -216,7 +216,7 @@ if script.active_mods["factorio-test"] then
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
       "tests/telecom", "tests/technologies", "tests/market_gui", "tests/item_detail", "tests/notifications",
       "tests/entity_status", "tests/bazaar_gui", "tests/logistics_gui",
-      "tests/statement_gui" },
+      "tests/statement_gui", "tests/explanations" },
     { load_luassert = true }
   )
 end

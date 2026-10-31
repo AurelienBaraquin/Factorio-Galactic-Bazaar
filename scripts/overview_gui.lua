@@ -39,9 +39,22 @@ local function credits(amount)
   return catalog.format_credits(amount)
 end
 
+-- Parameters of the tooltips that state a rule's figures, by line.
+local function tooltip_parameters()
+  local lowest_size = math.ceil((reputation.MIN_SIZE - 1) / reputation.SIZE_STEP)
+  return {
+    fees = { string.format("%.4g", reputation.FEE_STEP), string.format("%.4g", reputation.fee_factor(reputation.MAX)),
+      reputation.MAX, string.format("%.4g", reputation.fee_factor(reputation.MIN)), reputation.MIN },
+    ["contract-size"] = { string.format("%.4g", reputation.SIZE_STEP), percent(reputation.MIN_SIZE), lowest_size,
+      string.format("%.4g", reputation.contract_scale(reputation.MAX)), reputation.MAX },
+    ["loan-terms"] = { percent(loans.BASE_RATE), percent(loans.RATE_STEP), credits(loans.DEBT_CAP) },
+  }
+end
+
 local function build(_, container, view)
   local elements = { values = {} }
   local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
+  local parameters = tooltip_parameters()
   for _, section in ipairs(SECTIONS) do
     body.add({ type = "label", style = "caption_label", caption = { "gb-overview.section-" .. section.name } })
     local list = body.add({ type = "table", column_count = 2 })
@@ -49,7 +62,7 @@ local function build(_, container, view)
       local name = list.add({ type = "label", caption = { "gb-overview." .. line } })
       name.style.width = 200
       elements.values[line] = list.add({ type = "label" })
-      elements.values[line].tooltip = { "gb-overview." .. line .. "-tooltip" }
+      elements.values[line].tooltip = { "gb-overview." .. line .. "-tooltip", table.unpack(parameters[line] or {}) }
       name.tooltip = elements.values[line].tooltip
     end
   end

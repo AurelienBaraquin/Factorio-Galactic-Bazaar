@@ -16,7 +16,7 @@ The repository root is the mod folder: Factorio reads `info.json`, the stage fil
 info.json       mod manifest: name, version, factorio_version 2.1, dependencies (Space Age optional)
 settings.lua    settings stage: the startup setting of the global value multiplier
 data.lua        prototype stage entry point: requires one file per prototype family
-prototypes/     prototype definitions (trading hub, cargo chests, technologies, custom inputs)
+prototypes/     prototype definitions (trading hub, cargo chests, technologies, custom inputs, Tips and tricks)
 control.lua     runtime stage entry point: registers every event handler
 locale/         in-game text, one folder per language (en, fr)
 scripts/        runtime adapters between the game API and the pure logic
@@ -121,7 +121,11 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   shows a tab; `on_gui_closed` and the player events (left, changed force, removed) close it; a
   destroyed hub is unbound; every `bazaar_gui.SLOT_TICKS` the shown tab of the windows whose slot
   comes up is refreshed; the research events, `on_player_created`, the force resets and, as a
-  self-heal, every `forces.INTEREST_TICKS`, show or hide the mod button.
+  self-heal, every `forces.INTEREST_TICKS`, show or hide the mod button. Every figure, column and
+  button carries a tooltip with the rule behind it ([window.md](window.md#explanations)).
+- **In-game help**: `prototypes/tips_and_tricks.lua` defines a Tips and tricks category with one
+  entry per system, the Space Age and quality ones only when the game has them; their text is in
+  the locale ([player-guide.md](player-guide.md#in-game-help)).
 - **Building status**: every `entity_status.PASS_TICKS`, the next buildings of the mod are given a
   custom status and, while stopped (no hub, no power), a rendered alert; the buildings are listed as
   they are built and destroyed, and a building is also refreshed when built

@@ -148,4 +148,6 @@ loss), the slots free for the player's force out of the total and, for a resourc
 button (its tooltip gives the terms; disabled without a free slot) or, for a crafting category, a
 recipe picker and a **Book** button, refreshed every second while shown. It can be read anywhere; a
 lease or booking goes to the window's hub, which must be the player's force's and within reach when
-the button is pressed. A planet or category without a locale key shows its internal name.
+the button is pressed. A planet or category without a locale key shows its internal name. Each
+column header and its cells have a tooltip with its rule (the distance's delay and loss per transit
+unit and the loss cap, from `scripts/core/transit.lua`; slots per force), [window.md](window.md#explanations).

@@ -5,7 +5,9 @@
 -- every one of these actions, and borrowing, needs the window's hub within reach. Its credit line
 -- shows the force's debt and borrows a principal tier.
 -- Rows are built once and updated in place, so a refresh never destroys a button a player is
--- clicking (multiplayer latency). Interface state is the tab's view in storage.bazaar_gui.
+-- clicking (multiplayer latency); every cell has a tooltip explaining what it shows, written when
+-- the row shows another contract or state (`view.shown`). Interface state is the tab's view in
+-- storage.bazaar_gui.
 local bazaar_gui = require("scripts.bazaar_gui")
 local catalog = require("scripts.core.catalog")
 local contracts = require("scripts.contracts")
@@ -14,8 +16,10 @@ local finance = require("scripts.finance")
 local incoming = require("scripts.incoming_contracts")
 local loans = require("scripts.loans")
 local loans_core = require("scripts.core.loans")
+local market_gui = require("scripts.market_gui")
 local planets = require("scripts.planets")
 local rental = require("scripts.rental")
+local reputation = require("scripts.core.reputation")
 
 local contracts_gui = {}
 
@@ -68,7 +72,6 @@ end
 local function refresh_loan_row(row, contract)
   local minutes_per_period = contract.installment_ticks / 3600
   row.who.caption = { "gb-loans.lender" }
-  row.who.tooltip = { "gb-contracts.kind-loan", minutes_per_period }
   row.provides.caption = { "gb-loans.borrowed", catalog.format_credits(contract.advance) }
   row.requires.caption = { "gb-loans.left", catalog.format_credits(core.payoff(contract)) }
   row.terms.caption = { "gb-loans.installment", catalog.format_credits(contract.charge), minutes_per_period }
@@ -76,10 +79,58 @@ local function refresh_loan_row(row, contract)
   row.primary.tooltip = { "gb-loans.repay-tooltip", catalog.format_credits(core.payoff(contract)) }
 end
 
+local LEASES = { concession = true, outsourcing = true }
+
+-- The tooltips of a row's cells, explaining what each shows for this contract: {[cell] = tooltip}.
+local function row_tooltips(contract)
+  local offered = contract.state == core.OFFERED
+  if contract.kind == "loan" and not offered then
+    local minutes_per_period = contract.installment_ticks / 3600
+    return {
+      who = { "gb-contracts.kind-loan", minutes_per_period },
+      provides = { "gb-loans.borrowed-tooltip" },
+      requires = { "gb-loans.left-tooltip" },
+      terms = { "gb-loans.installment-tooltip", minutes_per_period },
+      time = { "gb-contracts.due-loan-tooltip" },
+      secondary = "",
+    }
+  end
+  local lease = LEASES[contract.kind]
+  return {
+    who = { "gb-contracts.kind-" .. contract.kind },
+    provides = lease and { "gb-contracts.provides-lease-tooltip" }
+      or contract.kind == "rental" and { "gb-contracts.provides-rental-tooltip" }
+      or { "gb-contracts.provides-incoming-tooltip" },
+    requires = lease and ""
+      or contract.kind == "rental" and { "gb-contracts.requires-rental-tooltip" }
+      or { "gb-contracts.requires-incoming-tooltip" },
+    terms = contract.charge and { "gb-contracts.charge-terms-tooltip" } or { "gb-contracts.terms-tooltip" },
+    time = offered and { "gb-contracts.offer-ends-tooltip" }
+      or lease and { "gb-contracts.due-lease-tooltip" } or { "gb-contracts.due-contract-tooltip" },
+    primary = offered and { "gb-contracts.accept-tooltip" }
+      or lease and { "gb-contracts.abandon-lease-tooltip" } or { "gb-contracts.abandon-tooltip" },
+    secondary = offered and { "gb-contracts.decline-tooltip" } or "",
+  }
+end
+
+-- Writes a row's tooltips when it shows another contract, or the same one in another state, than at
+-- the last refresh (`view.shown.rows[i]`).
+local function refresh_row_tooltips(view, i, row, contract)
+  local shown = contract.id .. " " .. contract.state
+  if view.shown.rows[i] == shown then return end
+  view.shown.rows[i] = shown
+  for cell, tooltip in pairs(row_tooltips(contract)) do row[cell].tooltip = tooltip end
+end
+
 local function refresh(player, view)
   local elements = view.elements
   local list = contracts.listed(player.force_index)
-  elements.reputation.caption = { "gb-contracts.reputation", storage.forces[player.force_index].reputation }
+  local score = storage.forces[player.force_index].reputation
+  elements.reputation.caption = { "gb-contracts.reputation", score }
+  if view.shown.reputation ~= score then
+    view.shown.reputation = score
+    elements.reputation.tooltip = market_gui.reputation_tooltip(score)
+  end
   refresh_credit(player, elements)
   elements.empty.visible = #list == 0
   for i, row in ipairs(elements.rows) do
@@ -87,9 +138,8 @@ local function refresh(player, view)
     for _, cell in pairs(row) do cell.visible = contract ~= nil end
     if contract then
       local offered = contract.state == core.OFFERED
-      row.who.caption = (contract.kind == "concession" or contract.kind == "outsourcing")
-        and planets.caption(contract.counterparty) or contract.counterparty
-      row.who.tooltip = { "gb-contracts.kind-" .. contract.kind }
+      refresh_row_tooltips(view, i, row, contract)
+      row.who.caption = LEASES[contract.kind] and planets.caption(contract.counterparty) or contract.counterparty
       row.provides.caption = goods_text(contract.provides)
       row.requires.caption = goods_text(contract.requires, not offered and contract.delivered or nil)
       row.terms.caption = contract.charge
@@ -102,7 +152,6 @@ local function refresh(player, view)
         or { "gb-contracts.due-in", catalog.format_duration(contract.due_tick - game.tick) }
       row.primary.caption = offered and { "gb-contracts.accept" } or { "gb-contracts.abandon" }
       row.primary.tags = { gb_action = offered and "contract-accept" or "contract-abandon", id = contract.id }
-      row.primary.tooltip = ""
       -- The Decline cell stays in place, empty and disabled, for an active contract: hiding a cell of
       -- a table would shift every later cell into the wrong column.
       row.secondary.caption = offered and { "gb-contracts.decline" } or ""
@@ -118,7 +167,10 @@ local function build(_, container, view)
   local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   elements.reputation = body.add({ type = "label", style = "bold_label" })
   local credit = body.add({ type = "flow", direction = "horizontal" })
-  elements.debt = credit.add({ type = "label" })
+  local lowest_score = math.ceil((reputation.MIN_SIZE - 1) / reputation.SIZE_STEP)
+  elements.debt = credit.add({ type = "label", tooltip = { "gb-loans.debt-tooltip",
+    catalog.format_credits(loans_core.DEBT_CAP), string.format("%.4g", reputation.contract_scale(lowest_score)),
+    lowest_score, string.format("%.4g", reputation.contract_scale(reputation.MAX)), reputation.MAX } })
   elements.borrow = {}
   for tier, principal in ipairs(loans_core.TIERS) do
     elements.borrow[tier] = credit.add({ type = "button", caption = { "gb-loans.borrow",
@@ -138,7 +190,7 @@ local function build(_, container, view)
       secondary = list.add({ type = "button", style = "red_button" }),
     }
   end
-  view.elements = elements
+  view.elements, view.shown = elements, { rows = {} }
 end
 
 local actions = {}

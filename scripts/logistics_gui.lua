@@ -26,6 +26,12 @@ local DIODE_SPRITES = {
 }
 local NO_DIODE = "utility/status_inactive"
 local SHIPMENT_COLUMNS = { "goods", "tier", "state", "lands", "origin", "cost" }
+-- Spelled out, so that the locale check (spec/locale_spec.lua) finds every key.
+local SHIPMENT_COLUMN_TOOLTIPS = {
+  goods = "gb-logistics.column-goods-tooltip", tier = "gb-logistics.column-tier-tooltip",
+  state = "gb-logistics.column-state-tooltip", lands = "gb-logistics.column-lands-tooltip",
+  origin = "gb-logistics.column-origin-tooltip", cost = "gb-logistics.column-cost-tooltip",
+}
 local CAMERA_ZOOM = 0.5
 logistics_gui.MODULE_RESCAN_TICKS = entity_status.CYCLE_TICKS
 
@@ -95,6 +101,11 @@ end
 local function fee_factor(force_index)
   local state = storage.forces[force_index]
   return reputation.fee_factor(state and state.reputation or 0)
+end
+
+--- What a delivery tier means for a force, as a tooltip (the Market tab's delivery line shows it too).
+function logistics_gui.tier_tooltip(tier, force_index)
+  return tier_tooltip(tier, fee_factor(force_index))
 end
 
 -- The kind and counterparty of each contract whose goods the capsules carry, open or settled since
@@ -385,8 +396,8 @@ local function build_hubs(body, elements)
   for i = 1, core.HUB_ROWS do
     elements.hub_rows[i] = {
       select = list.add({ type = "button", tooltip = { "gb-logistics.select-tooltip" } }),
-      power = list.add({ type = "label" }),
-      status = list.add({ type = "label" }),
+      power = list.add({ type = "label", tooltip = { "gb-logistics.power-tooltip" } }),
+      status = list.add({ type = "label", tooltip = { "gb-logistics.status-tooltip" } }),
       queue = list.add({ type = "label", tooltip = { "gb-logistics.queue-tooltip" } }),
     }
   end
@@ -397,7 +408,8 @@ local function build_shipments(detail, elements)
   elements.no_shipment = detail.add({ type = "label", caption = { "gb-logistics.no-shipment" } })
   local list = detail.add({ type = "table", column_count = #SHIPMENT_COLUMNS })
   for _, column in ipairs(SHIPMENT_COLUMNS) do
-    list.add({ type = "label", style = "bold_label", caption = { "gb-logistics.column-" .. column } })
+    list.add({ type = "label", style = "bold_label", caption = { "gb-logistics.column-" .. column },
+      tooltip = { SHIPMENT_COLUMN_TOOLTIPS[column] } })
   end
   elements.shipment_rows = {}
   for i = 1, core.SHIPMENT_ROWS do
@@ -433,7 +445,7 @@ local function build(_, container, view)
   elements.camera.style.width, elements.camera.style.height = 240, 160
   local header = top.add({ type = "flow", direction = "vertical" })
   elements.title = header.add({ type = "label", style = "bold_label" })
-  elements.power = header.add({ type = "label" })
+  elements.power = header.add({ type = "label", tooltip = { "gb-logistics.power-tooltip" } })
   elements.tier = header.add({ type = "label" })
   elements.queue = header.add({ type = "label", tooltip = { "gb-logistics.queue-tooltip" } })
   build_shipments(detail, elements)

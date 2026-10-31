@@ -2,8 +2,8 @@
 -- the force has researched planetary concessions: the NPC planets, their distance, transit terms,
 -- specialties and the slots free for the player's force. A resource specialty can be leased from it
 -- (a mining concession delivered to the window's hub, which must be within reach), a crafting one
--- booked. Rows are built once and updated in place. Interface state is the tab's view in
--- storage.bazaar_gui.
+-- booked. Rows are built once and updated in place; each column's rule is the tooltip of its header
+-- and cells. Interface state is the tab's view in storage.bazaar_gui.
 local bazaar_gui = require("scripts.bazaar_gui")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
@@ -45,26 +45,42 @@ local function lease_tooltip(planet, resource)
     string.format("%.0f", spec.deposit), string.format("%.4g", terms.max_loss * 100) }
 end
 
+-- The rule behind each column, as the tooltip of its header and of its cells.
+local function column_tooltips()
+  local per_unit = transit.terms(1)
+  return {
+    planet = { "gb-planets.column-planet-tooltip" },
+    distance = { "gb-planets.column-distance-tooltip", string.format("%d", per_unit.delay_ticks / 60),
+      string.format("%.4g", per_unit.max_loss * 100), string.format("%.4g", transit.MAX_LOSS * 100) },
+    transit = { "gb-planets.column-transit-tooltip" },
+    specialty = { "gb-planets.column-specialty-tooltip" },
+    free = { "gb-planets.column-free-tooltip" },
+    lease = { "gb-planets.column-lease-tooltip" },
+  }
+end
+
 -- The rows are taken from the catalog when the tab is first shown; the catalog only changes on
 -- configuration change, which closes every window.
 local function build(_, container, view)
   local elements = { rows = {} }
   local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   local list = body.add({ type = "table", column_count = 6 })
+  local tooltips = column_tooltips()
   for _, header in ipairs({ "planet", "distance", "transit", "specialty", "free", "lease" }) do
-    list.add({ type = "label", style = "bold_label", caption = { "gb-planets.column-" .. header } })
+    list.add({ type = "label", style = "bold_label", caption = { "gb-planets.column-" .. header },
+      tooltip = tooltips[header] })
   end
   for _, planet in ipairs(planets.catalog()) do
     for _, specialty in ipairs(planet.specialties) do
-      list.add({ type = "label", caption = planets.caption(planet.name) })
-      list.add({ type = "label", caption = { "gb-planets.distance", planet.distance } })
+      list.add({ type = "label", caption = planets.caption(planet.name), tooltip = tooltips.planet })
+      list.add({ type = "label", caption = { "gb-planets.distance", planet.distance }, tooltip = tooltips.distance })
       local terms = transit.terms(planet.distance)
       list.add({ type = "label", caption = { "gb-planets.transit", string.format("%d", terms.delay_ticks / 60),
-        string.format("%.4g", terms.max_loss * 100) } })
-      list.add({ type = "label", caption = specialty_caption(specialty) })
+        string.format("%.4g", terms.max_loss * 100) }, tooltip = tooltips.transit })
+      list.add({ type = "label", caption = specialty_caption(specialty), tooltip = tooltips.specialty })
       local row = {
         planet = planet.name, kind = specialty.kind, name = specialty.name, total = specialty.slots,
-        slots = list.add({ type = "label" }),
+        slots = list.add({ type = "label", tooltip = tooltips.free }),
       }
       if specialty.kind == "resource" then
         row.lease = list.add({ type = "button", caption = { "gb-planets.lease" },
