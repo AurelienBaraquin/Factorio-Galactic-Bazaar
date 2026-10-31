@@ -8,7 +8,10 @@
 -- loses the guarantee. An offer not accepted by `accept_by` expires; one can be declined. A contract
 -- with `installment_ticks` pays its reward in installments while active: every period, the share of
 -- the reward its deliveries earned so far (ADR-0017); the rest comes on fulfilment, and installments
--- already paid stay paid when it fails.
+-- already paid stay paid when it fails. A contract with a `charge` is a service the force pays for
+-- (ADR-0019): it requires no goods, the force pays the charge every installment period, and it is
+-- fulfilled when its term ends with every charge paid; a charge the force cannot pay, or an abandon,
+-- defaults it (failed).
 local reputation = require("scripts.core.reputation")
 
 local contracts = {}
@@ -57,15 +60,23 @@ local function copy_goods(list, distinct)
 end
 
 --- A new offer from `spec` = {kind, counterparty, provides, requires, reward, deposit, penalty,
---- duration_ticks, accept_ticks, installment_ticks (optional)}, offered at `tick`; nil and a reason
---- when the spec is invalid. The goods lists are copied.
+--- duration_ticks, accept_ticks, installment_ticks (optional), charge (optional, needs
+--- installment_ticks)}, offered at `tick`; nil and a reason when the spec is invalid. The goods
+--- lists are copied.
 function contracts.new(spec, tick)
   local provides, reason = copy_goods(spec.provides or {}, false)
   if not provides then return nil, reason end
   local requires
   requires, reason = copy_goods(spec.requires, true)
   if not requires then return nil, reason end
-  if #requires == 0 then return nil, "a contract requires goods" end
+  if spec.charge ~= nil then
+    if not (check_credits(spec.charge) and spec.charge > 0) then
+      return nil, "charge must be positive, at most " .. contracts.MAX_CREDITS
+    end
+    if spec.installment_ticks == nil then return nil, "a charge needs installments" end
+  elseif #requires == 0 then
+    return nil, "a contract requires goods"
+  end
   for _, field in ipairs({ "reward", "deposit", "penalty" }) do
     if not check_credits(spec[field]) then return nil, field .. " must be from 0 to " .. contracts.MAX_CREDITS end
   end
@@ -81,7 +92,7 @@ function contracts.new(spec, tick)
     reward = spec.reward, deposit = spec.deposit, penalty = spec.penalty,
     duration_ticks = spec.duration_ticks, offered_tick = tick, accept_by = tick + spec.accept_ticks,
     state = contracts.OFFERED, delivered = delivered,
-    installment_ticks = spec.installment_ticks, paid = 0,
+    installment_ticks = spec.installment_ticks, paid = 0, charge = spec.charge,
   }
 end
 
@@ -150,6 +161,11 @@ function contracts.settle(contract, tick)
     return { state = contracts.EXPIRED, credits = 0, reputation = 0 }
   end
   if contract.state ~= contracts.ACTIVE then return nil end
+  if contract.charge then
+    if tick <= contract.due_tick then return nil end
+    contract.state, contract.settled_tick = contracts.FULFILLED, tick
+    return { state = contracts.FULFILLED, credits = contracts.guarantee(contract), reputation = 0 }
+  end
   if contracts.complete(contract) then
     contract.state, contract.settled_tick = contracts.FULFILLED, tick
     return {
@@ -175,22 +191,37 @@ local function delivered_share(contract)
 end
 
 --- Pays an active contract's installment at `tick` if one is due: the share of the reward its
---- deliveries earned, less what was already paid. Returns the credits to give the force, or nil.
+--- deliveries earned, less what was already paid; for a contract with a charge, the charge the
+--- force owes, as negative credits (none after its term). Returns the credits to give the force, or
+--- nil.
 function contracts.installment(contract, tick)
   if contract.state ~= contracts.ACTIVE or not contract.next_installment or tick < contract.next_installment then
     return nil
   end
   contract.next_installment = tick + contract.installment_ticks
+  if contract.charge then
+    if tick > contract.due_tick then return nil end
+    return -contract.charge
+  end
   local earned = contract.reward * delivered_share(contract) - contract.paid
   if earned <= 0 then return nil end
   contract.paid = contract.paid + earned
   return earned
 end
 
+--- Defaults an active contract at `tick` (a charge the force could not pay): it fails at once, the
+--- guarantee kept. Returns the outcome, or nil when it is not active.
+function contracts.default(contract, tick)
+  if contract.state ~= contracts.ACTIVE then return nil end
+  contract.state, contract.settled_tick = contracts.FAILED, tick
+  return { state = contracts.FAILED, credits = 0, reputation = -1 }
+end
+
 --- Abandons an active contract at `tick`: it is settled at once, failed unless every required unit
---- was already delivered (then it is fulfilled).
+--- was already delivered (then it is fulfilled); a contract with a charge defaults.
 function contracts.abandon(contract, tick)
   if contract.state ~= contracts.ACTIVE then return nil end
+  if contract.charge then return contracts.default(contract, tick) end
   contract.due_tick = math.min(contract.due_tick, tick - 1)
   return contracts.settle(contract, tick)
 end

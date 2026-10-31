@@ -54,12 +54,16 @@ local function refresh(player, data)
     for _, cell in pairs(row) do cell.visible = contract ~= nil end
     if contract then
       local offered = contract.state == core.OFFERED
-      row.who.caption = contract.counterparty
+      row.who.caption = contract.kind == "concession"
+        and { "?", { "gb-planets.name-" .. contract.counterparty }, contract.counterparty } or contract.counterparty
       row.who.tooltip = { "gb-contracts.kind-" .. contract.kind }
       row.provides.caption = goods_text(contract.provides)
       row.requires.caption = goods_text(contract.requires, not offered and contract.delivered or nil)
-      row.terms.caption = { "gb-contracts.terms", string.format("%.0f", contract.reward),
-        string.format("%.0f", core.guarantee(contract)) }
+      row.terms.caption = contract.charge
+        and { "gb-contracts.charge-terms", string.format("%.0f", contract.charge),
+          string.format("%.0f", core.guarantee(contract)) }
+        or { "gb-contracts.terms", string.format("%.0f", contract.reward),
+          string.format("%.0f", core.guarantee(contract)) }
       row.time.caption = offered and { "gb-contracts.offer-ends", minutes(contract.accept_by - game.tick) }
         or { "gb-contracts.due-in", minutes(contract.due_tick - game.tick) }
       row.primary.caption = offered and { "gb-contracts.accept" } or { "gb-contracts.abandon" }

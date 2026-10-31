@@ -282,8 +282,8 @@ function actions.contracts(player, data)
   contracts_gui.open(player, data.hub)
 end
 
-function actions.planets(player)
-  planets_gui.open(player)
+function actions.planets(player, data)
+  planets_gui.open(player, data.hub)
 end
 
 function actions.select(player, data, tags)

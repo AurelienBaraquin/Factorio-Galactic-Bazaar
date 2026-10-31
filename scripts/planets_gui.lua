@@ -1,6 +1,9 @@
--- The planets window (#83): the NPC planets, their distance, specialties and the slots free for the
--- player's force, opened from the market window. Read-only; rows are built once on opening and
--- updated in place. Interface state lives in storage.planets_gui.
+-- The planets window (#83, #85): the NPC planets, their distance, transit terms, specialties and the
+-- slots free for the player's force, opened from the market window of a hub. A resource specialty
+-- can be leased from it (a mining concession delivered to that hub). Rows are built once on opening
+-- and updated in place. Interface state lives in storage.planets_gui.
+local concessions = require("scripts.concessions")
+local hubs = require("scripts.hubs")
 local planets = require("scripts.planets")
 local transit = require("scripts.core.transit")
 
@@ -28,7 +31,18 @@ local function refresh(player, data)
   for _, row in ipairs(data.elements.rows) do
     local free = planets.free(player.force_index, row.planet, row.kind, row.name) or 0
     row.slots.caption = { "gb-planets.slots", free, row.total }
+    if row.lease then row.lease.enabled = free > 0 end
   end
+end
+
+-- The tooltip of a lease button: what one slot ships, its charge and guarantee.
+local function lease_tooltip(planet, resource)
+  local spec = concessions.terms(planet.name, resource, 1)
+  if not spec then return { "gb-planets.lease-unavailable" } end
+  local terms = transit.terms(planet.distance)
+  return { "gb-planets.lease-terms", spec.provides[1].count / (spec.duration_ticks / spec.installment_ticks),
+    spec.installment_ticks / 3600, spec.duration_ticks / 3600, string.format("%.0f", spec.charge),
+    string.format("%.0f", spec.deposit), string.format("%.4g", terms.max_loss * 100) }
 end
 
 local function build(player)
@@ -37,8 +51,8 @@ local function build(player)
   local elements = { window = window, rows = {} }
   local body = window.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   body.add({ type = "button", caption = { "gb-planets.close" }, tags = { gb_action = "planets-close" } })
-  local list = body.add({ type = "table", column_count = 5 })
-  for _, header in ipairs({ "planet", "distance", "transit", "specialty", "free" }) do
+  local list = body.add({ type = "table", column_count = 6 })
+  for _, header in ipairs({ "planet", "distance", "transit", "specialty", "free", "lease" }) do
     list.add({ type = "label", style = "bold_label", caption = { "gb-planets.column-" .. header } })
   end
   for _, planet in ipairs(planets.catalog()) do
@@ -49,20 +63,28 @@ local function build(player)
       list.add({ type = "label", caption = { "gb-planets.transit", string.format("%d", terms.delay_ticks / 60),
         string.format("%.4g", terms.max_loss * 100) } })
       list.add({ type = "label", caption = specialty_caption(specialty) })
-      elements.rows[#elements.rows + 1] = {
+      local row = {
         planet = planet.name, kind = specialty.kind, name = specialty.name, total = specialty.slots,
         slots = list.add({ type = "label" }),
       }
+      if specialty.kind == "resource" then
+        row.lease = list.add({ type = "button", caption = { "gb-planets.lease" },
+          tooltip = lease_tooltip(planet, specialty.name),
+          tags = { gb_action = "planets-lease", planet = planet.name, resource = specialty.name } })
+      else
+        list.add({ type = "empty-widget" })
+      end
+      elements.rows[#elements.rows + 1] = row
     end
   end
   window.force_auto_center()
   return elements
 end
 
---- Opens the planets window of a player.
-function planets_gui.open(player)
+--- Opens the planets window of a player, at the hub concessions are delivered to.
+function planets_gui.open(player, hub_unit_number)
   planets_gui.close(player.index)
-  local data = { elements = build(player) }
+  local data = { hub = hub_unit_number, elements = build(player) }
   storage.planets_gui[player.index] = data
   refresh(player, data)
   -- Like the game's windows: E or Esc closes it, and it replaces the market window.
@@ -75,11 +97,34 @@ function planets_gui.close(player_index)
   storage.planets_gui[player_index] = nil
 end
 
---- on_gui_click: the close button of this window.
+-- Leases a slot from a lease button, at the window's hub, which must still be the player's force's
+-- and within reach (GUI events are player input).
+local function lease(player, data, tags)
+  local hub = hubs.get(data.hub)
+  if not (hub and hub.force == player.force and player.can_reach_entity(hub)) then
+    planets_gui.close(player.index)
+    return player.print({ "gb-planets.hub-unavailable" })
+  end
+  local id, reason = concessions.lease(player.force_index, data.hub, tags.planet, tags.resource)
+  if id then
+    player.print({ "gb-planets.leased", { "?", { "gb-planets.name-" .. tags.planet }, tags.planet } })
+  else
+    player.print({ "gb-planets.refused-" .. reason })
+  end
+  refresh(player, data)
+end
+
+--- on_gui_click: the close and lease buttons of this window.
 function planets_gui.on_gui_click(event)
   local element = event.element
   if not (element and element.valid and element.get_mod() == script.mod_name) then return end
-  if element.tags.gb_action == "planets-close" then planets_gui.close(event.player_index) end
+  local action = element.tags.gb_action
+  local data = storage.planets_gui[event.player_index]
+  if action == "planets-close" then
+    planets_gui.close(event.player_index)
+  elseif action == "planets-lease" and data and window_of(event.player_index) then
+    lease(game.get_player(event.player_index), data, element.tags)
+  end
 end
 
 --- on_gui_closed: E, Esc or another window closes this one.

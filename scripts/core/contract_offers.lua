@@ -112,6 +112,38 @@ function contract_offers.rental(recipe, values, draw, crafts)
   }
 end
 
+-- Mining concessions (#85): the force leases slots of a planet's resource for CONCESSION_TICKS;
+-- every CONCESSION_PERIOD_TICKS, each slot ships UNITS_PER_SLOT_MINUTE units a minute of the
+-- period, charged at CONCESSION_PRICE times their base value (between the market's sell and buy
+-- prices, so a concession neither undercuts selling nor beats buying with its fee). The guarantee is
+-- one period's charge.
+contract_offers.CONCESSION_TICKS = 3600 * 30
+contract_offers.CONCESSION_PERIOD_TICKS = 3600 * 5
+contract_offers.UNITS_PER_SLOT_MINUTE = 30
+contract_offers.CONCESSION_PRICE = 1
+
+--- Units a concession of `slots` slots ships every period.
+function contract_offers.concession_units(slots)
+  return slots * contract_offers.UNITS_PER_SLOT_MINUTE * contract_offers.CONCESSION_PERIOD_TICKS / 3600
+end
+
+--- A concession spec for `slots` slots of `resource` (an item) with base value `value`, from
+--- `planet`; nil without a positive value.
+function contract_offers.concession(planet, resource, value, slots)
+  if not (value and value > 0) then return nil end
+  local units = contract_offers.concession_units(slots)
+  local periods = contract_offers.CONCESSION_TICKS / contract_offers.CONCESSION_PERIOD_TICKS
+  local charge = units * value * contract_offers.CONCESSION_PRICE
+  return {
+    kind = "concession", counterparty = planet,
+    provides = { { kind = "item", name = resource, count = units * periods } },
+    requires = {},
+    reward = 0, deposit = charge, penalty = 0, charge = charge,
+    duration_ticks = contract_offers.CONCESSION_TICKS, accept_ticks = 60,
+    installment_ticks = contract_offers.CONCESSION_PERIOD_TICKS,
+  }
+end
+
 --- The recipe of `candidates` (a sorted list) that `draw` (a number in (0, 1)) picks.
 function contract_offers.pick(candidates, draw)
   if #candidates == 0 then return nil end

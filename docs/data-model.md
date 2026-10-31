@@ -195,6 +195,13 @@ leaves, changes force or is removed, and every window is closed on `on_configura
 to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
 `scripts/planets.lua` on `on_init` and `on_configuration_changed` only.
 
+## `storage.concessions`
+
+`storage.concessions[contract_id] = {force_index, hub, planet, resource, slots}` — every mining
+concession whose contract may still be open ([planets.md](planets.md)). Written by
+`scripts/concessions.lua` on lease, force merge and sweep (every 60 ticks a lease whose contract is
+no longer active is removed and its slot released) and on configuration change.
+
 ## `storage.planet_rng`
 
 `storage.planet_rng[force_index]` — each force's random state for transit losses

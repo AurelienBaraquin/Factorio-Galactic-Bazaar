@@ -126,5 +126,14 @@ one is offered for rent in the **Contracts** window (hover the counterparty to s
 The **Planets** button of the market window lists the planets of the galaxy: what each extracts or
 crafts, how far it is, and how many of its slots are free for your force. Each force has its own
 slots, and its transit terms: how much longer goods from it take to land, and the most of a
-shipment that can be lost on the way (farther planets risk more). Services that use them (mining
-concessions, foundries and assemblers) are coming.
+shipment that can be lost on the way (farther planets risk more). Foundries and assemblers are
+coming.
+
+### Mining concessions
+
+Open the Planets window from the market window of a hub with an import chest, and press **Lease**
+next to an ore. For 30 minutes the planet ships you 150 units of it every 5 minutes, by transit, to
+that hub's import chests. Each shipment is charged at the ore's base value — between what the market
+pays and what it asks — and only when it is shipped. One period's charge is held as a guarantee and
+comes back at the end. If you cannot pay a charge, or abandon the lease in the Contracts window, the
+guarantee is lost and your reputation drops by 1. Each planet has only a few slots per ore.

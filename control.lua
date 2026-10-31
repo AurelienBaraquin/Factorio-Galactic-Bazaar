@@ -15,6 +15,7 @@ local contracts_gui = require("scripts.contracts_gui")
 local power = require("scripts.power")
 local teleporter = require("scripts.teleporter")
 local price_signals = require("scripts.price_signals")
+local concessions = require("scripts.concessions")
 local planets = require("scripts.planets")
 local planets_gui = require("scripts.planets_gui")
 local rental = require("scripts.rental")
@@ -22,7 +23,7 @@ local value_overrides = require("scripts.value_overrides")
 
 local function init()
   forces.init()
-  planets.init()
+  local dropped = planets.init()
   value_overrides.rebuild()
   hubs.init()
   cargo.init()
@@ -37,6 +38,7 @@ local function init()
   market_gui.init()
   incoming.init()
   rental.init()
+  concessions.init(dropped)
   contracts_gui.init()
   planets_gui.init()
 end
@@ -60,6 +62,7 @@ script.on_event(defines.events.on_forces_merged, function(event)
   incoming.on_forces_merged(event)
   rental.on_forces_merged(event)
   planets.on_forces_merged(event)
+  concessions.on_forces_merged(event)
   price_signals.on_forces_merged(event)
   circuit_orders.on_forces_merged(event)
 end)
@@ -151,6 +154,7 @@ every(incoming.OFFER_TICKS, incoming.on_offer_tick)
 every(incoming.COLLECT_TICKS, incoming.on_collect_tick)
 every(rental.OFFER_TICKS, rental.on_offer_tick)
 every(rental.SERVICE_TICKS, rental.on_service_tick)
+every(concessions.SWEEP_TICKS, concessions.on_sweep_tick)
 every(contracts_gui.REFRESH_TICKS, contracts_gui.on_refresh_tick)
 every(planets_gui.REFRESH_TICKS, planets_gui.on_refresh_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
@@ -188,10 +192,10 @@ end)
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
     { "tests/forces", "tests/contracts", "tests/incoming_contracts", "tests/rental", "tests/planets",
-      "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market", "tests/hubs",
-      "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter",
-      "tests/power", "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/technologies",
-      "tests/market_gui" },
+      "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
+      "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
+      "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
+      "tests/telecom", "tests/technologies", "tests/market_gui" },
     { load_luassert = true }
   )
 end
