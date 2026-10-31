@@ -1,5 +1,16 @@
 -- Helpers shared by the in-game tests (not a test file: control.lua does not list it).
+local bazaar_gui = require("scripts.bazaar_gui")
+
 local test_helpers = {}
+
+--- Picks tab `name` of the player's open Galactic Bazaar window, as a click on the tab would.
+function test_helpers.select_tab(player, name)
+  local pane = player.gui.screen[bazaar_gui.WINDOW].gb_bazaar_tabs
+  for index, entry in ipairs(pane.tabs) do
+    if entry.tab.tags.gb_tab == name then pane.selected_tab_index = index end
+  end
+  bazaar_gui.on_gui_selected_tab_changed({ element = pane, player_index = player.index })
+end
 
 --- Sets a force state's balance as a test needs it, with the marks the periodic handlers read from
 --- it: the interest's and the insolvency check's lowest balances (`overdraft_low`, `solvency_low`)

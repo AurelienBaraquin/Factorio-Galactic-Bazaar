@@ -147,12 +147,16 @@ local function plan(hub_unit_number, units, stack_size)
 end
 
 --- The tier an order of `units` × `name` (`kind` "item", default, or "fluid") would ship by from a hub
---- now, or nil when no tier can take it.
+--- now; or nil and why no tier can take it (not-tradeable, or the last tier's reason such as
+--- queue-full); nil alone without a hub.
 function freight.tier_for(hub_unit_number, name, units, kind)
+  if not hub_unit_number then return nil end
   local cargo_kind = CARGO[kind or "item"]
   local stack_size = cargo_kind and cargo_kind.stack_size(name)
-  if not (stack_size and hub_unit_number) then return nil end
-  return (plan(hub_unit_number, units, stack_size))
+  if not stack_size then return nil, "not-tradeable" end
+  local tier, reason = plan(hub_unit_number, units, stack_size)
+  if not tier then return nil, reason end
+  return tier
 end
 
 -- The freight fee a force pays on a purchase costing `cost` by `tier`: the tier's rate, scaled by

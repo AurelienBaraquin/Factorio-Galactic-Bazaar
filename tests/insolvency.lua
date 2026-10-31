@@ -1,20 +1,19 @@
 -- In-game tests of insolvency and bankruptcy (scripts/insolvency.lua, #97, ADR-0022): becoming
 -- insolvent and recovering, what is refused meanwhile and what is not, bankruptcy and its effects on
 -- contracts, leases, debt, reputation and credit, the handler control.lua registers, force merge, the
--- market window's status and persistence. The player force has researched credit (#98), so that loans
+-- Market tab's status and persistence. The player force has researched credit (#98), so that loans
 -- are refused for the reasons tested here.
 local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
+local bazaar_gui = require("scripts.bazaar_gui")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
-local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
 local core_insolvency = require("scripts.core.insolvency")
 local finance = require("scripts.finance")
 local insolvency = require("scripts.insolvency")
 local loans = require("scripts.loans")
 local market = require("scripts.market")
-local market_gui = require("scripts.market_gui")
 local planets = require("scripts.planets")
 local reputation = require("scripts.core.reputation")
 
@@ -77,8 +76,7 @@ describe("insolvency", function()
     state().markets["item/iron-gear-wheel"] = nil
   end)
   after_each(function()
-    market_gui.close(1)
-    contracts_gui.close(1)
+    bazaar_gui.close(1)
     for _, entity in ipairs(storage.gb_test_insolvency_entities or {}) do
       if entity.valid then
         storage.freight.hubs[entity.unit_number] = nil
@@ -133,8 +131,8 @@ describe("insolvency", function()
     assert.are.equal(core.OFFERED, contracts.get(force_index(), id).state)
     assert.are.same({ nil, "insolvent" }, { loans.borrow(force_index(), 1) })
     local player = game.get_player(1)
-    contracts_gui.open(player, place("gb-hub", 3).unit_number)
-    local borrow = find(player.gui.screen.gb_contracts, "loan-borrow", "tier", 1)
+    bazaar_gui.open(player, "contracts", place("gb-hub", 3))
+    local borrow = find(player.gui.screen.gb_bazaar, "loan-borrow", "tier", 1)
     assert.is_false(borrow.enabled)
     assert.are.equal("gb-loans.refused-insolvent", borrow.tooltip[3][3][1])
     local ok = market.sell(force_index(), "item", "iron-gear-wheel", 10)
@@ -239,32 +237,32 @@ describe("insolvency", function()
     end)
   end)
 
-  test("show insolvency and the credit ban with their time left in the market window", function()
+  test("show insolvency and the credit ban with their time left in the Market tab", function()
     local player = game.get_player(1)
     local hub = place("gb-hub", 3)
-    market_gui.open(player, hub)
-    local label = storage.players[1].elements.solvency
+    bazaar_gui.open(player, "market", hub)
+    local label = bazaar_gui.view(1, "market").elements.solvency
     assert.is_false(label.visible)
-    market_gui.close(1)
+    bazaar_gui.close(1)
     state().insolvent_since = game.tick
-    market_gui.open(player, hub)
-    label = storage.players[1].elements.solvency
+    bazaar_gui.open(player, "market", hub)
+    label = bazaar_gui.view(1, "market").elements.solvency
     assert.is_true(label.visible)
     assert.are.equal("gb-gui.insolvent", label.caption[1])
     assert.are.equal("10:00", label.caption[2])
-    market_gui.close(1)
+    bazaar_gui.close(1)
     state().insolvent_since, state().credit_ban_until = nil, game.tick + core_insolvency.BAN_TICKS
-    market_gui.open(player, hub)
-    assert.are.equal("gb-gui.credit-ban-time", storage.players[1].elements.solvency.caption[1])
-    market_gui.close(1)
+    bazaar_gui.open(player, "market", hub)
+    assert.are.equal("gb-gui.credit-ban-time", bazaar_gui.view(1, "market").elements.solvency.caption[1])
+    bazaar_gui.close(1)
     state().bankruptcy_debt = 1234
-    market_gui.open(player, hub)
-    assert.are.equal("gb-gui.credit-ban", storage.players[1].elements.solvency.caption[1])
-    market_gui.close(1)
+    bazaar_gui.open(player, "market", hub)
+    assert.are.equal("gb-gui.credit-ban", bazaar_gui.view(1, "market").elements.solvency.caption[1])
+    bazaar_gui.close(1)
     -- The ban's time has passed, the debt is not repaid: no time is shown, only the debt.
     state().credit_ban_until = game.tick - 1
-    market_gui.open(player, hub)
-    local caption = storage.players[1].elements.solvency.caption
+    bazaar_gui.open(player, "market", hub)
+    local caption = bazaar_gui.view(1, "market").elements.solvency.caption
     assert.are.same({ "gb-gui.credit-ban-debt", "1.23k" }, { caption[1], caption[2] })
   end)
 

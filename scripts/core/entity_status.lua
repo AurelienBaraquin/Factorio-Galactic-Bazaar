@@ -15,7 +15,7 @@ status.NO_HUB, status.HUB_UNPOWERED, status.UNPOWERED = "no-hub", "hub-unpowered
 -- Goods a contract chest's status names; the others are counted. A LocalisedString holds at most 20
 -- parameters: this list takes 2 × MAX_LISTED.
 status.MAX_LISTED = 4
--- Refusals of an order that have a text of their own in the market window ([gb-gui] refused-*).
+-- Refusals of an order that have a text of their own in the Market tab ([gb-gui] refused-*).
 local KNOWN_REFUSALS = {
   ["no-import-chest"] = true, ["no-import-manifold"] = true, ["insufficient-funds"] = true,
   ["insufficient-liquidity"] = true, ["not-tradeable"] = true, ["invalid-quantity"] = true,

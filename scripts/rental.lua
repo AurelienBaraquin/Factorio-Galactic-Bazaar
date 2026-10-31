@@ -159,7 +159,7 @@ local function researched(force)
 end
 
 --- on_nth_tick(OFFER_TICKS): each idle machine attached to a hub, of a force that researched rental
---- and has room in its contracts window, is offered for rent, in unit number order; each force is told
+--- and has room in its Contracts tab, is offered for rent, in unit number order; each force is told
 --- once how many of its machines were offered, the alert pointing at the first.
 function rental.on_offer_tick()
   local units = {}

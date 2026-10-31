@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.31
+Date: 2026-10-31
+  Features:
+    - Galactic Bazaar window: one window with Overview, Market, Contracts and Planets tabs, readable anywhere.
+    - Opened by the Ctrl + Shift + G hotkey or a button at the top left of the screen once Galactic Bazaar is researched; clicking a trading hub opens it on the Market tab.
+    - Overview tab: balance, overdraft used and left, interest rate and the next charge, reputation and its effects on fees, contract sizes and loans, solvency, credit ban and debt, and a summary of offers, contracts, leases, loans and the next deadline.
+  Changes:
+    - The market, contracts and planets windows became tabs of the Galactic Bazaar window; the Planets tab is disabled until Planetary concessions is researched.
+    - The window stays open out of reach of a hub; buying, selling, accepting, declining, abandoning, borrowing, repaying and leasing need a trading hub of your force within reach, and nothing is traded from remote view.
+    - Existing saves: the old market, contracts and planets windows are closed and their state removed on configuration change.
+    - Contract offer chat lines, rental assembler statuses and technology descriptions now point to the tabs of the Galactic Bazaar window.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.30
 Date: 2026-10-31
   Features:

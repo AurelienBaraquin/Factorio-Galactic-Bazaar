@@ -162,7 +162,7 @@ function incoming.draw(force_index)
 end
 
 -- Whether a force may get another offer: fewer than MAX_OFFERS open incoming offers and room in
--- the contracts window.
+-- the Contracts tab.
 local function room_for_offer(force_index, state)
   local offered = 0
   for _, contract in pairs(state.contracts.open) do

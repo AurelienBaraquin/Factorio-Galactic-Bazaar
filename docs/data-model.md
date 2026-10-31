@@ -227,12 +227,21 @@ the last entry in); `facts` and `pending` are emptied when a cycle ends. Every h
 when a save lacks it; `on_configuration_changed` lists every building again, empties `shown` (every
 status is written again) and drops the alerts of buildings no longer listed.
 
-## `storage.contracts_gui`
+## `storage.bazaar_gui`
 
-`storage.contracts_gui[player_index] = {hub, elements}` — the contracts window of a player who has
-it open: the hub it was opened from and references to its GUI elements (8 fixed rows). Interface
-state only. Written by `scripts/contracts_gui.lua`; removed when the window closes, the player
-leaves, changes force or is removed, and every window is closed on `on_configuration_changed`.
+`storage.bazaar_gui[player_index] = {hub, tab, views, elements}` — the Galactic Bazaar window of a
+player who has it open ([window.md](window.md)): the unit number of the hub it trades through (nil
+while no hub of the force is within reach), the tab shown, each tab's state once it has been shown
+(`views[name]`, owned by the tab: its `elements` and, for the Market tab, `{filter, matches, page,
+selected, tier, tier_hub}`, `tier_hub` the hub the preview's tier was computed for) and references to the window's own elements (`{window, pane, tabs = {[name] =
+{tab, content, index}}}`). Interface state only: no economy value lives here (ADR-0001). Written by
+`scripts/bazaar_gui.lua` and the tabs (`scripts/overview_gui.lua`, `scripts/market_gui.lua`,
+`scripts/contracts_gui.lua`, `scripts/planets_gui.lua`); an entry exists only while the window is
+open, is removed when the player leaves, changes force or is removed, and every window is closed
+on `on_configuration_changed`, which also removes the tables of the separate windows saves made
+before it had (`storage.players`, `storage.contracts_gui`, `storage.planets_gui`, up to 0.1.30) and
+those windows. Events that run before that configuration change create the table if it is missing
+([window.md](window.md#state)).
 
 ## `storage.planets`
 
@@ -256,13 +265,6 @@ no longer active is removed and its slot released) and on configuration change.
 ([planets.md](planets.md)), advanced at every draw, starting from its index. Written by
 `scripts/planets.lua`; the merged force's entry is dropped on `on_forces_merged`.
 
-## `storage.planets_gui`
-
-`storage.planets_gui[player_index] = {elements}` — the planets window of a player who has it open,
-with its rows (`{planet, kind, name, total, slots}`, `slots` the label element). Interface state
-only. Written by `scripts/planets_gui.lua`; removed when the window closes, the player leaves,
-changes force or is removed, and every window is closed on `on_configuration_changed`.
-
 ## `storage.notifications`
 
 `storage.notifications[force_index] = {[kind .. "/" .. group] = {tick, period, pending}}` — each
@@ -274,16 +276,6 @@ that lacks it, at the first notification; a force's log on its first notificatio
 log is folded into the destination's and dropped on `on_forces_merged`. Output state only: nothing
 else reads it.
 
-## `storage.players`
-
-`storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market
-window of a player who has it open ([terminal.md](terminal.md)): the hub it trades through, the
-search text and its cached results, the page, the selected item and references to its GUI elements
-(including the 15 fixed rows). Interface state only: no economy
-value lives here (ADR-0001). Written by `scripts/market_gui.lua`; an entry exists only while the
-window is open, is removed when the player leaves, changes force or is removed, and every window
-is closed on `on_configuration_changed`.
-
 ## `storage.tradeable_fluids`
 
 Sorted names of the fluids that have a base value, rebuilt with them by `scripts/pricing.lua`; read
@@ -291,7 +283,7 @@ by the price signal combinators.
 
 ## `storage.tradeable_items`
 
-Sorted names of every item with a base value — the market window's list. Rebuilt with
+Sorted names of every item with a base value — the Market tab's list. Rebuilt with
 `storage.base_values` by `scripts/pricing.lua`, never edited elsewhere.
 
 Personal data: none. Backups: `storage` lives inside the save file.

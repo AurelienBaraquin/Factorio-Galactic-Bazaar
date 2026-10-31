@@ -1,11 +1,11 @@
 -- In-game tests of loans (scripts/loans.lua, #96, ADR-0021): borrowing a tier, repayment over the
 -- term at the contract settlement, the rate and cap by reputation, repaying instead of abandoning,
--- default and arrears, the overdraft's part, force merge, the contracts window's credit line and
+-- default and arrears, the overdraft's part, force merge, the Contracts tab's credit line and
 -- persistence. The forces borrowing have researched credit (#98; its gating: tests/finance.lua).
 local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
+local bazaar_gui = require("scripts.bazaar_gui")
 local contracts = require("scripts.contracts")
-local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
 local finance = require("scripts.finance")
 local forces = require("scripts.forces")
@@ -58,7 +58,7 @@ describe("loans", function()
     state().contracts.open = {}
   end)
   after_each(function()
-    contracts_gui.close(1)
+    bazaar_gui.close(1)
     for _, hub in ipairs(storage.gb_test_loan_hubs or {}) do
       if hub.valid then hub.destroy() end
     end
@@ -200,8 +200,8 @@ describe("loans", function()
     assert.are.same({ nil, "overdrawn" }, { loans.borrow(force_index(), 1) })
     assert.are.equal(funds(-1), state().balance)
     local player = game.get_player(1)
-    contracts_gui.open(player, place_hub(3).unit_number)
-    assert.is_false(find(player.gui.screen.gb_contracts, "loan-borrow", "tier", 1).enabled)
+    bazaar_gui.open(player, "contracts", place_hub(3))
+    assert.is_false(find(player.gui.screen.gb_bazaar, "loan-borrow", "tier", 1).enabled)
     test_helpers.set_balance(state(), funds(0))
     assert.is_truthy(loans.borrow(force_index(), 1))
   end)
@@ -238,42 +238,42 @@ describe("loans", function()
 
   test("survive a state saved before loans until its arrears are added on configuration change", function()
     state().arrears = nil
-    contracts_gui.open(game.get_player(1), place_hub(3).unit_number)
+    bazaar_gui.open(game.get_player(1), "contracts", place_hub(3))
     loans.on_collect_tick({ tick = game.tick })
-    contracts_gui.on_refresh_tick()
+    bazaar_gui.refresh(game.get_player(1))
     assert.are.equal(0, (loans.debt(force_index())))
     forces.init()
     assert.are.equal(0, state().arrears)
   end)
 
-  test("borrow and repay from the contracts window, which shows the debt", function()
+  test("borrow and repay from the Contracts tab, which shows the debt", function()
     local player = game.get_player(1)
-    contracts_gui.open(player, place_hub(3).unit_number)
-    local window = player.gui.screen.gb_contracts
+    bazaar_gui.open(player, "contracts", place_hub(3))
+    local window = player.gui.screen.gb_bazaar
     assert.is_false(find(window, "loan-borrow", "tier", 3).enabled)
-    contracts_gui.on_gui_click({ element = find(window, "loan-borrow", "tier", 1), player_index = 1 })
+    bazaar_gui.on_gui_input({ element = find(window, "loan-borrow", "tier", 1), player_index = 1 })
     assert.are.equal(5000, state().balance)
     local loan = contracts.listed(force_index())[1]
     assert.are.equal("loan", loan.kind)
     test_helpers.set_balance(state(), 6000)
-    contracts_gui.on_gui_click({ element = find(window, "contract-abandon", "id", loan.id), player_index = 1 })
+    bazaar_gui.on_gui_input({ element = find(window, "contract-abandon", "id", loan.id), player_index = 1 })
     assert.is_nil(contracts.get(force_index(), loan.id))
   end)
 
   test("borrow and repay only through a hub of the force within reach", function()
     local player = game.get_player(1)
-    local far = place_hub(30)
-    contracts_gui.open(player, far.unit_number)
-    contracts_gui.on_gui_click({ element = find(player.gui.screen.gb_contracts, "loan-borrow", "tier", 1),
+    place_hub(30)
+    bazaar_gui.open(player, "contracts")
+    assert.is_nil(bazaar_gui.window(1).hub)
+    bazaar_gui.on_gui_input({ element = find(player.gui.screen.gb_bazaar, "loan-borrow", "tier", 1),
       player_index = 1 })
     assert.are.equal(0, state().balance)
-    assert.is_nil(player.gui.screen.gb_contracts)
     local id = loans.borrow(force_index(), 1)
-    contracts_gui.open(player, far.unit_number)
-    contracts_gui.on_gui_click({ element = find(player.gui.screen.gb_contracts, "contract-abandon", "id", id),
+    bazaar_gui.refresh(player)
+    bazaar_gui.on_gui_input({ element = find(player.gui.screen.gb_bazaar, "contract-abandon", "id", id),
       player_index = 1 })
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
-    assert.is_nil(player.gui.screen.gb_contracts)
+    assert.is_true(player.gui.screen.gb_bazaar ~= nil)
   end)
 
   test("keep loans and arrears across a save and reload", function()

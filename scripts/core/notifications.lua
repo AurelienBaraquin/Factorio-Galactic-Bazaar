@@ -2,7 +2,7 @@
 -- adapter (scripts/notifications.lua) keeps one throttle log per force in storage and shows what this
 -- module admits. A kind with a period is told at most once per period for each group (a hub, a
 -- contract, a kind of offer); a kind without one is told every time, its events being rare or
--- bounded (state changes, the contracts window's rows). An event may stand for a count (shipments,
+-- bounded (state changes, the Contracts tab's rows). An event may stand for a count (shipments,
 -- offers): the counts of throttled events are carried to the next event told for that group, so the
 -- number told is always true.
 local contracts = require("scripts.core.contracts")

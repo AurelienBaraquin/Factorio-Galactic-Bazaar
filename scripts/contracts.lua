@@ -15,7 +15,7 @@ local reputation = require("scripts.core.reputation")
 local contracts = {}
 
 contracts.SETTLE_TICKS = 60
--- Kinds of contracts offered to the force by counterparties, shown in the contracts window, and how
+-- Kinds of contracts offered to the force by counterparties, shown in the Contracts tab, and how
 -- many of them may be open at once (the window's rows).
 contracts.LISTED_KINDS = { incoming = true, rental = true, concession = true, outsourcing = true, loan = true }
 contracts.MAX_LISTED = 8

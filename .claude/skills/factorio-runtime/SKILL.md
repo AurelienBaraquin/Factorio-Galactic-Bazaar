@@ -103,7 +103,7 @@ use it to catch on_load/local-state bugs without a second client (see `factorio-
 
 - `script.on_event(event_or_array, handler, filters?)` — **one handler per event per mod**; a second
   registration replaces the first (even with different filters). Filters only when registering a single
-  event. `event` can also be a custom-input name string (`"gb-toggle-market"`).
+  event. `event` can also be a custom-input name string (`"gb-toggle-bazaar"`).
 - `script.on_nth_tick(tick_or_array, handler)` — handler gets `{tick, nth_tick}`; passing `nil` handler
   unregisters; ticks fire on tick 0 too. Prefer it over `on_tick` + modulo.
 - Custom events: `local id = script.generate_event_name()` at file scope; `script.raise_event(id, data)`.

@@ -3,7 +3,7 @@
 local test_helpers = require("tests.helpers")
 local docking_bay = require("scripts.docking_bay")
 local freight = require("scripts.freight")
-local market_gui = require("scripts.market_gui")
+local bazaar_gui = require("scripts.bazaar_gui")
 
 local surface, created
 local function place(name, x, y)
@@ -144,16 +144,17 @@ describe("docking bay", function()
     near.energy = near.electric_buffer_size
     place("gb-import-chest", player.position.x + 5, player.position.y)
     place("gb-docking-bay", player.position.x + 3, player.position.y + 3).insert({ name = "rocket-fuel", count = 1 })
-    market_gui.open(player, near)
-    local data = storage.players[player.index]
+    bazaar_gui.open(player, "market", near)
+    local data = bazaar_gui.view(player.index, "market")
     data.selected = "item/" .. GEAR
     local per_shuttle = prototypes.item[GEAR].stack_size * freight.TIERS.shuttle.capacity_stacks
     data.elements.quantity.text = tostring(2 * per_shuttle)
-    market_gui.on_gui_text_changed({ element = data.elements.quantity, player_index = player.index })
+    bazaar_gui.on_gui_input({ element = data.elements.quantity, player_index = player.index,
+      name = defines.events.on_gui_text_changed })
     assert.are.equal("capsule", data.tier)
-    market_gui.on_gui_click({ element = find(data.elements.window, "buy"), player_index = player.index })
+    bazaar_gui.on_gui_input({ element = find(player.gui.screen.gb_bazaar, "buy"), player_index = player.index })
     local queued = freight.queued(near.unit_number, "capsule")
-    market_gui.close(player.index)
+    bazaar_gui.close(player.index)
     storage.freight.hubs[near.unit_number] = nil
     assert.are.equal(2 * freight.TIERS.shuttle.capacity_stacks / freight.TIERS.capsule.capacity_stacks, queued)
   end)
