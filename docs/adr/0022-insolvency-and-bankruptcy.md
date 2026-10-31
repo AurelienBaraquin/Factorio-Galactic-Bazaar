@@ -43,6 +43,9 @@ force in force index order:
   (`solvency_low`, kept by `account.apply` and interest) was beyond the overdraft limit, or the
   arrears exceed the available funds (collection has then taken all it could). It is stored as
   `insolvent_since` (a tick). The force is told, with the balance to reach and the time left.
+  Each check reads the limit in force at that check (`account.overdraft_limit(state)`), so a limit
+  that drops under an existing debt (a credit ban, or research and reputation once #98 makes the
+  limit vary) starts the grace period like any other cause: a force is never bankrupted at once.
 - **Recovery**: at a check where the lowest balance of the whole period left at least
   `RECOVERY_SHARE` (5 %) of the limit available and no arrears are owed. A sale timed just before a
   check is not a recovery; neither is a force back at exactly the limit.

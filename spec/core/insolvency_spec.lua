@@ -89,6 +89,20 @@ describe("insolvency.check", function()
     assert.are.same({ "bankrupt" }, names(insolvency.check(state, 60 + insolvency.GRACE_TICKS)))
   end)
 
+  it("starts the grace period, never a bankruptcy, when the limit drops under an existing debt", function()
+    local state = new_state(-5000)
+    assert.are.same({}, insolvency.check(state, 60))
+    local real_limit = account.overdraft_limit
+    account.overdraft_limit = function() return 2000 end
+    local events = insolvency.check(state, 120)
+    local later = insolvency.check(state, 120 + insolvency.GRACE_TICKS - 60)
+    account.overdraft_limit = real_limit
+    assert.are.same({ "insolvent" }, names(events))
+    assert.are.equal(120, state.insolvent_since)
+    assert.are.same({}, later)
+    assert.are.same({ "recovered" }, names(insolvency.check(state, 180 + insolvency.GRACE_TICKS)))
+  end)
+
   it("keeps an insolvent force with arrears insolvent until they are paid", function()
     local state = new_state(0, 50000)
     insolvency.check(state, 60)
