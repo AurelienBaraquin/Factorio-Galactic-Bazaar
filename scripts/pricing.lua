@@ -113,7 +113,7 @@ end
 --- Why the normal key `key` is worth what it is: the valuation's record of the offer that set its value
 --- before the multiplier, {recipe, cost, share, amount, inputs = {{key, amount, value}...}, tier};
 --- nil for a value fixed by an override, a key without a value, or a save whose values were last
---- built before 0.1.34 (until its configuration change rebuilds them).
+--- built before 0.1.32 (until its configuration change rebuilds them).
 function pricing.value_source(key)
   return storage.value_sources and storage.value_sources[key]
 end

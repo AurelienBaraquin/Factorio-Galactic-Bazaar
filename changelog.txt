@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.34
+Version: 0.1.32
 Date: 2026-10-31
   Features:
     - Market tab: a detail panel beside the list for the selected item, with its buy, sell and mid prices, base

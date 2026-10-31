@@ -108,7 +108,7 @@ Invariants:
 - rebuilt with `storage.base_values`, by `scripts/pricing.lua` only, never edited elsewhere; bounded
   by the number of keys with a value (216 in vanilla, 318 with Space Age, 2.1.24);
 - no entry for a value fixed by an override; a key scaled by a factor has its first-pass source;
-- a save whose base values were last built before 0.1.34 has none until its configuration change:
+- a save whose base values were last built before 0.1.32 has none until its configuration change:
   readers accept a missing table (the item detail then says the breakdown is not available yet).
 
 ## `storage.hubs`
