@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.25
+Date: 2026-10-31
+  Features:
+    - Overdraft: a force's balance may go down to -10 000 credits; a negative balance pays 0.5% interest a minute on its lowest point, counted up to the limit.
+    - Price combinators also emit a Price feed signal, so an order combinator never reads prices as orders.
+  Changes:
+    - Every purchase, guarantee and charge now checks available funds (balance plus overdraft) instead of the balance.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.24
 Date: 2026-10-31
   Features:
