@@ -103,14 +103,15 @@ with `hubs.get(unit_number)`, which checks `valid`.
 ## `storage.cargo`
 
 `{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil,
-min_price_ratio, export_index}}, exports = {unit_number...}, cursor, imports = {[hub unit_number] =
+min_price_ratio, export_index, held}}, exports = {unit_number...}, cursor, imports = {[hub unit_number] =
 {[unit_number] = true}}}` — every cargo chest, the round-robin order of export chests and the
 import chests attached to each hub ([terminal.md](terminal.md)). Written by `scripts/cargo.lua`.
 Invariants: `exports` lists exactly the export modules and `modules[exports[i]].export_index == i`
 (removal swaps the last entry in); `imports` lists exactly the import modules by their `hub`,
 kept in step by attachment and removal and rebuilt on `on_configuration_changed`; `hub` is a hint, re-checked before every use — a module only
 works through a valid, powered hub of its own force; invalid entries are dropped and every module
-re-attached on `on_configuration_changed`.
+re-attached on `on_configuration_changed`. `held` (export chests, absent before their first sale
+attempt) says whether the last visit kept goods without selling any; it only feeds the chest's status.
 
 ## `storage.freight`
 
@@ -125,11 +126,15 @@ the queues of hubs that no longer exist are sold back.
 
 ## `storage.power`
 
-`{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil}}}` —
-every power substation ([terminal.md](terminal.md), ADR-0009). Written by `scripts/power.lua` on
-build events, hub build and removal, force merge and `on_object_destroyed`; invalid entries are
-dropped and every substation re-attached on `on_configuration_changed`. `hub` is a hint, re-checked
-at each settlement.
+`{modules = {[unit_number] = {entity, kind = "export"|"import", hub = hub unit_number|nil}}, last =
+{[force_index] = {tick, export, import, export_held, import_short}}}` — every power substation, and
+each force's last settlement with the MJ it sold and bought, whether export energy stayed unsold and
+whether import energy lacked was not bought, for the substations' status ([terminal.md](terminal.md),
+ADR-0009). Written by `scripts/power.lua` on build events, hub build and removal, force merge,
+settlements and `on_object_destroyed`; invalid entries are dropped and every substation re-attached
+on `on_configuration_changed`; `last` is created by whichever of init, settlement, force merge or
+status read comes first in a save that lacks it (`power.settlements`), and a merged force's entry
+goes on `on_forces_merged`. `hub` is a hint, re-checked at each settlement.
 
 ## `storage.price_signals`
 
@@ -145,20 +150,22 @@ on `on_configuration_changed`, and a merged force's on `on_forces_merged`.
 
 ## `storage.circuit_orders`
 
-`{modules = {[unit_number] = {entity, hub}}, spent = {[force_index] = {period, credits}}}` — every
-order combinator, and what each force has spent through them in the current 10 s period
-([terminal.md](terminal.md), ADR-0011). Written by `scripts/circuit_orders.lua` on build events, hub build and removal, force
+`{modules = {[unit_number] = {entity, hub, last}}, spent = {[force_index] = {period, credits}}}` —
+every order combinator, and what each force has spent through them in the current 10 s period
+([terminal.md](terminal.md), ADR-0011). `last` is the combinator's last reading, `{result, placed,
+budget_left, reason, allowance}` (absent before it), which only feeds its status. Written by `scripts/circuit_orders.lua` on build events, hub build and removal, force
 merge and `on_object_destroyed`; invalid entries are dropped and the others re-attached on
 `on_configuration_changed`.
 
 ## `storage.manifold`
 
-`{modules = {[unit_number] = {entity, kind = "export"|"import", hub, export_index}}, imports =
+`{modules = {[unit_number] = {entity, kind = "export"|"import", hub, export_index, held}}, imports =
 {[hub unit_number] = {[unit_number] = true}}, exports = {unit_number...}, cursor}` — every fluid
 manifold, the import manifolds attached to each hub and the round-robin order of export manifolds
 ([terminal.md](terminal.md)). Written by `scripts/manifold.lua` on build events, hub build and
 removal, force merge and `on_object_destroyed`; invalid entries are dropped, the indexes rebuilt and
-the others re-attached on `on_configuration_changed`.
+the others re-attached on `on_configuration_changed`. `held` (export manifolds) says whether the last
+visit kept fluid without selling any; it only feeds the manifold's status.
 
 ## `storage.docking_bays`
 
@@ -178,9 +185,10 @@ force merge and `on_object_destroyed`; invalid entries are dropped and the index
 
 ## `storage.catapults`
 
-`{modules = {[unit_number] = {entity, capacitor, hub, next_shot, order_index}}, order =
+`{modules = {[unit_number] = {entity, capacitor, hub, next_shot, order_index, held}}, order =
 {unit_number...}, cursor}` — every catapult, its hidden capacitor and the tick it may shoot again,
-in visiting order ([terminal.md](terminal.md)). Written by `scripts/catapult.lua` on build events,
+in visiting order; `held` (absent before its first shot attempt) says whether its last shot that
+could fire sold nothing, for its status ([terminal.md](terminal.md)). Written by `scripts/catapult.lua` on build events,
 hub build and removal, force merge, shots and `on_object_destroyed` (which also removes the
 capacitor). Invariants: `order` lists exactly the modules and `modules[order[i]].order_index == i`;
 invalid entries are dropped and missing capacitors replaced on `on_configuration_changed`.
@@ -202,6 +210,22 @@ Written by `scripts/rental.lua` on build events, hub build and removal, force me
 `on_object_destroyed`, offer and service ticks. Invariants: a machine has a recipe only while its
 contract is active (up to one service pass after it ends); `provided[name]` never exceeds what the contract provides. Invalid machines are
 dropped on `on_configuration_changed`. Offers draw from `storage.incoming_contracts.rng`.
+
+## `storage.entity_status`
+
+`{units = {unit_number...}, kinds = {kind name...}, index = {[unit_number] = position}, cursor,
+counts = {[hub unit_number] = modules}, pending = {[hub unit_number] = modules}, facts = {[field] =
+{[hub unit_number or force_index] = value}}, shown = {[unit_number] = {diode, label, alert} | false},
+alerts = {[unit_number] = {alert, force_index, sprite, text}}}` — every building of the mod in
+refresh order, the next one to refresh, each hub's modules of its force counted over the last cycle
+and the current one, the costly reads of the current cycle (`tiers`, `fueled`, `needs`, `periods`),
+the status written on each building (`false`: the game's own) and the alerts drawn on them (`sprite`
+and `text` are render object ids) ([terminal.md](terminal.md#building-status)). Written by
+`scripts/entity_status.lua` on its passes, build events and `on_object_destroyed`. Display state
+only. Invariants: `units` and `kinds` are parallel arrays and `index[units[i]] == i` (removal swaps
+the last entry in); `facts` and `pending` are emptied when a cycle ends. Every handler creates it
+when a save lacks it; `on_configuration_changed` lists every building again, empties `shown` (every
+status is written again) and drops the alerts of buildings no longer listed.
 
 ## `storage.contracts_gui`
 

@@ -116,36 +116,56 @@ end
 
 -- Places the orders a combinator's input asks for, fluids then items, each in name order, while
 -- each fits in what its budget leaves for the force this period; stops when the hub's capsule queue
--- is full.
+-- is full. Returns the reading's result for the combinator's status (see
+-- scripts/core/entity_status.lua), nil when it did not read.
 local function place_orders(module, tick)
   local entity = module.entity
-  if silence(entity) then return end
+  if silence(entity) then return nil end
   local hub = hubs.trading_hub(module, circuit_orders.HUB_RANGE)
   local force_index = entity.force.index
   local state = storage.forces[force_index]
-  if not (hub and state) then return end
+  if not (hub and state) then return nil end
   local requests, budget, refused = orders.requests(entity.get_signals(W.circuit_red, W.circuit_green),
     circuit_orders.BUDGET_SIGNAL, circuit_orders.REFUSED_SIGNALS)
-  if refused or budget <= 0 or #requests == 0 then return end
+  if refused then return { result = "refused" } end
+  if budget <= 0 then return { result = "no-budget" } end
+  if #requests == 0 then return { result = "no-orders" } end
   local spent = spending(force_index, tick)
+  local placed, reason, allowance = 0, nil, 0
   for _, request in ipairs(requests) do
-    local allowance = orders.allowance(budget, spent.credits, account.available(state))
-    if allowance <= 0 then return end
+    allowance = orders.allowance(budget, spent.credits, account.available(state))
+    if allowance <= 0 then
+      reason = budget - spent.credits <= 0 and "budget-spent" or "no-funds"
+      break
+    end
     local ok, paid, fee = freight.order(force_index, hub.unit_number, request.name, request.units,
       circuit_orders.JOURNAL_MERGE_TICKS, allowance, request.kind)
     if ok then
       spent.credits = spent.credits + paid + fee
+      placed = placed + 1
     elseif paid == "queue-full" then
-      return
+      reason = "queue-full"
+      break
+    else
+      reason = paid
     end
   end
+  if placed == 0 and (reason == "budget-spent" or reason == "no-funds" or reason == "queue-full") then
+    return { result = reason }
+  end
+  return {
+    result = "placed", placed = placed, budget_left = math.max(0, budget - spent.credits), reason = reason,
+    allowance = allowance,
+  }
 end
 
 --- on_nth_tick(PASS_TICKS): the order combinators of this pass's slot place their orders.
 function circuit_orders.on_pass_tick(event)
   local slot = (event.tick / circuit_orders.PASS_TICKS) % circuit_orders.SLOTS
   for unit_number, module in pairs(storage.circuit_orders.modules) do
-    if unit_number % circuit_orders.SLOTS == slot and module.entity.valid then place_orders(module, event.tick) end
+    if unit_number % circuit_orders.SLOTS == slot and module.entity.valid then
+      module.last = place_orders(module, event.tick) or module.last
+    end
   end
 end
 

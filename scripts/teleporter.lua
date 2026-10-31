@@ -81,6 +81,11 @@ function teleporter.on_forces_merged()
   for _, module in pairs(storage.teleporters.modules) do attach(module) end
 end
 
+--- Whether a teleporter entity holds enough energy to work.
+function teleporter.is_powered(entity)
+  return entity.energy >= entity.electric_buffer_size * teleporter.POWERED_SHARE
+end
+
 --- Whether a hub has a powered teleporter of its force: true or false, or nil when it has no
 --- teleporter of its force at all.
 function teleporter.powered(hub_unit_number)
@@ -90,7 +95,7 @@ function teleporter.powered(hub_unit_number)
   for unit_number in pairs(storage.teleporters.by_hub[hub_unit_number] or {}) do
     local entity = storage.teleporters.modules[unit_number].entity
     if entity.valid and entity.force == hub.force then
-      if entity.energy >= entity.electric_buffer_size * teleporter.POWERED_SHARE then return true end
+      if teleporter.is_powered(entity) then return true end
       found = false
     end
   end

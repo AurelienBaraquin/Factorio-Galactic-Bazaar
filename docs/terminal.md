@@ -37,6 +37,43 @@ Every action re-checks the hub (exists, same force, within reach, powered), the 
 quantity, since GUI events are player input; only elements created by this mod trigger actions. Results are printed to the player. Fluids are not listed yet (fluid
 module, M3). The window's layout has only been checked by tests, not by eye.
 
+## Building status
+
+Every building below tells what it is doing (#106). Code: `scripts/entity_status.lua` reads the
+facts from the game, `scripts/core/entity_status.lua` turns them into a status (unit-tested), and
+the texts are in the `[gb-status]` locale section.
+
+| | |
+|---|---|
+| Custom status | `LuaEntity.custom_status`: a diode (green: working, yellow: waiting or limited, red: stopped) and a text, which the game shows where it shows an entity's status; written only when it changed (`storage.entity_status.shown`). Texts hold no moving value (no age, no countdown): they state facts that stay true until the next refresh. A rented rental assembler keeps the game's own status (its crafting diagnostics); its contract's progress is in the contracts window |
+| Alert | while a building is stopped, an icon is drawn on it, visible to its force only: `utility/warning_icon` with no hub of its force in range ("No hub"), `utility/electricity_icon` when its hub has no power ("Hub unpowered") or when it has none itself, a hub or a teleporter ("No power"); the text shows under it in alt mode. It is redrawn when the building changes force, removed as soon as the cause goes, and with the building |
+| Attachment | a module without a hub of its force in range is red "no trading hub" (alert); with an unpowered hub, a module that trades through it (export chest and manifold, power substations, price and order combinators, catapult) is red "stopped" (alert), the others (import chest and manifold, docking bay, teleporter, contract chest, rental assembler) keep their own status, yellow, behind "its trading hub has no power" |
+| Cadence | the buildings are kept in one list (`storage.entity_status`), in step with build and destroy events and rebuilt on configuration change; every `PASS_TICKS` (10) ticks a pass refreshes the next ones, `ceil(n / 30)` of them, at most `MAX_VISITS` (8): each building once every `CYCLE_TICKS` (300, 5 s) up to 240 buildings, then every `n / 48` s (21 s with 1000). The costly reads — a hub's delivery tier and its bays' fuel, a force's contract needs and price period — are made once per hub or force and cycle (`facts`), and a pass never makes more than `MAX_COSTLY_READS` (2) of them: each kind reserves the costly reads its status may make (a docking bay 2, a hub, price combinator or contract chest 1) and the pass stops before a building whose reservation would exceed the cap. A building removed before the cursor trades places so that the one replacing it is still refreshed in the cycle. A building is also refreshed when built. Each hub's modules of its force are counted as they are refreshed and shown from the next cycle |
+| Budget | at most 0.3 ms per pass (one pass every 10 ticks, so at most 0.03 ms per tick on average) with 1000 buildings, whatever the layout: a pass does at most 8 refreshes and 2 costly reads, its costliest case being 7 of the dearest refresh without a costly read (price combinators) and a docking bay whose hub's tier and fuel are not read yet. Measured on 2.1.24 with 20 hubs and about 1000 modules, seven runs in vanilla and Space Age on a machine shared with other test runs: average pass 0.09–0.23 ms, costliest pass 0.11–0.19 ms (`tests/entity_status.lua` logs both). With 12 refreshes per pass the costliest reached 0.39 ms, hence 8 |
+
+| Building | What its status says |
+|---|---|
+| Trading hub | powered: modules of its force attached (counted over the last cycle), shipments queued, delivery tier; unpowered: red, trading suspended ("No power" alert) |
+| Export chest | waiting for goods; selling; yellow when its last visit sold nothing of what it holds (below its price floor, or damaged, used, carrying data) |
+| Import chest | ready to receive; receiving, with the shipments queued at its hub |
+| Export manifold | waiting for fluid; selling the fluid it holds; yellow when its last visit sold none (below its price floor) |
+| Import manifold | ready to receive fluids; or the fluid it holds, the only one it can receive until emptied |
+| Power substations | the MJ the force's substations of that direction sold or bought at the last settlement (every 5 s); otherwise waiting for surplus or shortage, or yellow when that same settlement left export energy unsold below the floor, or import energy unbought (no funds, no supply) |
+| Price combinators | how many prices it emits and how often they are refreshed (the telecommunications period); yellow while the first snapshot is being built |
+| Order combinator | its last reading: the orders it placed and the budget left this period, or why it bought nothing: price signals on its input (red), no Budget signal, no orders, budget spent, no funds, each order larger than the budget left or than the funds, queue full, or the market's refusal |
+| Docking bay | its own fuel in MJ, whether its hub's bays hold a shuttle shipment's fuel (yellow otherwise), and the tier its hub actually ships by (a powered teleporter outranks the shuttle) |
+| Teleporter | powered: its hub ships by teleporter; otherwise red with its charge ("No power" alert) |
+| Catapult | its capacitor's charge; charging (yellow) below a shot's 50 MJ; waiting for goods; yellow when its last shot that could fire sold nothing (below the floor, or not plain); otherwise ready, shooting at most every 2 s |
+| Contract chest | the normal-quality items its force's active incoming contracts still need, summed, oldest contract first (4 named, the rest counted); idle without any |
+| Rental assembler | idle; offered (yellow, with the contract number to find in the contracts window); rented: the game's own status |
+
+Facts recorded for it: an export chest's, an export manifold's and a catapult's `held`, each force's
+last power settlement (`storage.power.last`) and an order combinator's last reading (`last`)
+([data-model.md](data-model.md)). The texts, diodes and alerts are checked by in-game tests, not by
+eye: whether the game shows a custom status on hover for containers, storage tanks, combinators and
+electric-energy-interfaces (the hub has `gui_mode = "none"`), whether `[item=…]` and `[fluid=…]`
+render in it, and how the alerts look, are still to be checked on screen.
+
 ## Cargo module (`gb-export-chest`, `gb-import-chest`)
 
 | | |

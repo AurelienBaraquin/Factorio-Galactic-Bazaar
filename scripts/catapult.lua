@@ -114,8 +114,9 @@ function catapult.on_forces_merged()
 end
 
 -- Fires a catapult if it is ready: its shot interval passed, its capacitor holds a shot and it has a
--- powered hub of its force. The energy is spent only when the shot sold something. Returns the units
--- sold.
+-- powered hub of its force. The energy is spent only when the shot sold something; `held` records
+-- whether a shot that could fire sold nothing (below the price floor, or not plain), for its status.
+-- Returns the units sold.
 local function shoot(module, tick)
   local entity = module.entity
   if tick < module.next_shot then return 0 end
@@ -123,6 +124,7 @@ local function shoot(module, tick)
   if capacitor.energy < catapult.SHOT_MJ * MJ or not hubs.trading_hub(module, catapult.HUB_RANGE) then return 0 end
   local sold = cargo.sell_stacks(entity.get_inventory(defines.inventory.chest), entity.force.index,
     cargo.DEFAULT_MIN_PRICE_RATIO, nil, nil, nil, cargo.JOURNAL_MERGE_TICKS)
+  module.held = sold == 0
   if sold > 0 then
     capacitor.energy = capacitor.energy - catapult.SHOT_MJ * MJ
     module.next_shot = tick + catapult.SHOT_TICKS

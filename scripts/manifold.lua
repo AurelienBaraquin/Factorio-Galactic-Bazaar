@@ -158,19 +158,29 @@ function manifold.deliver(hub_unit_number, name, amount)
 end
 
 -- Sells what an export manifold holds, as far as its price floor allows: the fluid leaves the tank
--- first, the market pays for what actually left, and it goes back if the market refuses.
-local function sell_from(module)
+-- first, the market pays for what actually left, and it goes back if the market refuses. Returns
+-- whether it sold.
+local function sell(module)
   local entity = module.entity
   local fluid = entity.get_fluid(1)
-  if not (fluid and fluid.amount > 0 and hubs.trading_hub(module, manifold.HUB_RANGE)) then return end
   local force_index = entity.force.index
   local units = math.min(fluid.amount, market.sellable(force_index, "fluid", fluid.name, manifold.MIN_PRICE_RATIO))
-  if units <= 0 then return end
+  if units <= 0 then return false end
   local removed = entity.remove_fluid(1, units)
-  if not (removed and removed.amount > 0) then return end
-  if not market.sell(force_index, "fluid", removed.name, removed.amount, nil, manifold.JOURNAL_MERGE_TICKS) then
-    entity.insert_fluid({ name = removed.name, amount = removed.amount, temperature = removed.temperature })
+  if not (removed and removed.amount > 0) then return false end
+  if market.sell(force_index, "fluid", removed.name, removed.amount, nil, manifold.JOURNAL_MERGE_TICKS) then
+    return true
   end
+  entity.insert_fluid({ name = removed.name, amount = removed.amount, temperature = removed.temperature })
+  return false
+end
+
+-- Sells from an export manifold with fluid and a powered hub; `held` records whether it kept its
+-- fluid without selling any, for its status (scripts/entity_status.lua).
+local function sell_from(module)
+  local fluid = module.entity.get_fluid(1)
+  if not (fluid and fluid.amount > 0 and hubs.trading_hub(module, manifold.HUB_RANGE)) then return end
+  module.held = not sell(module)
 end
 
 --- on_nth_tick(EXPORT_INTERVAL): the next EXPORT_BATCH export manifolds sell their fluid.

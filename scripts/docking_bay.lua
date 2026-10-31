@@ -125,6 +125,13 @@ local function fuel_stacks(module)
   return stacks
 end
 
+--- Fuel in MJ one bay holds: its buffer and its chemical fuel items.
+function docking_bay.bay_fuel(module)
+  local total = module.fuel_mj
+  for _, stack in ipairs(fuel_stacks(module)) do total = total + stack.count * stack.mj end
+  return total
+end
+
 --- Fuel in MJ the bays of a hub hold: their buffers and their chemical fuel items; with `enough`,
 --- counting stops as soon as the total reaches it (what a tier read needs to know).
 function docking_bay.fuel(hub_unit_number, enough)

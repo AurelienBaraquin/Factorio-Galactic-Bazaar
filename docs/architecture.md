@@ -113,6 +113,11 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   dispatch on the `gb_action` tag of this mod's elements; `on_gui_closed`, a destroyed hub and the
   player events (left, changed force, removed) close it; the refresh runs every
   `market_gui.SLOT_TICKS`.
+- **Building status**: every `entity_status.PASS_TICKS`, the next buildings of the mod are given a
+  custom status and, while stopped (no hub, no power), a rendered alert; the buildings are listed as
+  they are built and destroyed, and a building is also refreshed when built
+  ([terminal.md](terminal.md#building-status)). The export, catapult, settlement and order passes
+  record what their last visit did for it.
 - **Periodic handlers**: Factorio keeps one handler per tick interval, so `control.lua` groups
   handlers by interval (`every(ticks, handler)`) and registers one composed handler per interval —
   the export and the window refresh both run every 6 ticks.
