@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.34
+Date: 2026-10-31
+  Features:
+    - Statement tab in the Galactic Bazaar window: the force's transactions, newest first and a page at a time, with their game time, kind, goods or contract, quantity, amount and the balance after each.
+    - Every kind of transaction has a readable label and a tooltip explaining the rule behind it (fee rates, interest, what a contract's outcome gives back).
+    - Filter the journal by category (sales, purchases, freight, power, contracts, loans, interest, bankruptcy) and see each category's income, spending and net over the last 10 minutes, the last hour or since records began.
+  Changes:
+    - The account journal keeps the newest 500 transactions instead of 100.
+    - Each force keeps a ledger of its transactions per category and minute, so the totals count every transaction, also those the journal merges or no longer keeps; an existing save starts it at its first transaction after the update.
+    - Contract entries of the journal record the contract's kind, so a loan's entries are filed under loans.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.33
 Date: 2026-10-31
   Features:

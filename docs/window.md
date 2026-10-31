@@ -3,7 +3,8 @@
 One window with tabs gathers what the player needs to read and act on the economy (#105,
 [ADR-0023](adr/0023-central-window.md)). Code: `scripts/bazaar_gui.lua` (window, tab registry,
 hub binding, button, inputs, refresh), `scripts/overview_gui.lua` (Overview tab) with its figures
-computed by `scripts/core/overview.lua` (pure), and the tabs described with their features: Market
+computed by `scripts/core/overview.lua` (pure), `scripts/statement_gui.lua` (Statement tab) with its
+classification, pages and totals in `scripts/core/statement.lua` (pure), and the tabs described with their features: Market
 ([terminal.md](terminal.md#market-tab), `scripts/market_gui.lua`), Logistics
 ([terminal.md](terminal.md#logistics-tab), `scripts/logistics_gui.lua`, rows from the pure
 `scripts/core/logistics.lua`), Contracts
@@ -48,6 +49,7 @@ reason, or as `tier-changed` if a tier opened up since.
 | Logistics | 25 | always | the force's hubs, and for the one selected its shipments queued and in flight and its modules with their status ([terminal.md](terminal.md#logistics-tab)) |
 | Contracts | 30 | always | offers, active contracts, the credit line ([contracts.md](contracts.md)) |
 | Planets | 40 | `gb-planetary-concessions` researched (disabled before, tooltip naming the research; shown again as the Overview if the research is reversed) | planets, slots, leases and bookings ([planets.md](planets.md#planets-tab)) |
+| Statement | 50 | always | the force's journal and its totals per category ([below](#statement-tab)) |
 
 ### Overview figures
 
@@ -59,6 +61,46 @@ reason, or as `tier-changed` if a tier opened up since.
 | Reputation | the score (−20 to 20), the freight fee factor, the contract size factor, the loan rate over the term and the loan debt cap ([contracts.md](contracts.md)) |
 | Solvency | `solvent`, `insolvent` (grace left before bankruptcy, the balance to keep, and while it is kept the time left before recovery) or `banned` (credit refused after a bankruptcy: time left, bankruptcy debt); the bankruptcies so far |
 | Commitments | open contracts counted by kind and state, shown as offers waiting, active contracts (incoming, rental), active leases (concession, outsourcing) and loans with the principal left and arrears; the nearest deadline of an active contract and its kind |
+
+## Statement tab
+
+Where every credit came from and went to (#108). Read only: it works anywhere.
+
+- **Journal**: the force's journal (`storage.forces[i].journal`, [data-model.md](data-model.md)),
+  newest first, `statement.PAGE_SIZE` (12) rows a page with `<` and `>` (clamped to the first and
+  last page). Columns: game time of the entry (`h:mm:ss`; a merged entry shows its last part, its
+  tooltip the first and last), transaction (a label per kind, its tooltip the rule behind it, with
+  the current figures: freight fee rates, interest rate and period, restructuring surcharge), subject
+  (the goods with their icon and quality, electricity, or the contract and its kind; the raw key when
+  the goods' prototype is gone), quantity, amount (green received, red paid) and the balance after
+  it (empty for entries older than the balance field). A line above it gives the number of entries,
+  the oldest one's time and the journal's size.
+- **Filter**: a drop-down, All or one category; changing it goes back to the first page. An entry's
+  category is the one `account.apply` recorded on it (`category`), computed for older entries.
+- **Totals**: one row per category plus Total: income, spending, net and transactions, over the last
+  10 minutes, the last hour or since records began (a drop-down; a line gives the first tick
+  covered). They come from the force's ledger (`state.ledger`), not the journal: every transaction is
+  counted, merged or not, even once the journal has dropped it. Periods count by whole minutes of
+  game time (the current minute and the 9 or 59 before it); "since records began" starts at the
+  force's first transaction, for a save from 0.1.33 or older its first after the upgrade.
+
+| Category | Journal kinds (label) |
+|---|---|
+| Sales | `sell` of goods (window, export chests and manifolds, catapults, cargo of a removed hub sold back) |
+| Purchases | `buy` of goods (window, order combinators) |
+| Freight | `freight` (fee of a purchase), `freight-refund` (purchase that can never land nor be sold back) |
+| Power | `sell` and `buy` of `energy/…` keys (power substations), labelled `power-sell` and `power-buy` |
+| Contracts | `contract-guarantee`, `contract-installment`, `contract-charge`, `contract-fulfilled`, `contract-failed`, `contract-voided`, unless the contract is a loan |
+| Loans | `contract-advance`, `contract-repaid`, `loan-arrears`, and any contract entry whose `contract_kind` is `loan` |
+| Interest | `overdraft-interest` |
+| Bankruptcy | `bankruptcy-restructured`, `bankruptcy-debt` |
+| Other | any kind this version does not know (label `other`, its tooltip naming the kind) |
+
+Contract entries carry the contract's kind (`contract_kind`) from 0.1.34; a contract entry of an
+older save has none and counts under Contracts. A kind added to `account.apply` must be given a
+label, a category (`statement.LABELS`, `statement.LABEL_CATEGORY`) and its locale keys
+(`gb-statement.kind-<label>` and `-tooltip`, English and French); `spec/core/statement_spec.lua`
+checks every label has a category.
 
 ## Adding a tab or a panel
 
@@ -105,6 +147,13 @@ with a selected item and its detail, [terminal.md](terminal.md#market-tab)), Con
 to 0.21 ms, Planets 0.09 to 0.25 ms; the Overview of a window with no hub in reach, searching the whole 64-tile radius on each
 refresh (reach raised above the cap), 0.10 to 0.14 ms, so the search adds about 0.02 to 0.05 ms
 (one run showed a single 1 ms outlier, a garbage collection, which the budget does not cover).
+The Statement tab is measured by `tests/statement_gui.lua` in its costliest view, a full journal
+(500 entries) filtered by a category and a full ledger (60 minutes of every category) over the last
+hour, average of 10 refreshes: 0.20 to 0.29 ms unchanged and 0.40 to 0.62 ms when a transaction
+came in before each refresh (rows shift, most cells written), vanilla and Space Age, alone and
+within the full test run. Its cost grows with the
+journal only when a category is filtered (one pass over the entries), and with the minutes of the
+ledger the period covers; each element is written only when what it shows changed.
 Budget: 0.7 ms per window refresh, that is 0.7 ms per slot tick for each player
 whose index falls in that slot, nothing on other ticks and nothing for closed windows. The
 Logistics tab is measured by `tests/logistics_gui.lua` with 20 hubs, a full capsule queue and about

@@ -36,6 +36,14 @@ Its tabs:
   building's icon to show it on the camera.
 - **Contracts**: offers, contracts under way and your loans.
 - **Planets**: once **Planetary concessions** is researched, the NPC planets and their slots.
+- **Statement**: where your credits came from and went to. The journal lists your force's
+  transactions, newest first, a page at a time: when (game time), what (hover it for the rule
+  behind it: fee rates, interest, what a contract's outcome gives back), the goods or contract, the
+  quantity, the amount (green received, red paid) and your balance after it. Pick a category to see
+  only its transactions. Above it, the income, spending and net of each category (sales, purchases,
+  freight, power, contracts, loans, interest, bankruptcy) over the last 10 minutes, the last hour or
+  since records began; they count every transaction, even those the journal merged (automatic
+  sales and power settle into one entry per minute) or no longer keeps (its newest 500 entries).
 
 Every tab can be read anywhere, even from remote view, but buying, selling, accepting, declining or
 abandoning a contract, borrowing, repaying and leasing need a trading hub of your force **within

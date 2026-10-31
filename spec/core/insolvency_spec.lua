@@ -195,9 +195,12 @@ describe("insolvency.bankrupt", function()
     assert.are.same({ 1, 2 }, outcome.contracts)
     local restructured = entries(state, insolvency.RESTRUCTURED_KIND)[1]
     assert.are.same({ 12000, owed, outcome.debt }, { restructured.amount, restructured.owed, restructured.debt })
+    assert.are.same({ income = 12000, spending = 0, count = 1 }, state.ledger.total.bankruptcy)
+    assert.are.same({ income = 0, spending = 0, count = 1 }, state.ledger.total.loans)
     assert.is_true(math.abs(owed * insolvency.RESTRUCTURING_SURCHARGE - restructured.surcharge) < 1e-6)
     local failed = entries(state, "contract-failed")
-    assert.are.same({ 1, 0, "contract/2" }, { #failed, failed[1].amount, failed[1].key })
+    assert.are.same({ 1, 0, "contract/2", "loan" },
+      { #failed, failed[1].amount, failed[1].key, failed[1].contract_kind })
   end)
 
   it("takes the debt from a positive balance at once, never into the overdraft", function()

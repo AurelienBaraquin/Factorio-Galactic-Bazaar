@@ -26,10 +26,13 @@ local function state_of(force_index)
   return state and state.contracts and state or nil
 end
 
--- Records a contract's money movement in the force's account; a refusal would mean a bug in the
--- engine's bounds, so it is logged rather than ignored.
+-- Records a contract's money movement in the force's account, with the contract's kind (the
+-- Statement tab files a loan's entries under loans); a refusal would mean a bug in the engine's
+-- bounds, so it is logged rather than ignored.
 local function move(state, amount, kind, id)
-  local ok, reason = account.apply(state, amount, { tick = game.tick, kind = kind, key = "contract/" .. id })
+  local contract = state.contracts.open[id]
+  local ok, reason = account.apply(state, amount,
+    { tick = game.tick, kind = kind, key = "contract/" .. id, contract_kind = contract and contract.kind })
   if not ok then
     log("[galactic-bazaar] contract " .. id .. ": " .. kind .. " of " .. amount .. " refused: " .. reason)
   end
@@ -124,7 +127,7 @@ local function repay(state, id, contract)
   local owed = core.payoff(contract)
   if owed > 0 then
     local ok, reason = account.apply(state, -owed,
-      { tick = game.tick, kind = "contract-repaid", key = "contract/" .. id })
+      { tick = game.tick, kind = "contract-repaid", key = "contract/" .. id, contract_kind = contract.kind })
     if not ok then return nil, reason end
   end
   local outcome = core.repay(contract, game.tick)
