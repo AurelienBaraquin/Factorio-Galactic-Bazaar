@@ -1,4 +1,4 @@
-# ADR-0022 — Insolvency and bankruptcy: a grace period, then debts written off at a price
+# ADR-0022 — Insolvency and bankruptcy: a grace period, then a restructuring that freezes the debt
 
 - **Status**: Accepted
 - **Date**: 2026-10-31
@@ -23,13 +23,15 @@ depend on the force, so every rule reads `account.overdraft_limit(state)` and
    since the previous check, kept by every transaction like `overdraft_low`.
 2. **When it recovers** — as soon as its available funds are back at zero (a force hovering at the
    limit would be declared insolvent and solvent again every minute, as interest pushes it over), or
-   once its available funds stayed above a **margin** for a whole check period.
-3. **What bankruptcy costs** — only a reputation hit (the debt would be a free gift), the force's
-   assets seized (out of scope until 1.0, brief), or the debt written off against **every open
-   contract, the reputation and credit for a while**.
-4. **Credit after bankruptcy** — loans only refused (the overdraft could be drawn and written off
-   again every 72 minutes), or **loans and the overdraft** refused for a ban that grows with each
-   bankruptcy.
+   once its available funds stayed above a **margin** for a whole interest period.
+3. **What bankruptcy does to the debt** — writes it off (a first version did: borrow, spend and go
+   bankrupt kept the loan money, an exploit caught in review), seizes the force's assets (out of scope
+   until 1.0, brief), or **restructures** it: everything owed is frozen into one debt that earns no
+   interest and is repaid from income, at the cost of every open contract, the reputation and credit
+   until it is repaid.
+4. **Credit after bankruptcy** — loans only refused (the overdraft could be drawn again at once),
+   or **loans and the overdraft** refused for a ban that grows with each bankruptcy and lasts until
+   the frozen debt is repaid.
 5. **Force merge** — the destination keeps its own state (merging into a fresh force would restart
    the clock or shed a ban), or **the stricter of the two**.
 
@@ -46,42 +48,56 @@ force in force index order:
   Each check reads the limit in force at that check (`account.overdraft_limit(state)`), so a limit
   that drops under an existing debt (a credit ban, or research and reputation once #98 makes the
   limit vary) starts the grace period like any other cause: a force is never bankrupted at once.
-- **Recovery**: at a check where the lowest balance of the whole period left at least
-  `RECOVERY_SHARE` (5 %) of the limit available and no arrears are owed. A sale timed just before a
-  check is not a recovery; neither is a force back at exactly the limit.
+- **Recovery**: once every check over `RECOVERY_TICKS` (an interest period, one minute) found the
+  period's lowest balance leaving at least `RECOVERY_SHARE` (5 %) of the limit available, with no
+  arrears owed (`recovering_since` records the first of them; a check that misses the margin clears
+  it). A sale timed just before a check is not a recovery; neither is a force back at exactly the
+  limit, nor one that interest takes back under the margin within the minute. The force is told
+  only when it becomes insolvent and when it recovers, never at each dip.
 - **While insolvent**: no contract is accepted (`contracts.can_accept` refuses `insolvent`: incoming
-  contracts, rentals, concessions, outsourcing, loans) and no loan is granted. Selling, export
-  chests, power exports and contract deliveries go on, so the force can earn its way back;
-  purchases are already refused by the funds check.
-- **Bankruptcy**, at the first check `GRACE_TICKS` (10 minutes) or more after insolvency began:
-  every open contract ends — offers are declined, active ones fail with their guarantees kept and
-  without arrears (a loan's remaining installments are written off with the rest); a negative balance
-  is brought back to zero (`bankruptcy-write-off` journal entry) and arrears are cleared; a positive
-  balance is kept; reputation falls to the minimum (−20); and credit is refused for a ban of
-  `BAN_TICKS` (60 minutes), doubled with each bankruptcy up to 8 hours (`bankruptcies` counts
-  them). During the ban `account.overdraft_limit` is 0 (so no overdraft and no interest) and loans
-  are refused (`credit-ban`); contracts that need no credit can still be taken. The force is told
-  what ended and for how long, and again when credit returns.
+  contracts, rentals, concessions, outsourcing, loans; a lease is refused before its offer is filed)
+  and no loan is granted. Selling, export chests, power exports and contract deliveries go on, so
+  the force can earn its way back. Purchases are not refused as such: the funds check refuses them
+  while the balance is beyond the limit, but a force insolvent through arrears, or with funds again
+  while it recovers, may still buy.
+- **Bankruptcy**, at the first check `GRACE_TICKS` (10 minutes) or more after insolvency began
+  whose period missed the margin: every open contract ends — offers are declined, active ones fail
+  with their guarantees kept (each journaled as a 0-credit `contract-failed`). **Nothing is written
+  off**: the negative balance, the arrears and each active loan's installments left
+  (`contracts.payoff`) move into `bankruptcy_debt`; the balance is set to 0 and arrears to 0, the
+  move journaled as one `bankruptcy-restructured` entry (its amount brings the balance to 0, its
+  `debt` field the total moved). The debt is frozen — no interest — and at every check it takes the
+  whole positive balance it can, never into the overdraft (`bankruptcy-debt` entries, merged per
+  minute), so sales, exports and contract rewards repay it. Reputation falls to the minimum (−20).
+  Credit is refused (`credit_ban_until`) until **both** `BAN_TICKS` (60 minutes, doubled with each
+  bankruptcy up to 8 hours, `bankruptcies` counts them) have passed **and** `bankruptcy_debt` is 0.
+  Meanwhile `account.overdraft_limit` is 0 (no overdraft, no interest) and loans are refused
+  (`credit-ban`); contracts that need no credit can still be taken. The force is told what ended and
+  what it owes, and again when credit returns.
 - **What a bankruptcy leaves**: leases release their planet slots through the concessions sweep,
   rented machines are released by the rental service (both already react to a contract that is no
   longer active); goods already paid — capsules in flight, planet shipments in transit, an incoming
   contract's ingredients — still land, since they were settled when ordered.
-- **Force merge**: the destination keeps the earliest `insolvent_since`, the latest
-  `credit_ban_until` and the most `bankruptcies`; lowest balances add up like balances.
-- The market window shows the state and the time left (insolvency or credit ban); the Borrow
-  buttons say why they are disabled.
+- **Force merge**: the destination keeps the earliest `insolvent_since` (its recovery starts
+  afresh), the latest `credit_ban_until` and the most `bankruptcies`; bankruptcy debts and lowest
+  balances add up. A healthy force can thus inherit another's ban and debt.
+- The market window shows the state and the time left (insolvency), or the ban's time left and the
+  debt still to repay (credit ban); the Borrow buttons say why they are disabled.
 
 ## Consequences
 
-- Positive: every debt now has an end; dodging bankruptcy needs real income for a whole period;
-  the overdraft cannot be drawn and written off again during the ban, and repeated bankruptcies
-  cost more each time.
-- Trade-offs accepted: a force can still draw its overdraft and walk away from it once per grace
-  plus ban (about 72 minutes the first time, more after), at the cost of every open contract and a
-  reputation of −20 (fees ×1.5, smaller contracts); a force that recovers in the last second of its
-  grace still goes bankrupt (the period's lowest point counts); after a bankruptcy a force has no
-  credit at all, so a contract needing a guarantee needs a positive balance.
-- New per-force fields: `solvency_low`, `insolvent_since`, `credit_ban_until`, `bankruptcies`,
-  given to older saves by `force_registry.ensure` on configuration change.
+- Positive: no debt is ever cancelled, so borrowing or overdrawing and then going bankrupt gains
+  nothing: there is no walk-away. Bankruptcy is a restructuring: it stops interest from growing a
+  debt the force cannot serve, at the price of every open contract, a reputation of −20 (fees ×1.5,
+  smaller contracts) and no credit until the debt is repaid. Dodging bankruptcy needs real income
+  held for a minute; repeated bankruptcies cost more each time.
+- Trade-offs accepted: a frozen debt earns no interest, so a bankrupt force repays less than it
+  would have with interest running; it repays only from income, so a force with none stays without
+  credit indefinitely; to escape bankruptcy, a force must reach the margin for a whole check period
+  before the grace ends; after a bankruptcy a force has no credit at all, so a contract needing a
+  guarantee needs a positive balance, which the debt takes first.
+- New per-force fields: `solvency_low`, `insolvent_since`, `recovering_since`, `credit_ban_until`,
+  `bankruptcies`, `bankruptcy_debt`, given to older saves by `force_registry.ensure` on
+  configuration change where they have a starting value.
 - Follow-up: #98 (research raising the limit) changes `account.overdraft_limit`; the ban must keep
   returning 0 there.

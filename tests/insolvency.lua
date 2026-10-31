@@ -20,10 +20,11 @@ local function state() return storage.forces[force_index()] end
 local function technology(name) return game.forces.player.technologies[name] end
 -- The balance at which the player force has `available` funds left, overdraft included.
 local function funds(available) return available - account.overdraft_limit(state()) end
-local function check() insolvency.on_check_tick({ tick = game.tick }) end
+-- Runs the insolvency check at `tick` (now by default).
+local function check(tick) insolvency.on_check_tick({ tick = tick or game.tick }) end
 
 local FIELDS = { "balance", "reputation", "arrears", "overdraft_low", "solvency_low", "insolvent_since",
-  "credit_ban_until", "bankruptcies" }
+  "credit_ban_until", "bankruptcies", "bankruptcy_debt", "recovering_since" }
 
 -- Places `name` `dx` tiles east of the test player; destroyed after each test.
 local function place(name, dx)
@@ -64,6 +65,7 @@ describe("insolvency", function()
     state().balance, state().reputation, state().arrears = 0, 0, 0
     state().overdraft_low, state().solvency_low = 0, 0
     state().insolvent_since, state().credit_ban_until, state().bankruptcies = nil, nil, 0
+    state().bankruptcy_debt, state().recovering_since = 0, nil
     state().contracts.open = {}
     state().markets["item/iron-gear-wheel"] = nil
   end)
@@ -90,17 +92,20 @@ describe("insolvency", function()
     storage.concessions = {}
   end)
 
-  test("become insolvent beyond the overdraft limit, and recover only after a whole period above the margin", function()
-    state().balance = funds(-100)
-    check()
-    assert.are.equal(game.tick, state().insolvent_since)
-    -- A sale at the check is not a recovery: the period's lowest balance was beyond the limit.
-    assert.is_true(account.apply(state(), 20000, { tick = game.tick, kind = "sell" }))
-    check()
-    assert.is_true(core_insolvency.insolvent(state()))
-    check()
-    assert.is_nil(state().insolvent_since)
-  end)
+  test("become insolvent beyond the overdraft limit, and recover only after an interest period above the margin",
+    function()
+      state().balance = funds(-100)
+      check()
+      assert.are.equal(game.tick, state().insolvent_since)
+      -- A sale at the check is not a recovery: the period's lowest balance was beyond the limit.
+      assert.is_true(account.apply(state(), 20000, { tick = game.tick, kind = "sell" }))
+      check()
+      assert.is_true(core_insolvency.insolvent(state()))
+      check(game.tick + 60)
+      assert.is_true(core_insolvency.insolvent(state()))
+      check(game.tick + 60 + core_insolvency.RECOVERY_TICKS)
+      assert.is_nil(state().insolvent_since)
+    end)
 
   test("become insolvent while owing arrears the available funds cannot cover", function()
     state().arrears = 50000
@@ -126,28 +131,58 @@ describe("insolvency", function()
     assert.is_true(state().balance > 0)
   end)
 
-  test("go bankrupt at the end of the grace period: contracts end, debt is written off, credit refused", function()
+  test("borrow, spend and go bankrupt: the debt stays owed, frozen, and is taken from later sales", function()
     local loan = loans.borrow(force_index(), 1)
+    local loan_left = core.payoff(contracts.get(force_index(), loan))
     local offered = offer()
-    state().balance, state().arrears, state().reputation = funds(-500), 3000, 10
+    -- The principal and the whole overdraft spent, then interest beyond the limit.
+    assert.is_true(account.apply(state(), -(5000 + account.overdraft_limit(state())), { tick = game.tick }))
+    state().balance, state().arrears, state().reputation = state().balance - 50, 3000, 10
     check()
     state().insolvent_since = game.tick - core_insolvency.GRACE_TICKS
     check()
     assert.is_nil(contracts.get(force_index(), loan))
     assert.is_nil(contracts.get(force_index(), offered))
-    assert.are.equal(0, state().balance)
-    assert.are.equal(0, state().arrears)
+    local debt = account.BASE_OVERDRAFT_LIMIT + 50 + 3000 + loan_left
+    assert.is_true(math.abs(debt - state().bankruptcy_debt) < 1e-6)
+    assert.are.same({ 0, 0 }, { state().balance, state().arrears })
     assert.are.equal(reputation.MIN, state().reputation)
     assert.are.equal(1, state().bankruptcies)
     assert.are.equal(game.tick + core_insolvency.BAN_TICKS, state().credit_ban_until)
-    assert.are.equal(core_insolvency.WRITE_OFF_KIND, state().journal[#state().journal].kind)
+    assert.are.equal(core_insolvency.RESTRUCTURED_KIND, state().journal[#state().journal].kind)
     assert.are.same({ nil, "credit-ban" }, { loans.borrow(force_index(), 1) })
     assert.are.same({ false, "insufficient-funds" }, { market.buy(force_index(), "item", "iron-gear-wheel", 1) })
     assert.is_truthy(contracts.accept(force_index(), offer()))
-    state().credit_ban_until = game.tick
-    check()
+    -- The ban's time has passed, but the debt is not repaid: no credit yet.
+    local after_ban = game.tick + core_insolvency.BAN_TICKS
+    check(after_ban)
+    assert.is_true(core_insolvency.credit_banned(state()))
+    assert.are.equal(0, account.overdraft_limit(state()))
+    assert.is_true((market.sell(force_index(), "item", "iron-gear-wheel", 100)))
+    local sold = state().balance
+    check(after_ban + 60)
+    assert.are.equal(0, state().balance)
+    assert.is_true(math.abs(debt - sold - state().bankruptcy_debt) < 1e-6)
+    assert.are.same({ nil, "credit-ban" }, { loans.borrow(force_index(), 1) })
+    state().balance = state().bankruptcy_debt + 10
+    check(after_ban + 120)
+    assert.are.same({ 0, 10 }, { state().bankruptcy_debt, state().balance })
+    assert.is_false(core_insolvency.credit_banned(state()))
     assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(state()))
     assert.is_true((market.buy(force_index(), "item", "iron-gear-wheel", 1)))
+  end)
+
+  test("refuse a lease to an insolvent force before filing any offer", function()
+    technology(concessions.CONCESSION_TECHNOLOGY).researched = true
+    local hub = place("gb-hub", 3)
+    hub.energy = hub.electric_buffer_size
+    place("gb-import-chest", 6)
+    state().balance, state().insolvent_since = 1e6, game.tick
+    local history = #state().contracts.history
+    assert.are.same({ nil, "insolvent" },
+      { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore") })
+    assert.are.equal(history, #state().contracts.history)
+    assert.is_nil(next(state().contracts.open))
   end)
 
   test("release a lease's planet slot once bankruptcy failed its contract", function()

@@ -75,7 +75,8 @@ local function refresh_status(player, data)
     elements.solvency.tooltip = { "gb-gui.insolvent-terms",
       catalog.format_credits(insolvency.recovery_balance(state)) }
   elseif ban then
-    elements.solvency.caption = { "gb-gui.credit-ban", catalog.format_duration(ban) }
+    elements.solvency.caption = { "gb-gui.credit-ban", catalog.format_duration(ban),
+      catalog.format_credits(state.bankruptcy_debt or 0) }
     elements.solvency.tooltip = { "gb-gui.credit-ban-terms" }
   end
   elements.reputation.caption = { "gb-gui.reputation", state.reputation }

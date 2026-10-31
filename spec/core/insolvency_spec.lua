@@ -59,7 +59,16 @@ describe("insolvency.check", function()
     assert.are.same({ "insolvent" }, names(insolvency.check(state, 120)))
   end)
 
-  it("ends insolvency only once the funds stayed above the recovery margin for a whole period", function()
+  -- Checks `state` every CHECK_TICKS from `from` to `to`; returns the names of every event.
+  local function run(state, from, to)
+    local all = {}
+    for tick = from, to, insolvency.CHECK_TICKS do
+      for _, name in ipairs(names(insolvency.check(state, tick))) do all[#all + 1] = name end
+    end
+    return all
+  end
+
+  it("ends insolvency only once the funds stayed above the recovery margin for an interest period", function()
     local state = new_state()
     state.balance = funds(state, -100)
     insolvency.check(state, 60)
@@ -69,8 +78,26 @@ describe("insolvency.check", function()
     -- before the check is not enough either: the period's lowest point was still short.
     assert.is_true(account.apply(state, insolvency.recovery_margin(state), { tick = 179 }))
     assert.are.same({}, insolvency.check(state, 180))
-    assert.are.same({ "recovered" }, names(insolvency.check(state, 240)))
+    assert.are.same({}, run(state, 240, 240 + insolvency.RECOVERY_TICKS - 60))
+    assert.are.same({ "recovered" }, names(insolvency.check(state, 240 + insolvency.RECOVERY_TICKS)))
     assert.is_nil(state.insolvent_since)
+    assert.is_nil(state.recovering_since)
+  end)
+
+  it("restarts the recovery of a force that dips under the margin, telling it nothing until it holds", function()
+    local state = new_state()
+    state.balance = funds(state, -100)
+    insolvency.check(state, 60)
+    state.balance = funds(state, insolvency.recovery_margin(state))
+    assert.are.same({}, run(state, 120, 1800))
+    -- Interest takes it under the margin once, then income brings it back.
+    state.balance = state.balance - 50
+    assert.are.same({}, insolvency.check(state, 1860))
+    assert.is_nil(state.recovering_since)
+    state.balance = state.balance + 50
+    -- The period ending at 1920 still saw the dip: the recovery restarts at 1980.
+    assert.are.same({}, run(state, 1920, 1980 + insolvency.RECOVERY_TICKS - 60))
+    assert.are.same({ "recovered" }, names(insolvency.check(state, 1980 + insolvency.RECOVERY_TICKS)))
   end)
 
   it("does not let a brief recovery at the check tick restart the clock", function()
@@ -100,7 +127,8 @@ describe("insolvency.check", function()
     assert.are.same({ "insolvent" }, names(events))
     assert.are.equal(120, state.insolvent_since)
     assert.are.same({}, later)
-    assert.are.same({ "recovered" }, names(insolvency.check(state, 180 + insolvency.GRACE_TICKS)))
+    local from = 180 + insolvency.GRACE_TICKS
+    assert.are.same({ "recovered" }, run(state, from, from + insolvency.RECOVERY_TICKS))
   end)
 
   it("keeps an insolvent force with arrears insolvent until they are paid", function()
@@ -108,8 +136,9 @@ describe("insolvency.check", function()
     insolvency.check(state, 60)
     state.balance = 100000
     assert.are.same({}, insolvency.check(state, 120))
+    assert.is_nil(state.recovering_since)
     state.arrears = 0
-    assert.are.same({ "recovered" }, names(insolvency.check(state, 180)))
+    assert.are.same({ "recovered" }, run(state, 180, 180 + insolvency.RECOVERY_TICKS))
   end)
 
   it("bankrupts a force still insolvent at the end of the grace period, not one tick earlier", function()
@@ -135,10 +164,19 @@ describe("insolvency.bankrupt", function()
     return offered, loan
   end
 
-  it("fails active contracts, declines offers, writes the debt off and sets reputation to the minimum", function()
+  local function entries(state, kind)
+    local found = {}
+    for _, entry in ipairs(state.journal) do
+      if entry.kind == kind then found[#found + 1] = entry end
+    end
+    return found
+  end
+
+  it("ends contracts and moves everything owed, loans included, into a frozen debt", function()
     local state = new_state(-12000, 3000)
     state.reputation = 7
     local offered, loan = book(state)
+    local loan_left = contracts.payoff(loan)
     local outcome = insolvency.bankrupt(state, 1000)
     assert.are.equal(contracts.DECLINED, offered.state)
     assert.are.equal(contracts.FAILED, loan.state)
@@ -149,16 +187,42 @@ describe("insolvency.bankrupt", function()
     assert.are.equal(0, state.overdraft_low)
     assert.are.equal(0, state.solvency_low)
     assert.are.equal(reputation.MIN, state.reputation)
-    assert.are.equal(15000, outcome.written_off)
+    assert.are.equal(12000 + 3000 + loan_left, outcome.debt)
+    assert.are.equal(outcome.debt, state.bankruptcy_debt)
     assert.are.same({ 1, 2 }, outcome.contracts)
-    assert.are.equal("bankruptcy-write-off", state.journal[#state.journal].kind)
-    assert.are.equal(12000, state.journal[#state.journal].amount)
+    local restructured = entries(state, insolvency.RESTRUCTURED_KIND)[1]
+    assert.are.same({ 12000, outcome.debt }, { restructured.amount, restructured.debt })
+    local failed = entries(state, "contract-failed")
+    assert.are.same({ 1, 0, "contract/2" }, { #failed, failed[1].amount, failed[1].key })
   end)
 
-  it("keeps a positive balance", function()
-    local state = new_state(250)
+  it("takes the debt from a positive balance at once, never into the overdraft", function()
+    local state = new_state(250, 100)
     insolvency.bankrupt(state, 1000)
-    assert.are.equal(250, state.balance)
+    assert.are.equal(150, state.balance)
+    assert.are.equal(0, state.bankruptcy_debt)
+    local other = new_state(250, 1000)
+    insolvency.bankrupt(other, 1000)
+    assert.are.equal(0, other.balance)
+    assert.are.equal(750, other.bankruptcy_debt)
+  end)
+
+  it("keeps the debt frozen and takes it from later income, holding credit until it is repaid", function()
+    local state = new_state(-20000)
+    insolvency.bankrupt(state, 1000)
+    local after_ban = 1000 + insolvency.BAN_TICKS
+    assert.are.same({}, insolvency.check(state, after_ban))
+    assert.are.equal(20000, state.bankruptcy_debt)
+    assert.are.equal(0, account.charge_interest(state, after_ban))
+    assert.is_true(insolvency.credit_banned(state))
+    assert.is_true(account.apply(state, 5000, { tick = after_ban + 1, kind = "sell" }))
+    assert.are.same({}, insolvency.check(state, after_ban + 60))
+    assert.are.same({ 0, 15000 }, { state.balance, state.bankruptcy_debt })
+    assert.are.equal(insolvency.DEBT_KIND, state.journal[#state.journal].kind)
+    assert.is_true(account.apply(state, 16000, { tick = after_ban + 61, kind = "sell" }))
+    assert.are.same({ "credit-restored" }, names(insolvency.check(state, after_ban + 120)))
+    assert.are.same({ 1000, 0 }, { state.balance, state.bankruptcy_debt })
+    assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(state))
   end)
 
   it("refuses credit for a ban that doubles with each bankruptcy, up to a bound", function()
@@ -175,7 +239,7 @@ describe("insolvency.bankrupt", function()
     assert.are.equal(8 * insolvency.BAN_TICKS, insolvency.ban_ticks(4))
   end)
 
-  it("takes the overdraft away during the ban, so a written-off debt cannot be drawn again", function()
+  it("takes the overdraft away during the ban, so the debt cannot be drawn again", function()
     local state = new_state(-12000)
     insolvency.bankrupt(state, 1000)
     assert.are.equal(0, account.overdraft_limit(state))
@@ -183,7 +247,7 @@ describe("insolvency.bankrupt", function()
     assert.are.equal(0, account.charge_interest(state, 1001))
   end)
 
-  it("gives credit back when the ban ends", function()
+  it("gives credit back when the ban ends with no debt left", function()
     local state = new_state()
     insolvency.bankrupt(state, 1000)
     assert.are.same({}, insolvency.check(state, 1000 + insolvency.BAN_TICKS - 1))
@@ -229,10 +293,13 @@ describe("insolvency.merge", function()
     local destination, source = new_state(), new_state()
     source.insolvent_since, source.credit_ban_until, source.bankruptcies = 100, 9000, 2
     destination.insolvent_since, destination.credit_ban_until, destination.bankruptcies = 500, 12000, 1
+    source.bankruptcy_debt, destination.bankruptcy_debt, destination.recovering_since = 300, 200, 400
     insolvency.merge(destination, source)
     assert.are.equal(100, destination.insolvent_since)
     assert.are.equal(12000, destination.credit_ban_until)
     assert.are.equal(2, destination.bankruptcies)
+    assert.are.equal(500, destination.bankruptcy_debt)
+    assert.is_nil(destination.recovering_since)
   end)
 
   it("does not restart the clock of an insolvent force merged into a fresh one", function()
@@ -248,6 +315,7 @@ describe("insolvency.init", function()
     local state = { balance = 0 }
     insolvency.init(state)
     assert.are.equal(0, state.bankruptcies)
+    assert.are.equal(0, state.bankruptcy_debt)
     assert.is_nil(state.insolvent_since)
     assert.is_nil(state.credit_ban_until)
   end)

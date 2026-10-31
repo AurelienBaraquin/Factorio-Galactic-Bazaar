@@ -21,8 +21,10 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | `reservations` | list | `{planet, kind, name, slots, until_tick, contract}...`: the force's reservations of NPC planet slots and the contract each backs, ended ones dropped when a reservation is made, those of specialties gone from the catalog dropped on configuration change; carried over on merge ([planets.md](planets.md), ADR-0018) |
 | `arrears` | number | credits a defaulted loan left owed, 0 to start (added on configuration change for saves made before loans): its unpaid installment and every one left; taken from the available funds every 60 ticks, down to the overdraft limit (what is left stays owed); while above 0 no loan is granted; added up on merge ([contracts.md](contracts.md), ADR-0021) |
 | `insolvent_since` | tick or nil | the check at which the force became insolvent (balance beyond the overdraft limit during a period, or arrears above the available funds); nil once it recovers or goes bankrupt, `GRACE_TICKS` (10 min) after it; on merge the earliest of the two ([contracts.md](contracts.md), ADR-0022) |
-| `credit_ban_until` | tick or nil | after a bankruptcy, the tick credit returns: until then the overdraft limit is 0 and loans are refused; cleared by the check at or after it; on merge the latest of the two (ADR-0022) |
+| `recovering_since` | tick or nil | while insolvent, the first check of the current run of checks that found the margin held; the force recovers once it has held for an interest period; cleared by a check that misses it, on recovery, bankruptcy and merge (ADR-0022) |
+| `credit_ban_until` | tick or nil | after a bankruptcy, the earliest tick credit returns: until then, and until `bankruptcy_debt` is 0, the overdraft limit is 0 and loans are refused; cleared by the first check at or after it with no bankruptcy debt left; on merge the latest of the two (ADR-0022) |
 | `bankruptcies` | number | bankruptcies so far, 0 to start (added on configuration change for older saves); each doubles the next credit ban, up to 8 hours; on merge the larger of the two (ADR-0022) |
+| `bankruptcy_debt` | number | what the force owed at its bankruptcies (negative balance, arrears, loan installments left) and has not repaid, 0 to start (added on configuration change for older saves); earns no interest; every 60 ticks it takes what it can of the positive balance; added up on merge (ADR-0022) |
 | `reputation` | number | the force's reputation score, from −20 to 20 (brought within them on configuration change for saves before 0.1.17): +1 per fulfilled contract, −1 per failed one; on merge only the source's debt follows ([contracts.md](contracts.md), ADR-0016) |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
@@ -49,7 +51,7 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
 - when forces merge (`on_forces_merging`), the source state is folded into the destination and
   removed: balances and arrears add up, journals are joined in tick order and trimmed, the
   destination keeps its own markets and the stricter insolvency of the two (earliest insolvency,
-  latest credit ban, most bankruptcies). A new field must
+  latest credit ban, most bankruptcies), and bankruptcy debts add up. A new field must
   define how two values combine, in `force_registry.merge`;
 - `force_registry.ensure` fills in any field a state lacks, so a save from an older version is
   upgraded on `on_configuration_changed` without a separate migration;

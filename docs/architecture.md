@@ -89,8 +89,9 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   from each force's available funds, down to its overdraft limit ([contracts.md](contracts.md)).
 - **Insolvency**: every `insolvency.CHECK_TICKS`, right after the arrears collection,
   `insolvency.on_check_tick` checks every force in index order; it becomes insolvent, recovers,
-  goes bankrupt (contracts ended, debt written off, reputation to −20, credit refused for a while)
-  or gets its credit back, and is told so; `contracts.can_accept` and the loans refuse an insolvent
+  goes bankrupt (contracts ended, everything owed frozen into a bankruptcy debt repaid from income,
+  reputation to −20, credit refused until the ban has passed and that debt is repaid) or gets its
+  credit back, and is told so; `contracts.can_accept` and the loans refuse an insolvent
   force ([contracts.md](contracts.md), [ADR-0022](adr/0022-insolvency-and-bankruptcy.md)).
 - **Concessions and outsourcing**: their periods run in the contract settlement (the service
   registered for each kind checks it can ship, ships the ore or the products, then the charge is

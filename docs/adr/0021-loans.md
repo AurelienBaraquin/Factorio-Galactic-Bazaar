@@ -80,4 +80,5 @@ changes.
   for the purpose (a console or another mod) each get a reputation-0 cap and rate before a merge.
 - Follow-up: overdraft (#95): done, ADR-0020; bankruptcy (#97): done,
   [ADR-0022](0022-insolvency-and-bankruptcy.md): arrears the available funds cannot cover make the
-  force insolvent, and a bankruptcy writes them off.
+  force insolvent, and a bankruptcy freezes them, with the installments left, into a debt repaid
+  from income.

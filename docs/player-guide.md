@@ -152,16 +152,20 @@ shows **Insolvent: bankruptcy in m:ss**.
 
 - You have **10 minutes** to recover: bring your balance back until 5 % of your overdraft limit is
   left (**−9 500 credits** at the base limit; the message says the figure) and keep it there for a
-  whole second, with no arrears left. A sale just
-  before the check does not count if the balance was still too low earlier in that second.
+  **whole minute**, with no arrears left. A sale just before a check does not count if the balance
+  was still too low earlier in that second, and a dip under that figure restarts the minute.
 - Meanwhile no contract is accepted and no loan is granted. You can still sell, from the window,
   export chests, export manifolds and power substations, and deliver to your contracts.
-- Still insolvent after 10 minutes, your force goes **bankrupt**: every open contract ends (offers
-  declined, active contracts failed, their guarantees kept), your debt is written off (a negative
-  balance goes back to 0, arrears and the installments left on your loans are cancelled), your
-  reputation falls to −20, and you get **no credit for 60 minutes**: no loan, and an overdraft limit
-  of 0. Each new bankruptcy doubles that time, up to 8 hours. The market window shows **Bankrupt: no
-  credit for m:ss**; you are told when credit returns.
+- Still insolvent after 10 minutes, your force goes **bankrupt**. Nothing you owe is cancelled:
+  - every open contract ends (offers declined, active contracts failed, their guarantees kept);
+  - everything you owe — a negative balance, arrears, the installments left on your loans — becomes
+    one **bankruptcy debt**, frozen: it earns no interest. Your balance is set to 0, and every second
+    the debt takes whatever your balance holds above 0, so your sales repay it;
+  - your reputation falls to −20;
+  - you get **no credit**: no loan and an overdraft limit of 0, for **60 minutes and until the debt is
+    repaid**. Each new bankruptcy doubles that time, up to 8 hours.
+- The market window shows **Bankrupt: no credit for m:ss, X of debt to repay**; you are told when
+  credit returns.
 - What was already paid still arrives: capsules in flight, shipments from planets in transit.
 
 ## Machine rental

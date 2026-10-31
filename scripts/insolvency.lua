@@ -1,9 +1,10 @@
 -- Insolvency and bankruptcy (#97, ADR-0022): the runtime side of scripts/core/insolvency.lua. Every
 -- CHECK_TICKS, after the loans' arrears collection, every force is checked in force index order and
--- told when it becomes insolvent, recovers, goes bankrupt or gets its credit back. The state lives in
--- storage.forces[i] (insolvent_since, credit_ban_until, bankruptcies, solvency_low). The ends a
--- bankruptcy gives contracts are picked up by the features that offer them: leases release their
--- slots (concessions sweep), rented machines are released (rental service).
+-- told when it becomes insolvent, recovers, goes bankrupt or gets its credit back; its bankruptcy debt
+-- is taken from its positive balance at each check. The state lives in storage.forces[i]
+-- (insolvent_since, recovering_since, credit_ban_until, bankruptcies, bankruptcy_debt, solvency_low).
+-- The ends a bankruptcy gives contracts are picked up by the features that offer them: leases release
+-- their slots (concessions sweep), rented machines are released (rental service).
 local catalog = require("scripts.core.catalog")
 local core = require("scripts.core.insolvency")
 local reputation = require("scripts.core.reputation")
@@ -21,7 +22,7 @@ local function message(state, event)
     return { "gb-insolvency.insolvent", catalog.format_credits(core.recovery_balance(state)),
       core.GRACE_TICKS / 3600 }, WARNING
   elseif event.name == "bankrupt" then
-    return { "gb-insolvency.bankrupt", #event.contracts, catalog.format_credits(event.written_off), reputation.MIN,
+    return { "gb-insolvency.bankrupt", #event.contracts, catalog.format_credits(event.debt), reputation.MIN,
       event.ban_ticks / 3600 }, WARNING
   end
   return { "gb-insolvency." .. event.name }, GOOD
