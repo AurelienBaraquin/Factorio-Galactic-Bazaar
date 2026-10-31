@@ -1,14 +1,13 @@
 -- In-game tests of mining concessions (scripts/concessions.lua, #85): leasing a planet's slot, the
--- charge per period shipped, defaults, the end of the term and the lease button of the planets window.
+-- charge per period shipped, defaults, the end of the term and the lease button of the Planets tab.
 local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
+local bazaar_gui = require("scripts.bazaar_gui")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local freight = require("scripts.freight")
-local market_gui = require("scripts.market_gui")
 local planets = require("scripts.planets")
-local planets_gui = require("scripts.planets_gui")
 
 local player, created
 local function place(name, dx, dy)
@@ -66,8 +65,7 @@ describe("mining concessions", function()
   end)
   after_each(function()
     player = game.get_player(1)
-    market_gui.close(1)
-    planets_gui.close(1)
+    bazaar_gui.close(1)
     for _, entity in ipairs(created or {}) do
       if entity.valid then
         storage.freight.hubs[entity.unit_number] = nil
@@ -89,31 +87,32 @@ describe("mining concessions", function()
     storage.concessions = {}
   end)
 
-  test("leasing and booking wait for their research, and the Planets button with them", function()
+  test("leasing and booking wait for their research, and the Planets tab with them", function()
     technology(concessions.CONCESSION_TECHNOLOGY).researched = false
     technology(concessions.OUTSOURCING_TECHNOLOGY).researched = false
     assert.are.same({ nil, "not-researched" },
       { concessions.lease(force_index(), hub.unit_number, "carbo", "coal") })
-    market_gui.open(player, hub)
-    assert.is_false(find(player.gui.screen.gb_market, "planets").visible)
+    bazaar_gui.open(player, "planets", hub)
+    local tab = bazaar_gui.window(1).elements.tabs.planets.tab
+    assert.are.equal("overview", bazaar_gui.window(1).tab)
+    assert.is_false(tab.enabled)
+    assert.are.equal("gb-bazaar.tab-locked", tab.tooltip[1])
     technology(concessions.CONCESSION_TECHNOLOGY).researched = true
     assert.is_truthy(concessions.lease(force_index(), hub.unit_number, "carbo", "coal"))
     assert.are.same({ nil, "not-researched" },
       { concessions.book(force_index(), hub.unit_number, "fabrica-nova", "crafting", "iron-gear-wheel") })
-    market_gui.close(1)
-    market_gui.open(player, hub)
-    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+    bazaar_gui.refresh(player)
+    assert.is_true(tab.enabled)
+    test_helpers.select_tab(player, "planets")
     local book
-    for _, row in ipairs(storage.planets_gui[1].elements.rows) do
+    for _, row in ipairs(bazaar_gui.view(1, "planets").elements.rows) do
       if row.book then book = row.book end
     end
     assert.is_false(book.enabled)
     assert.are.equal("gb-planets.book-locked", book.tooltip[1])
-    planets_gui.close(1)
     technology(concessions.CONCESSION_TECHNOLOGY).researched = false
-    market_gui.open(player, hub)
-    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
-    assert.is_nil(player.gui.screen.gb_planets)
+    bazaar_gui.refresh(player)
+    assert.are.same({ "overview", false }, { bazaar_gui.window(1).tab, tab.enabled })
   end)
 
   test("a lease reserves a slot and holds one period's charge as guarantee", function()
@@ -241,13 +240,11 @@ describe("mining concessions", function()
     end)
   end)
 
-  test("the planets window leases a slot at its hub", function()
-    market_gui.open(player, hub)
-    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
-    local window = player.gui.screen.gb_planets
-    local button = find(window, "planets-lease", "stone")
+  test("the Planets tab leases a slot at the window's hub", function()
+    bazaar_gui.open(player, "planets", hub)
+    local button = find(player.gui.screen.gb_bazaar, "planets-lease", "stone")
     assert.is_true(button.enabled)
-    planets_gui.on_gui_click({ element = button, player_index = 1 })
+    bazaar_gui.on_gui_input({ element = button, player_index = 1 })
     local id, lease = next(storage.concessions)
     assert.are.same({ hub.unit_number, "carbo", "stone" }, { lease.hub, lease.planet, lease.item })
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
@@ -290,15 +287,14 @@ describe("mining concessions", function()
       select(2, concessions.book(force_index(), hub.unit_number, "carbo", "crafting", "iron-gear-wheel")))
   end)
 
-  test("the planets window books the chosen recipe", function()
-    market_gui.open(player, hub)
-    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+  test("the Planets tab books the chosen recipe", function()
+    bazaar_gui.open(player, "planets", hub)
     local button
-    for _, row in ipairs(storage.planets_gui[1].elements.rows) do
+    for _, row in ipairs(bazaar_gui.view(1, "planets").elements.rows) do
       if row.planet == "fabrica-nova" and row.name == "crafting" then button = row.book end
     end
     button.parent.children[1].elem_value = "iron-gear-wheel"
-    planets_gui.on_gui_click({ element = button, player_index = 1 })
+    bazaar_gui.on_gui_input({ element = button, player_index = 1 })
     local id, lease = next(storage.concessions)
     assert.are.same({ "iron-gear-wheel", 600 }, { lease.item, lease.units })
     assert.are.equal("outsourcing", contracts.get(force_index(), id).kind)

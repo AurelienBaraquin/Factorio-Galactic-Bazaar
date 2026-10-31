@@ -1,31 +1,23 @@
--- The market window, opened by clicking a trading hub within reach: balance and overdraft left, the
--- force's insolvency or credit ban with the time left (ADR-0022), a searchable and paged
--- list of tradeable items with their prices, and a panel to buy into the hub's import chests or sell
--- from the player's inventory. Interface state is per player in storage.players; economy state
--- stays per force. Every action is re-validated, since GUI events are player input.
+-- The Market tab of the Galactic Bazaar window (scripts/bazaar_gui.lua): balance and overdraft left,
+-- the force's insolvency or credit ban with the time left (ADR-0022), the window's hub and its
+-- delivery tier, a searchable and paged list of tradeable items with their prices, and a panel to buy
+-- into the hub's import chests or sell from the player's inventory. Prices can be read anywhere;
+-- buying and selling need the window's hub within reach. Interface state is the tab's view in
+-- storage.bazaar_gui; economy state stays per force. Every action is re-validated, since GUI events
+-- are player input.
+local bazaar_gui = require("scripts.bazaar_gui")
 local cargo = require("scripts.cargo")
 local account = require("scripts.core.account")
 local catalog = require("scripts.core.catalog")
-local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
-local hubs = require("scripts.hubs")
 local insolvency = require("scripts.core.insolvency")
 local market = require("scripts.market")
-local concessions = require("scripts.concessions")
-local planets_gui = require("scripts.planets_gui")
 local reputation = require("scripts.core.reputation")
 local telecom = require("scripts.telecom")
 local telecom_core = require("scripts.core.telecom")
 
 local market_gui = {}
 
-market_gui.INPUT = "gb-open-hub"
--- Each open window is refreshed every SLOT_TICKS × SLOTS ticks (once a second); windows are spread
--- over the slots by player index, so they do not all refresh on the same tick.
-market_gui.SLOT_TICKS = 6
-market_gui.SLOTS = 10
-
-local WINDOW = "gb_market"
 local TREND_CAPTIONS = { up = "▲", down = "▼", flat = "–" }
 -- Price history points shown in the detail panel (telecommunications level 2).
 local HISTORY_WIDTH = 30
@@ -48,22 +40,8 @@ local function tradeable_keys()
   return keys
 end
 
-local function window_of(player_index)
-  local data = storage.players[player_index]
-  local window = data and data.elements and data.elements.window
-  return window and window.valid and window or nil
-end
-
--- The hub this window trades through, if it still exists, belongs to the player's force and is
--- within the player's reach.
-local function usable_hub(player, data)
-  local hub = hubs.get(data.hub)
-  if hub and hub.force == player.force and player.can_reach_entity(hub) then return hub end
-  return nil
-end
-
-local function refresh_status(player, data)
-  local elements = data.elements
+local function refresh_status(player, view, window)
+  local elements = view.elements
   local state = storage.forces[player.force_index]
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(state.balance) }
   elements.overdraft.caption = { "gb-gui.overdraft", catalog.format_credits(account.overdraft_left(state)),
@@ -89,30 +67,33 @@ local function refresh_status(player, data)
   elements.reputation.tooltip = { "gb-gui.reputation-effects",
     string.format("%.4g", reputation.fee_factor(state.reputation) * 100),
     string.format("%.4g", reputation.contract_scale(state.reputation) * 100) }
-  local hub = usable_hub(player, data)
-  elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
-  elements.planets.visible = concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY)
-  local tier = freight.tier(data.hub)
-  elements.freight.caption = { "gb-gui.delivery", { "gb-gui.tier-" .. tier.name },
-    freight.queued(data.hub, tier.name), tier.max_capsules }
+  local hub = bazaar_gui.bound_hub(window)
+  elements.power.caption = not hub and bazaar_gui.no_hub_message(player)
+    or hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
+  elements.freight.visible = hub ~= nil
+  if hub then
+    local tier = freight.tier(window.hub)
+    elements.freight.caption = { "gb-gui.delivery", { "gb-gui.tier-" .. tier.name },
+      freight.queued(window.hub, tier.name), tier.max_capsules }
+  end
 end
 
 -- Updates the fixed rows in place: elements are never destroyed by a refresh, so a click sent just
 -- before it still finds its button (multiplayer latency).
-local function refresh_list(player, data)
-  local elements = data.elements
+local function refresh_list(player, view)
+  local elements = view.elements
   -- Below telecommunications 2 the trend column stays in place, empty: hiding its cells would shift
   -- every later cell of the table into the wrong column.
   local history = telecom.shows_history(player.force)
   local period = telecom.period(player.force)
   elements.trend_header.caption = history and { "gb-gui.column-trend" } or ""
-  local shown = catalog.page(data.matches, data.page)
-  data.page = shown.page
+  local shown = catalog.page(view.matches, view.page)
+  view.page = shown.page
   elements.page.caption = { "gb-gui.page", shown.page, shown.pages }
   for i, row in ipairs(elements.rows) do
     local name = shown.names[i]
-    -- The list is taken when the window opens: an item whose value another mod removes since then
-    -- is hidden, and one that gains a value appears on the next opening.
+    -- The list is taken when the tab is first shown: an item whose value another mod removes since
+    -- then is hidden, and one that gains a value appears on the next opening.
     local quote
     if name then
       local kind, item = split(name)
@@ -122,7 +103,7 @@ local function refresh_list(player, data)
     if quote then
       row.icon.sprite = name
       row.icon.tags = { gb_action = "select", key = name }
-      row.icon.toggled = name == data.selected
+      row.icon.toggled = name == view.selected
       row.name.caption = label(name)
       row.name.tooltip = label(name)
       row.buy.caption = catalog.format_credits(quote.buy)
@@ -132,9 +113,9 @@ local function refresh_list(player, data)
   end
 end
 
-local function refresh_detail(player, data)
-  local elements = data.elements
-  local name = data.selected
+local function refresh_detail(player, view, window)
+  local elements = view.elements
+  local name = view.selected
   elements.detail.visible = name ~= nil
   if not name then return end
   local kind, item = split(name)
@@ -150,11 +131,11 @@ local function refresh_detail(player, data)
     elements.preview.caption = { "gb-gui.enter-quantity" }
     return
   end
-  -- The tier this quantity would ship by: a purchase from the window ships by it, or is refused
-  -- (tier-changed) if that changed since it was shown.
-  local planned = freight.tier_for(data.hub, item, quantity, kind)
-  data.tier = planned and planned.name
-  local cost, fee = freight.preview(player.force_index, item, quantity, kind, data.hub)
+  -- The tier this quantity would ship by from the window's hub: a purchase ships by it, or is refused
+  -- (tier-changed) if that changed since it was shown. Without a hub, the orbital capsule's.
+  local planned = freight.tier_for(window.hub, item, quantity, kind)
+  view.tier, view.tier_hub = planned and planned.name, window.hub
+  local cost, fee = freight.preview(player.force_index, item, quantity, kind, window.hub)
   -- What selling from the inventory would bring: the market price of the units, scaled by the
   -- freshness of the stacks the sale would take (ADR-0013). Fluids are sold by export manifolds.
   local revenue = kind == "item" and market.preview(player.force_index, kind, item, "sell", quantity)
@@ -162,26 +143,15 @@ local function refresh_detail(player, data)
   if revenue and inventory then revenue = revenue * cargo.sale_freshness(inventory, item, quantity, "normal") end
   elements.preview.caption = { "gb-gui.preview", quantity,
     cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee),
-      { "gb-gui.tier-" .. (planned or freight.tier(data.hub)).name } }
+      { "gb-gui.tier-" .. (planned or freight.tier(window.hub)).name } }
       or { "gb-gui.unavailable" },
     revenue and catalog.format_credits(revenue) or { "gb-gui.unavailable" } }
 end
 
-local function refresh(player, data)
-  refresh_status(player, data)
-  refresh_list(player, data)
-  refresh_detail(player, data)
-end
-
-local function add_title_bar(window)
-  local bar = window.add({ type = "flow", direction = "horizontal" })
-  bar.drag_target = window
-  bar.add({ type = "label", caption = { "gb-gui.title" }, style = "frame_title", ignored_by_interaction = true })
-  local spacer = bar.add({ type = "empty-widget", style = "draggable_space_header", ignored_by_interaction = true })
-  spacer.style.horizontally_stretchable = true
-  spacer.style.height = 24
-  bar.add({ type = "sprite-button", sprite = "utility/close", style = "frame_action_button",
-    tags = { gb_action = "close" } })
+local function refresh(player, view, window)
+  refresh_status(player, view, window)
+  refresh_list(player, view)
+  refresh_detail(player, view, window)
 end
 
 -- Fixed column widths, so the price columns stay aligned whatever the length of the item names; a
@@ -219,12 +189,10 @@ local function add_list(body, elements)
   end
 end
 
-local function build(player)
-  local window = player.gui.screen.add({ type = "frame", name = WINDOW, direction = "vertical" })
-  add_title_bar(window)
-  local body = window.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
+local function build(_, container, view)
+  local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   local status = body.add({ type = "flow", direction = "horizontal" })
-  local elements = { window = window }
+  local elements = {}
   elements.balance = status.add({ type = "label", style = "bold_label" })
   elements.overdraft = status.add({ type = "label", tooltip = { "gb-gui.overdraft-terms",
     string.format("%.4g", account.INTEREST_RATE * 100), account.INTEREST_TICKS / 3600 } })
@@ -233,8 +201,6 @@ local function build(player)
   elements.reputation = status.add({ type = "label" })
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })
-  status.add({ type = "button", caption = { "gb-contracts.open" }, tags = { gb_action = "contracts" } })
-  elements.planets = status.add({ type = "button", caption = { "gb-planets.open" }, tags = { gb_action = "planets" } })
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
   controls.add({ type = "label", caption = { "gb-gui.search" } })
@@ -259,26 +225,8 @@ local function build(player)
   elements.history = detail.add({ type = "label" })
   elements.preview = detail.add({ type = "label" })
 
-  window.force_auto_center()
-  return elements
-end
-
---- Opens the market window of a hub for a player: the hub must belong to the player's force and be
---- within reach.
-function market_gui.open(player, hub)
-  if hub.force ~= player.force or not player.can_reach_entity(hub) then return end
-  market_gui.close(player.index)
-  local data = { hub = hub.unit_number, filter = "", page = 1, matches = catalog.search(tradeable_keys(), "") }
-  data.elements = build(player)
-  storage.players[player.index] = data
-  refresh(player, data)
-  player.opened = data.elements.window
-end
-
-function market_gui.close(player_index)
-  local window = window_of(player_index)
-  if window then window.destroy() end
-  storage.players[player_index] = nil
+  view.filter, view.page, view.matches = "", 1, catalog.search(tradeable_keys(), "")
+  view.elements = elements
 end
 
 local function notify(player, message)
@@ -286,11 +234,10 @@ local function notify(player, message)
 end
 
 -- The hub to trade through for an action, or nil after telling the player why not.
-local function trading_hub(player, data)
-  local hub = usable_hub(player, data)
+local function trading_hub(player, window)
+  local hub = bazaar_gui.hub(player, window)
   if not hub then
-    notify(player, { "gb-gui.hub-unavailable" })
-    market_gui.close(player.index)
+    notify(player, bazaar_gui.no_hub_message(player))
     return nil
   end
   if hub.energy <= 0 then
@@ -302,144 +249,67 @@ end
 
 local actions = {}
 
-function actions.close(player)
-  market_gui.close(player.index)
+function actions.select(player, view, tags, window)
+  view.selected = tags.key
+  refresh_list(player, view)
+  refresh_detail(player, view, window)
 end
 
-function actions.contracts(player, data)
-  contracts_gui.open(player, data.hub)
+function actions.search(player, view)
+  view.filter = view.elements.search.text
+  view.matches = catalog.search(tradeable_keys(), view.filter)
+  view.page = 1
+  refresh_list(player, view)
 end
 
-function actions.planets(player, data)
-  if not concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY) then return end
-  planets_gui.open(player, data.hub)
+actions["previous-page"] = function(player, view)
+  view.page = view.page - 1
+  refresh_list(player, view)
 end
 
-function actions.select(player, data, tags)
-  data.selected = tags.key
-  refresh_list(player, data)
-  refresh_detail(player, data)
+actions["next-page"] = function(player, view)
+  view.page = view.page + 1
+  refresh_list(player, view)
 end
 
-function actions.search(player, data)
-  data.filter = data.elements.search.text
-  data.matches = catalog.search(tradeable_keys(), data.filter)
-  data.page = 1
-  refresh_list(player, data)
+function actions.quantity(player, view, _, window)
+  refresh_detail(player, view, window)
 end
 
-actions["previous-page"] = function(player, data)
-  data.page = data.page - 1
-  refresh_list(player, data)
-end
-
-actions["next-page"] = function(player, data)
-  data.page = data.page + 1
-  refresh_list(player, data)
-end
-
-function actions.quantity(player, data)
-  refresh_detail(player, data)
-end
-
-function actions.buy(player, data)
-  local key, quantity = data.selected, catalog.parse_quantity(data.elements.quantity.text)
+function actions.buy(player, view, _, window)
+  local key, quantity = view.selected, catalog.parse_quantity(view.elements.quantity.text)
   if not (key and quantity) then return end
-  local hub = trading_hub(player, data)
+  local hub = trading_hub(player, window)
   if not hub then return end
+  -- The preview shown must have been computed for this hub, with a tier: otherwise the player has
+  -- not seen the fee, and the refreshed preview shows it before they try again.
+  if not view.tier or view.tier_hub ~= hub.unit_number then
+    notify(player, { "gb-gui.refused-tier-changed" })
+    return refresh(player, view, window)
+  end
   local kind, name = split(key)
   local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity, nil, nil, kind,
-    data.tier)
+    view.tier)
   if not ok then return notify(player, { "gb-gui.refused-" .. cost }) end
   notify(player, { "gb-gui.ordered", quantity, label(key), catalog.format_credits(cost),
     catalog.format_credits(fee), math.ceil((arrival - game.tick) / 60) })
-  refresh(player, data)
+  refresh(player, view, window)
 end
 
-function actions.sell(player, data)
-  local key, quantity = data.selected, catalog.parse_quantity(data.elements.quantity.text)
+function actions.sell(player, view, _, window)
+  local key, quantity = view.selected, catalog.parse_quantity(view.elements.quantity.text)
   local inventory = player.get_main_inventory()
   if not (key and quantity and inventory) then return end
   local kind, name = split(key)
   if kind ~= "item" then return notify(player, { "gb-gui.sell-fluid" }) end
-  if not trading_hub(player, data) then return end
+  if not trading_hub(player, window) then return end
   local sold, revenue = cargo.sell_stacks(inventory, player.force_index, cargo.WINDOW_MIN_PRICE_RATIO, name, quantity,
     "normal")
   if sold == 0 then return notify(player, { "gb-gui.sold-nothing" }) end
   notify(player, { "gb-gui.sold", sold, label(key), catalog.format_credits(revenue) })
-  refresh(player, data)
+  refresh(player, view, window)
 end
 
--- Runs the action named by one of this mod's elements, if it belongs to the player's open window.
-local function dispatch(event)
-  local element = event.element
-  if not (element and element.valid and element.get_mod() == script.mod_name) then return end
-  local action = actions[element.tags.gb_action]
-  local data = storage.players[event.player_index]
-  if not (action and data and window_of(event.player_index)) then return end
-  action(game.get_player(event.player_index), data, element.tags)
-end
-
-market_gui.on_gui_click = dispatch
-
-function market_gui.on_gui_text_changed(event)
-  local element = event.element
-  local action = element.valid and element.get_mod() == script.mod_name and element.tags.gb_action
-  if action == "search" or action == "quantity" then dispatch(event) end
-end
-
-function market_gui.on_gui_closed(event)
-  if event.element and event.element.valid and event.element.name == WINDOW then
-    market_gui.close(event.player_index)
-  end
-end
-
---- The "open GUI" control: opens the market when the player clicks one of their force's hubs.
-function market_gui.on_open_input(event)
-  local player = game.get_player(event.player_index)
-  local selected = player and player.selected
-  if selected and selected.valid and selected.name == hubs.NAME then market_gui.open(player, selected) end
-end
-
---- on_nth_tick(SLOT_TICKS): refreshes the open windows of connected players whose slot comes up;
---- a window whose hub is gone, foreign or out of reach is closed.
-function market_gui.on_refresh_tick(event)
-  local slot = (event.tick / market_gui.SLOT_TICKS) % market_gui.SLOTS
-  local closing = {}
-  for player_index, data in pairs(storage.players) do
-    local player = game.get_player(player_index)
-    if player_index % market_gui.SLOTS == slot and player and player.connected and window_of(player_index) then
-      if usable_hub(player, data) then
-        refresh(player, data)
-      else
-        closing[#closing + 1] = player_index
-      end
-    end
-  end
-  for _, player_index in ipairs(closing) do market_gui.close(player_index) end
-end
-
---- Closes every window trading through a hub that no longer exists.
-function market_gui.on_hub_removed(hub_unit_number)
-  local closing = {}
-  for player_index, data in pairs(storage.players) do
-    if data.hub == hub_unit_number then closing[#closing + 1] = player_index end
-  end
-  for _, player_index in ipairs(closing) do market_gui.close(player_index) end
-end
-
---- on_player_left_game, on_player_changed_force and on_player_removed: the window no longer applies.
-function market_gui.on_player_event(event)
-  market_gui.close(event.player_index)
-end
-
---- on_init and on_configuration_changed: creates the state and closes every window, which is
---- rebuilt on the next opening (styles and prototypes may have changed).
-function market_gui.init()
-  storage.players = storage.players or {}
-  local open = {}
-  for player_index in pairs(storage.players) do open[#open + 1] = player_index end
-  for _, player_index in ipairs(open) do market_gui.close(player_index) end
-end
+bazaar_gui.register_tab({ name = "market", order = 20, build = build, refresh = refresh, actions = actions })
 
 return market_gui

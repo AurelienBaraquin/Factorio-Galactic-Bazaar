@@ -1,7 +1,7 @@
 -- In-game tests of telecommunications (scripts/telecom.lua, ADR-0012): freshness of the prices a
 -- force sees, and history and trends at level 2.
 local market = require("scripts.market")
-local market_gui = require("scripts.market_gui")
+local bazaar_gui = require("scripts.bazaar_gui")
 local telecom = require("scripts.telecom")
 local core = require("scripts.core.telecom")
 local price_signals = require("scripts.price_signals")
@@ -61,31 +61,31 @@ describe("telecommunications", function()
       force = "player", raise_built = true })
     created = { hub }
     hub.energy = hub.electric_buffer_size
-    market_gui.open(player, hub)
-    local data = storage.players[player.index]
+    bazaar_gui.open(player, "market", hub)
+    local data = bazaar_gui.view(player.index, "market")
     data.selected = "item/" .. GEAR
     market.quote(force().index, "item", GEAR)
     state().markets["item/" .. GEAR].history = { 1, 2, 3 }
-    local refresh = { tick = (player.index % market_gui.SLOTS) * market_gui.SLOT_TICKS }
-    market_gui.on_refresh_tick(refresh)
+    local refresh = { tick = (player.index % bazaar_gui.SLOTS) * bazaar_gui.SLOT_TICKS }
+    bazaar_gui.on_refresh_tick(refresh)
     local header, history = data.elements.trend_header, data.elements.history
     local visible = { header.caption, history.visible }
     research(2)
     state().feed = {}
-    market_gui.on_refresh_tick(refresh)
+    bazaar_gui.on_refresh_tick(refresh)
     local unlocked = { type(header.caption), history.visible }
-    market_gui.close(player.index)
+    bazaar_gui.close(player.index)
     assert.are.same({ "", false }, visible)
     assert.are.same({ "table", true }, unlocked)
   end)
 
-  test("keep the market window's columns in place below level 2", function()
+  test("keep the Market tab's columns in place below level 2", function()
     local player = game.get_player(1)
     local hub = player.surface.create_entity({ name = "gb-hub", position = { player.position.x + 3, player.position.y },
       force = "player", raise_built = true })
     hub.energy = hub.electric_buffer_size
-    market_gui.open(player, hub)
-    local data = storage.players[player.index]
+    bazaar_gui.open(player, "market", hub)
+    local data = bazaar_gui.view(player.index, "market")
     for _, row in ipairs(data.elements.rows) do
       if row.name.visible then
         assert.is_true(row.trend.visible)
@@ -93,7 +93,7 @@ describe("telecommunications", function()
       end
     end
     assert.is_true(data.elements.trend_header.visible)
-    market_gui.close(player.index)
+    bazaar_gui.close(player.index)
     hub.destroy()
   end)
 

@@ -1,15 +1,16 @@
--- The contracts window (#76, #78, #96): a force's offers and active contracts from counterparties
--- (incoming contracts, machine rentals, leases and loans), opened from the market window of a hub
--- within reach. Offers can be accepted (an incoming contract's ingredients are shipped to that hub) or
--- declined; active contracts show their progress and deadline and can be abandoned, loans repaid. Its
--- credit line shows the force's debt and borrows a principal tier. Rows are built once and updated in
--- place, so a refresh never destroys a button a player is clicking (multiplayer latency). Interface
--- state lives in storage.contracts_gui.
+-- The Contracts tab of the Galactic Bazaar window (#76, #78, #96, scripts/bazaar_gui.lua): a force's
+-- offers and active contracts from counterparties (incoming contracts, machine rentals, leases and
+-- loans). Offers can be accepted (an incoming contract's ingredients are shipped to the window's hub)
+-- or declined; active contracts show their progress and deadline and can be abandoned, loans repaid;
+-- every one of these actions, and borrowing, needs the window's hub within reach. Its credit line
+-- shows the force's debt and borrows a principal tier.
+-- Rows are built once and updated in place, so a refresh never destroys a button a player is
+-- clicking (multiplayer latency). Interface state is the tab's view in storage.bazaar_gui.
+local bazaar_gui = require("scripts.bazaar_gui")
 local catalog = require("scripts.core.catalog")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local finance = require("scripts.finance")
-local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
 local loans = require("scripts.loans")
 local loans_core = require("scripts.core.loans")
@@ -19,15 +20,6 @@ local rental = require("scripts.rental")
 local contracts_gui = {}
 
 contracts_gui.ROWS = contracts.MAX_LISTED
-contracts_gui.REFRESH_TICKS = 60
-
-local WINDOW = "gb_contracts"
-
-local function window_of(player_index)
-  local data = storage.contracts_gui[player_index]
-  local window = data and data.elements.window
-  return window and window.valid and window or nil
-end
 
 -- "[item=iron-plate] 200, [item=copper-plate] 100", with what is delivered when `delivered` is given.
 local function goods_text(list, delivered)
@@ -84,8 +76,8 @@ local function refresh_loan_row(row, contract)
   row.primary.tooltip = { "gb-loans.repay-tooltip", catalog.format_credits(core.payoff(contract)) }
 end
 
-local function refresh(player, data)
-  local elements = data.elements
+local function refresh(player, view)
+  local elements = view.elements
   local list = contracts.listed(player.force_index)
   elements.reputation.caption = { "gb-contracts.reputation", storage.forces[player.force_index].reputation }
   refresh_credit(player, elements)
@@ -111,21 +103,20 @@ local function refresh(player, data)
       row.primary.caption = offered and { "gb-contracts.accept" } or { "gb-contracts.abandon" }
       row.primary.tags = { gb_action = offered and "contract-accept" or "contract-abandon", id = contract.id }
       row.primary.tooltip = ""
-      row.secondary.visible = offered
-      row.secondary.tags = { gb_action = "contract-decline", id = contract.id }
+      -- The Decline cell stays in place, empty and disabled, for an active contract: hiding a cell of
+      -- a table would shift every later cell into the wrong column.
+      row.secondary.caption = offered and { "gb-contracts.decline" } or ""
+      row.secondary.enabled = offered
+      row.secondary.tags = offered and { gb_action = "contract-decline", id = contract.id } or {}
       if contract.kind == "loan" and not offered then refresh_loan_row(row, contract) end
     end
   end
 end
 
-local function build(player)
-  local window = player.gui.screen.add({ type = "frame", name = WINDOW, direction = "vertical",
-    caption = { "gb-contracts.title" } })
-  local elements = { window = window }
-  local body = window.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
-  local head = body.add({ type = "flow", direction = "horizontal" })
-  elements.reputation = head.add({ type = "label", style = "bold_label" })
-  head.add({ type = "button", caption = { "gb-contracts.close" }, tags = { gb_action = "contract-close" } })
+local function build(_, container, view)
+  local elements = {}
+  local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
+  elements.reputation = body.add({ type = "label", style = "bold_label" })
   local credit = body.add({ type = "flow", direction = "horizontal" })
   elements.debt = credit.add({ type = "label" })
   elements.borrow = {}
@@ -144,68 +135,35 @@ local function build(player)
       terms = list.add({ type = "label" }),
       time = list.add({ type = "label" }),
       primary = list.add({ type = "button", style = "green_button" }),
-      secondary = list.add({ type = "button", style = "red_button", caption = { "gb-contracts.decline" } }),
+      secondary = list.add({ type = "button", style = "red_button" }),
     }
   end
-  window.force_auto_center()
-  return elements
-end
-
---- Opens the contracts window of a player at a hub.
-function contracts_gui.open(player, hub_unit_number)
-  contracts_gui.close(player.index)
-  local data = { hub = hub_unit_number, elements = build(player) }
-  storage.contracts_gui[player.index] = data
-  refresh(player, data)
-end
-
-function contracts_gui.close(player_index)
-  local window = window_of(player_index)
-  if window then window.destroy() end
-  storage.contracts_gui[player_index] = nil
+  view.elements = elements
 end
 
 local actions = {}
 
-actions["contract-close"] = function(player)
-  contracts_gui.close(player.index)
-end
-
--- Whether the window's hub still exists, is the player's force's and within reach (GUI events are
--- player input); when not, the window closes and the player is told why.
-local function hub_usable(player, data)
-  local hub = hubs.get(data.hub)
-  if hub and hub.force == player.force and player.can_reach_entity(hub) then return true end
-  contracts_gui.close(player.index)
-  player.print({ "gb-contracts.hub-unavailable" })
-  return false
-end
-
-actions["contract-accept"] = function(player, data, tags)
-  if not hub_usable(player, data) then return end
+actions["contract-accept"] = function(player, tags, hub)
   local contract = contracts.get(player.force_index, tags.id)
   local ok, reason
   if contract and contract.kind == "rental" then
     ok, reason = rental.accept(player.force_index, tags.id)
   else
-    ok, reason = incoming.accept(player.force_index, tags.id, data.hub)
+    ok, reason = incoming.accept(player.force_index, tags.id, hub.unit_number)
   end
   if not ok then player.print({ "gb-contracts.refused-" .. reason }) end
 end
 
-actions["contract-decline"] = function(player, _, tags)
+actions["contract-decline"] = function(player, tags)
   contracts.decline(player.force_index, tags.id)
 end
 
-actions["contract-abandon"] = function(player, data, tags)
-  local contract = contracts.get(player.force_index, tags.id)
-  if contract and contract.kind == "loan" and not hub_usable(player, data) then return end
+actions["contract-abandon"] = function(player, tags)
   local outcome, reason = contracts.abandon(player.force_index, tags.id)
   if not outcome and reason then player.print(loan_refusal(reason)) end
 end
 
-actions["loan-borrow"] = function(player, data, tags)
-  if not hub_usable(player, data) then return end
+actions["loan-borrow"] = function(player, tags)
   local id, reason = loans.borrow(player.force_index, tags.tier)
   if not id then return player.print(loan_refusal(reason)) end
   local contract = contracts.get(player.force_index, id)
@@ -213,46 +171,22 @@ actions["loan-borrow"] = function(player, data, tags)
     catalog.format_credits(contract.charge), contract.installment_ticks / 3600, loans_core.periods() })
 end
 
---- on_gui_click: runs the action of one of this window's buttons.
-function contracts_gui.on_gui_click(event)
-  local element = event.element
-  if not (element and element.valid and element.get_mod() == script.mod_name) then return end
-  local action = actions[element.tags.gb_action]
-  local data = storage.contracts_gui[event.player_index]
-  if not (action and data and window_of(event.player_index)) then return end
-  local player = game.get_player(event.player_index)
-  action(player, data, element.tags)
-  if window_of(event.player_index) then refresh(player, data) end
-end
-
---- A hub is gone: the contracts windows opened from it close.
-function contracts_gui.on_hub_removed(hub_unit_number)
-  local closing = {}
-  for player_index, data in pairs(storage.contracts_gui) do
-    if data.hub == hub_unit_number then closing[#closing + 1] = player_index end
-  end
-  for _, player_index in ipairs(closing) do contracts_gui.close(player_index) end
-end
-
---- on_nth_tick(REFRESH_TICKS): refreshes the open windows of connected players.
-function contracts_gui.on_refresh_tick()
-  for player_index, data in pairs(storage.contracts_gui) do
-    local player = game.get_player(player_index)
-    if player and player.connected and window_of(player_index) then refresh(player, data) end
+-- Every action commits the force (accept, decline, abandon, repay, borrow): it needs the window's
+-- hub, the player's force's and within reach (GUI events are player input), or the player is told
+-- why and nothing changes. Each action is followed by a refresh of the tab, which shows its outcome.
+local tab_actions = {}
+for name, action in pairs(actions) do
+  tab_actions[name] = function(player, view, tags, window)
+    local hub = bazaar_gui.hub(player, window)
+    if hub then
+      action(player, tags, hub)
+    else
+      player.print(bazaar_gui.no_hub_message(player))
+    end
+    refresh(player, view)
   end
 end
 
---- on_player_left_game, on_player_changed_force and on_player_removed: the window no longer applies.
-function contracts_gui.on_player_event(event)
-  contracts_gui.close(event.player_index)
-end
-
---- on_init and on_configuration_changed: creates the state and closes every window.
-function contracts_gui.init()
-  storage.contracts_gui = storage.contracts_gui or {}
-  local open = {}
-  for player_index in pairs(storage.contracts_gui) do open[#open + 1] = player_index end
-  for _, player_index in ipairs(open) do contracts_gui.close(player_index) end
-end
+bazaar_gui.register_tab({ name = "contracts", order = 30, build = build, refresh = refresh, actions = tab_actions })
 
 return contracts_gui

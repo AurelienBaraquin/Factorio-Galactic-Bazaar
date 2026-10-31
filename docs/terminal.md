@@ -14,28 +14,28 @@ The buildings through which a force trades. How modules attach is decided in
 | Placement | item subgroup `galactic-bazaar` in the Logistics tab |
 | Runtime | `scripts/hubs.lua` keeps `storage.hubs[unit_number] = {entity}` for every hub, from all build events (player, robot, space platform, script, revive, clone) and `on_object_destroyed` |
 
-## Market window
+## Market tab
 
-Opened by clicking a hub of the player's force **within reach** (`custom-input` `gb-open-hub`,
-linked to the game's "open GUI" control; `prototypes/inputs.lua`), like the game's own entity
-windows: there is no remote trading, and selling takes items from the player's own inventory. Code: `scripts/market_gui.lua`, with the pure list
-logic in `scripts/core/catalog.lua`.
+The Market tab of the Galactic Bazaar window ([window.md](window.md)). Clicking a hub of the
+player's force **within reach** (`custom-input` `gb-open-hub`, linked to the game's "open GUI"
+control; `prototypes/inputs.lua`) opens the window on this tab, bound to that hub; the hotkey or the
+mod button open the window anywhere. Prices can be read anywhere, but buying and selling go
+through the window's hub, which must be within reach when the action runs: there is no remote
+trading, and selling takes items from the player's own inventory. Code: `scripts/market_gui.lua`,
+with the pure list logic in `scripts/core/catalog.lua`.
 
 | Part | Behaviour |
 |---|---|
-| Status | the force's balance, the overdraft it has left out of its limit (tooltip: the interest terms, [ADR-0020](adr/0020-overdraft-and-debit-interest.md)), while it applies the force's insolvency with the time left before bankruptcy or the credit ban with the time left and the bankruptcy debt still to repay (tooltip: what to do or what is refused, [contracts.md](contracts.md)), its reputation (tooltip: its freight fee and contract size factors, [contracts.md](contracts.md)), whether the hub has power, and its capsules queued out of `max_capsules` |
+| Status | the force's balance, the overdraft it has left out of its limit (tooltip: the interest terms, [ADR-0020](adr/0020-overdraft-and-debit-interest.md)), while it applies the force's insolvency with the time left before bankruptcy or the credit ban with the time left and the bankruptcy debt still to repay (tooltip: what to do or what is refused, [contracts.md](contracts.md)), its reputation (tooltip: its freight fee and contract size factors, [contracts.md](contracts.md)), whether the window's hub has power (or that no hub is within reach), and with a hub its delivery tier and the capsules queued out of `max_capsules` |
 | List | tradeable items then fluids (`storage.tradeable_items`, `storage.tradeable_fluids`, built with the base values; keys `item/<name>` and `fluid/<name>`), filtered by the search text against internal names (every word must appear; case and separators ignored), `catalog.PAGE_SIZE` (15) rows per page: icon, name, buy price, sell price as the force sees them (`telecom.quote`, at most its telecommunications period old, [ADR-0012](adr/0012-telecommunications-set-price-freshness.md)), and with telecommunications 2 the trend (▲ ▼ – from the price history), in fixed-width columns with prices right-aligned; a name too long for its column is clipped and shown whole in its tooltip. Only the rows shown are read from the market (ADR-0004). The 15 rows are built once and updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency) |
-| Detail | for the selected item: with telecommunications 2, a history line (sparkline of the last 30 NPC steps); a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee. A purchase is exactly the preview shown in the same tick (a price, tier or reputation change between the refresh and the click shows in the printed result); a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
+| Detail | for the selected item: with telecommunications 2, a history line (sparkline of the last 30 NPC steps); a quantity field (whole number up to 10⁹) and a live preview of what buying and selling that quantity would cost and bring, market impact included; the buying cost includes the freight fee of the tier the window's hub would ship by (the orbital capsule's without a hub). A purchase is exactly the preview shown in the same tick (a price, tier or reputation change between the refresh and the click shows in the printed result); a sale may trade fewer units (the plain units in the inventory), and the printed result gives the real numbers |
 | Buy | needs a powered hub with an import chest of its force (items) or an import manifold of its force that is empty or already holds the fluid (fluids); pays the market cost plus the freight fee at once and queues the units in orbital capsules (`freight.order`, see below); the printed result says when the last capsule lands |
 | Sell | items only (fluids are sold by export manifolds); needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
-| Refresh | once a second per open window of a connected player, spread over `SLOTS` (10) slots of `SLOT_TICKS` (6) ticks by player index; a window whose hub is gone, foreign or out of reach is closed. Measured on 2.1.24: 0.18 ms per window refresh in vanilla (196 items), 0.40 ms with Space Age (284) — budget 0.5 ms per window |
-| Planets | shown once `gb-planetary-concessions` is researched, a button opens the planets window at this hub: NPC planets, their transit terms, specialties and free slots, and a Lease button for each ore (mining concessions delivered to this hub) ([planets.md](planets.md)) |
-| Contracts | a button opens the contracts window at this hub: offers to accept or decline, active contracts with their progress, deadline and an abandon button (repay for a loan), the force's reputation, and its credit line: debt, cap and a borrow button per loan tier (disabled before the credit research, with a tooltip naming it); refreshed every second, closed with its hub ([contracts.md](contracts.md)) |
-| Closing | close button, E/Esc or another window (`on_gui_closed`), hub destroyed, player leaves, changes force or is removed, out of reach on refresh, configuration change |
+| Refresh | while shown, once a second, by the window ([window.md](window.md)); a hub gone, foreign or out of reach is no longer the window's, which stays open. Measured on 2.1.24: 0.32 to 0.66 ms per refresh (208 items in vanilla, 296 with Space Age), within the window's budget of 0.7 ms ([window.md](window.md#refresh-and-budget)) |
 
 Every action re-checks the hub (exists, same force, within reach, powered), the item and the
-quantity, since GUI events are player input; only elements created by this mod trigger actions. Results are printed to the player. Fluids are not listed yet (fluid
-module, M3). The window's layout has only been checked by tests, not by eye.
+quantity, since GUI events are player input; only elements created by this mod trigger actions.
+Results are printed to the player. The tab's layout has only been checked by tests, not by eye.
 
 ## Building status
 
@@ -45,7 +45,7 @@ the texts are in the `[gb-status]` locale section.
 
 | | |
 |---|---|
-| Custom status | `LuaEntity.custom_status`: a diode (green: working, yellow: waiting or limited, red: stopped) and a text, which the game shows where it shows an entity's status; written only when it changed (`storage.entity_status.shown`). Texts hold no moving value (no age, no countdown): they state facts that stay true until the next refresh. A rented rental assembler keeps the game's own status (its crafting diagnostics); its contract's progress is in the contracts window |
+| Custom status | `LuaEntity.custom_status`: a diode (green: working, yellow: waiting or limited, red: stopped) and a text, which the game shows where it shows an entity's status; written only when it changed (`storage.entity_status.shown`). Texts hold no moving value (no age, no countdown): they state facts that stay true until the next refresh. A rented rental assembler keeps the game's own status (its crafting diagnostics); its contract's progress is in the Contracts tab |
 | Alert | while a building is stopped, an icon is drawn on it, visible to its force only: `utility/warning_icon` with no hub of its force in range ("No hub"), `utility/electricity_icon` when its hub has no power ("Hub unpowered") or when it has none itself, a hub or a teleporter ("No power"); the text shows under it in alt mode. It is redrawn when the building changes force, removed as soon as the cause goes, and with the building |
 | Attachment | a module without a hub of its force in range is red "no trading hub" (alert); with an unpowered hub, a module that trades through it (export chest and manifold, power substations, price and order combinators, catapult) is red "stopped" (alert), the others (import chest and manifold, docking bay, teleporter, contract chest, rental assembler) keep their own status, yellow, behind "its trading hub has no power" |
 | Cadence | the buildings are kept in one list (`storage.entity_status`), in step with build and destroy events and rebuilt on configuration change; every `PASS_TICKS` (10) ticks a pass refreshes the next ones, `ceil(n / 30)` of them, at most `MAX_VISITS` (8): each building once every `CYCLE_TICKS` (300, 5 s) up to 240 buildings, then every `n / 48` s (21 s with 1000). The costly reads — a hub's delivery tier and its bays' fuel, a force's contract needs and price period — are made once per hub or force and cycle (`facts`), and a pass never makes more than `MAX_COSTLY_READS` (2) of them: each kind reserves the costly reads its status may make (a docking bay 2, a hub, price combinator or contract chest 1) and the pass stops before a building whose reservation would exceed the cap. A building removed before the cursor trades places so that the one replacing it is still refreshed in the cycle. A building is also refreshed when built. Each hub's modules of its force are counted as they are refreshed and shown from the next cycle |
@@ -65,7 +65,7 @@ the texts are in the `[gb-status]` locale section.
 | Teleporter | powered: its hub ships by teleporter; otherwise red with its charge ("No power" alert) |
 | Catapult | its capacitor's charge; charging (yellow) below a shot's 50 MJ; waiting for goods; yellow when its last shot that could fire sold nothing (below the floor, or not plain); otherwise ready, shooting at most every 2 s |
 | Contract chest | the normal-quality items its force's active incoming contracts still need, summed, oldest contract first (4 named, the rest counted); idle without any |
-| Rental assembler | idle; offered (yellow, with the contract number to find in the contracts window); rented: the game's own status |
+| Rental assembler | idle; offered (yellow, with the contract number to find in the Contracts tab); rented: the game's own status |
 
 Facts recorded for it: an export chest's, an export manifold's and a catapult's `held`, each force's
 last power settlement (`storage.power.last`) and an order combinator's last reading (`last`)
@@ -107,7 +107,7 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
 │   │   └── gb-credit (red, green) ── loans
 │   │       └── gb-overdraft-1 (red, green) ── overdraft limit 25 000
 │   │           └── gb-overdraft-2 (red, green, blue, after chemical science) ── overdraft limit 100 000
-│   └── gb-planetary-concessions (red, green) ── Planets window, mining concessions
+│   └── gb-planetary-concessions (red, green) ── Planets tab, mining concessions
 │       └── gb-outsourcing (red, green, blue) ── crafting slot bookings
 └── [space logistics branch]
     └── gb-cargo-shuttle (red, green, blue) ── docking bay
@@ -144,8 +144,8 @@ supply})` at file scope (`available(hub)` and `can_supply(hub, shipments)` witho
 gives the hub's tier. An order is scheduled, charged and bounded with the tier at order time and each
 shipment records it. Each tier launches on its own schedule and has its own queue bound
 (`freight.queued(hub, tier)`), and unloading takes every landed shipment, so tiers never hold each
-other back. The market window's status line shows the tier and its queue; a purchase from it is
-refused (`tier-changed`) when the tier changed since the window showed it. The rows below describe the capsule; the
+other back. The Market tab's status line shows the tier and its queue; a purchase from it is
+refused (`tier-changed`, and the preview refreshed) when the tier changed since the tab showed it, or when the preview was computed for another hub or with no tier. The rows below describe the capsule; the
 other tiers differ only by their parameters.
 
 | Payment | at order time: the market cost plus `fee_rate` (5 %) of it, scaled by the force's reputation (×0.5 to ×1.5, [contracts.md](contracts.md)), journaled as a `buy` and a `freight` entry; refused whole if the available funds (balance plus overdraft) do not cover both. Each capsule records the force that paid and the market price paid per unit |
@@ -227,7 +227,7 @@ Code: `scripts/telecom.lua`, levels and sparkline in `scripts/core/telecom.lua`.
 |---|---|---|---|
 | 0 | none | at most 30 s old | |
 | 1 | `gb-telecommunications-1` (after the Galactic Bazaar and logistic science; 100 × red and green) | at most 10 s old | |
-| 2 | `gb-telecommunications-2` (after level 1 and advanced circuits; 200 × red and green) | at most 2 s old | trend column and history line in the market window |
+| 2 | `gb-telecommunications-2` (after level 1 and advanced circuits; 200 × red and green) | at most 2 s old | trend column and history line in the Market tab |
 
 `telecom.quote(force_index, kind, name, period)` returns `{buy, sell, history}` from the force's
 feed (`storage.forces[i].feed[key]`), quoted again when older than the period; the feed is cleared
@@ -252,7 +252,7 @@ Fluid trading (#63). Code: `scripts/manifold.lua`; prototypes: `prototypes/manif
 | Technology | `gb-fluid-trading` (after the Galactic Bazaar and fluid handling; 100 × red and green) |
 | Hub | attached like the other modules (`manifold.HUB_RANGE`, 10 tiles) |
 | Export | every `manifold.EXPORT_INTERVAL` (6) ticks, the next `manifold.EXPORT_BATCH` (2) export manifolds with a powered hub sell their fluid while it fetches at least `manifold.MIN_PRICE_RATIO` (0.5) × its base value; the fluid leaves the tank first, the market pays for what actually left, and it goes back if the market refuses; journal entries merged per fluid and minute. Fluids are priced by name: temperature does not change the price |
-| Import | fluids bought from the market window or an order combinator travel by orbital capsule (`freight.order(…, "fluid")`), `freight.FLUID_UNITS_PER_STACK` (500) units taking the room of one stack, and land in the hub's import manifolds of its force at the fluid's default temperature (`manifold.deliver`, through the index `storage.manifold.imports`); without an import manifold that is empty or already holds the fluid, the order is refused (`no-import-manifold`) |
+| Import | fluids bought from the Market tab or an order combinator travel by orbital capsule (`freight.order(…, "fluid")`), `freight.FLUID_UNITS_PER_STACK` (500) units taking the room of one stack, and land in the hub's import manifolds of its force at the fluid's default temperature (`manifold.deliver`, through the index `storage.manifold.imports`); without an import manifold that is empty or already holds the fluid, the order is refused (`no-import-manifold`) |
 | Budget | 0.03–0.06 ms per export batch of 2 manifolds (2.1.24, vanilla and Space Age) — budget 0.1 ms |
 
 ## Docking bay (`gb-docking-bay`)
@@ -267,7 +267,7 @@ Gives its hub the cargo shuttle tier (#65, [ADR-0014](adr/0014-delivery-tier-per
 | Technology | `gb-cargo-shuttle` (after the Galactic Bazaar, rocket fuel and electric engine; 300 × red, green and blue) |
 | Hub | attached like the other modules (`docking_bay.HUB_RANGE`, 10 tiles); bays of another force are ignored |
 | Fuel | any chemical fuel item, any quality; `docking_bay.fuel(hub, enough)` sums the bays' buffers and fuel items in MJ, stopping once it reaches `enough`; a hub's bays are indexed (`storage.docking_bays.by_hub`) |
-| Tier | the hub has the shuttle while its bays hold at least `FUEL_MJ_PER_SHIPMENT` (100 MJ, one rocket fuel); an order needing more shipments than the fuel covers, or finding the shuttle's queue full, goes by the next tier (orbital capsule), burning nothing. The market window plans the tier for the quantity typed and names it in the preview |
+| Tier | the hub has the shuttle while its bays hold at least `FUEL_MJ_PER_SHIPMENT` (100 MJ, one rocket fuel); an order needing more shipments than the fuel covers, or finding the shuttle's queue full, goes by the next tier (orbital capsule), burning nothing. The Market tab plans the tier for the quantity typed and names it in the preview |
 | Budget | a tier read of a hub with 5 bays among 50: 0.06 ms (2.1.24) — budget 0.1 ms |
 | Burning | when a shuttle order is paid, `shipments × 100 MJ` are burnt from the bays in unit-number order: each bay's buffer first, then whole items in name order; what the last item gives beyond the need goes to the bay's buffer (lost if the bay is removed) |
 

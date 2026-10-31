@@ -59,23 +59,26 @@ moved by contract outcomes and kept within [`MIN`, `MAX`] = [−20, 20].
 | Loans | interest rate and debt cap (see Loans) |
 | Bankruptcy | the score falls to −20 (see Insolvency and bankruptcy) |
 
-The market window shows the score, with its effects in the tooltip ([terminal.md](terminal.md)).
+The Overview tab shows the score and its effects on fees, contract sizes and loans ([window.md](window.md)); the Market tab shows the score, with its effects in the tooltip ([terminal.md](terminal.md)).
 
 ## Incoming contracts
 
 Counterparties offer each force to craft for them (#76): they provide a batch of a recipe's
 ingredients, the force hands back its products. Code: `scripts/incoming_contracts.lua` (runtime),
-`scripts/core/contract_offers.lua` (pricing, pure), `scripts/contracts_gui.lua` (window, which
-also lists machine rentals; each row's counterparty tooltip names the kind).
+`scripts/core/contract_offers.lua` (pricing, pure), `scripts/contracts_gui.lua` (the Contracts tab of the Galactic Bazaar window, [window.md](window.md), which
+also lists machine rentals; each row's counterparty tooltip names the kind). Every button of the
+tab — Accept, Decline, Abandon, Repay, Borrow — needs a hub of the force within reach (the
+window's), or nothing happens and the player is told why; an active contract's Decline cell stays in
+place, empty and disabled.
 
 | | |
 |---|---|
 | Unlock | the `gb-contracts` technology, which also unlocks the contract chest ([terminal.md](terminal.md)) |
-| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists concessions, outsourcing bookings and loans) open, offered or active (the rows of the contracts window), gets one; the recipe and counterparty are drawn from the force's own deterministic random state. The force is told of new offers, of contracts due within 2 minutes and of each fulfilment or failure at settlement ([notifications.md](notifications.md)) |
+| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists concessions, outsourcing bookings and loans) open, offered or active (the rows of the Contracts tab), gets one; the recipe and counterparty are drawn from the force's own deterministic random state. The force is told of new offers, of contracts due within 2 minutes and of each fulfilment or failure at settlement ([notifications.md](notifications.md)) |
 | Recipes | enabled, not hidden, made in an assembling machine (`crafting` or `advanced-crafting`), item ingredients only and one sure item product in a whole amount (no range, probability or extra fraction), every good with a base value, products worth more than ingredients; sorted by name before the draw |
 | Batch | enough crafts for the products to be worth `TARGET_VALUE` (1 000) credits × the force's contract scale (see Reputation), from 1 to `MAX_BATCH` (1 000) |
 | Terms | reward = the value crafting adds (products' minus ingredients' base value), at most `LABOR_SHARE` (0.3) × products' value, so buying the products and selling the ingredients does not pay at base prices; deposit = `DEPOSIT_SHARE` (0.2) and penalty = `PENALTY_SHARE` (1) × ingredients' base value; at acceptance the penalty rises to what the ingredients would sell for on the force's market then, if more, so the guarantee always exceeds what the force receives; time = recipe time × batch × `TIME_FACTOR` (4) + `MARGIN_TICKS` (5 min); the offer stands `ACCEPT_TICKS` (5 min) |
-| Acceptance | from the contracts window, at the hub it was opened from (within reach): every check of `contracts.can_accept` (still offered, not past its end, the guarantee within the available funds, overdraft included) runs first; then the ingredients are shipped, free, by orbital capsule to that hub (`freight.ship`, all or nothing: refused without an import chest, or when the capsule queue would overflow), and only then is the guarantee taken |
+| Acceptance | from the Contracts tab, at the window's hub, which must be within reach ([window.md](window.md)): every check of `contracts.can_accept` (still offered, not past its end, the guarantee within the available funds, overdraft included) runs first; then the ingredients are shipped, free, by orbital capsule to that hub (`freight.ship`, all or nothing: refused without an import chest, or when the capsule queue would overflow), and only then is the guarantee taken |
 | Delivery | every `COLLECT_TICKS` (60), each contract chest attached to a hub hands over the normal-quality items its force's active incoming contracts still need, oldest contract first; what no contract needs stays in the chest; the chest's status lists what they still need ([terminal.md](terminal.md#building-status)) |
 
 Deviation: ingredients always travel by orbital capsule (the counterparty's ship), whatever tier
@@ -93,9 +96,9 @@ Code: `scripts/rental.lua` (runtime), `scripts/core/contract_offers.lua` (`renta
 | | |
 |---|---|
 | Unlock | the `gb-capacity-rental` technology (rental assembler) |
-| Offers | every `rental.OFFER_TICKS` (5 min), each idle rental assembler attached to a hub, of a force that researched it and has room in the contracts window, is offered, in unit number order; the recipe is drawn like an incoming contract's among those of the machine's crafting categories whose surface conditions (Space Age) the machine's surface meets; the machine is reserved for that offer until it ends |
+| Offers | every `rental.OFFER_TICKS` (5 min), each idle rental assembler attached to a hub, of a force that researched it and has room in the Contracts tab, is offered, in unit number order; the recipe is drawn like an incoming contract's among those of the machine's crafting categories whose surface conditions (Space Age) the machine's surface meets; the machine is reserved for that offer until it ends |
 | Terms | `RENTAL_TICKS` (30 min); the products of `rental_crafts` crafts: `CAPACITY_SHARE` (0.8) of what the machine makes at its nominal speed in that time; reward (rent) = `RENT_SHARE` (0.3) × products' value, paid every `INSTALLMENT_TICKS` (5 min) for what was delivered; deposit = 0.2 and penalty = 1 × the products' or ingredients' base value, whichever is more |
-| Acceptance | from the contracts window: refused when the machine is gone (`machine-gone`) or has no hub (`machine-no-hub`); the penalty rises to the market value of the products or ingredients, whichever is more; the guarantee is held, then the machine gets the recipe |
+| Acceptance | from the Contracts tab: refused when the machine is gone (`machine-gone`) or has no hub (`machine-no-hub`); the penalty rises to the market value of the products or ingredients, whichever is more; the guarantee is held, then the machine gets the recipe |
 | Service | every `SERVICE_TICKS` (60), through a hub of its force: the machine keeps the contract's recipe (a pasted or other recipe is undone; an idle machine has none), its normal-quality products are taken (all of them: a surplus, from a productivity bonus, is the counterparty's too) and delivered, and, until the contract is complete, its ingredients topped up to `BUFFER_SECONDS` (4 s) of crafting, at least one craft, never beyond what the contract provides in all |
 | End | once the contract is settled, declined or expired, the machine is released: its recipe, ingredients and products go back to the counterparty. A machine removed during a rental cannot fulfil it: the contract fails at its deadline. On configuration change, a rental whose recipe the machine can no longer craft (removed, or moved to another category) is withdrawn — declined if offered, voided with its guarantee back if active — and its machine released; one whose goods no longer exist is withdrawn like an incoming contract |
 
@@ -140,8 +143,8 @@ and arrears still collected; the credit line still shows the debt.
 
 | | |
 |---|---|
-| Unlock | `gb-credit` (see Research above); the contracts window, opened from the market window, shows its credit line from the start |
-| Tiers | `TIERS`: 5 000, 20 000 or 100 000 credits, each one button; the contract is offered and accepted at once (`loans.borrow`), or nothing changes. Like Accept, the Borrow and Repay buttons need the window's hub to still be the force's and within reach, or the window closes |
+| Unlock | `gb-credit` (see Research above); the Contracts tab shows its credit line from the start |
+| Tiers | `TIERS`: 5 000, 20 000 or 100 000 credits, each one button; the contract is offered and accepted at once (`loans.borrow`), or nothing changes. Like Accept, the Borrow and Repay buttons need a hub of the force within reach (the window's, [window.md](window.md)), or nothing happens and the player is told why |
 | Terms | the principal (`advance`) is paid at acceptance; `TERM_TICKS` (60 min), `PERIOD_TICKS` (5 min): 12 installments of principal × (1 + rate) / 12; no deposit, penalty or reward |
 | Rate | over the term, fixed at borrowing: `BASE_RATE` (10 %) − `RATE_STEP` (0.25 %) × reputation, 5 % at 20, 15 % at −20 |
 | Debt cap | `DEBT_CAP` (50 000) × the reputation's contract scale: 25 000 from −5 down, 150 000 at 20; the debt is the principal active loans still have to repay, principal × whole installments left / 12, plus arrears (`loans.outstanding`); a loan that would take it above the cap is refused (`debt-cap`) |
@@ -156,8 +159,8 @@ and arrears still collected; the credit line still shows the debt.
 A force that can no longer pay its debts gets a grace period, then goes bankrupt (#97,
 [ADR-0022](adr/0022-insolvency-and-bankruptcy.md)). Code: `scripts/core/insolvency.lua` (rules,
 pure), `scripts/insolvency.lua` (the check handler and the force's messages, told through
-[notifications.md](notifications.md)); the market window
-shows the state ([terminal.md](terminal.md)).
+[notifications.md](notifications.md)); the Overview and
+Market tabs show the state ([window.md](window.md), [terminal.md](terminal.md)).
 
 | | |
 |---|---|
@@ -179,5 +182,5 @@ shows the state ([terminal.md](terminal.md)).
 level), the insolvency fields `insolvent_since`, `recovering_since`, `credit_ban_until`,
 `bankruptcies`, `bankruptcy_debt` and `solvency_low`, and `storage.contract_next_id`, the next id —
 see [data-model.md](data-model.md); `storage.incoming_contracts` holds the contract chests and each
-force's random state, `storage.rentals` the rental assemblers, `storage.contracts_gui` the open
-contracts windows.
+force's random state, `storage.rentals` the rental assemblers; the Contracts tab's state lives in
+`storage.bazaar_gui` ([window.md](window.md)).

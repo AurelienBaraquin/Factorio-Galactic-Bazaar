@@ -4,6 +4,30 @@ What the Galactic Bazaar puts on the circuit network, and how to read it. In-gam
 the same in short; this page gives the details and examples. Developer details are in
 [terminal.md](terminal.md).
 
+## The Galactic Bazaar window
+
+Once **Galactic Bazaar** is researched, a button with the trading hub's icon appears at the top
+left of the screen. It, or **Ctrl + Shift + G** (change it in the game's control settings), opens
+or closes the Galactic Bazaar window anywhere; clicking a trading hub opens it on the Market tab.
+Its tabs:
+
+- **Overview**: your balance; the overdraft used, its limit and what is left; the interest rate
+  and about how much the next interest charge takes and when; your reputation and what it changes
+  (freight fees, contract sizes, loan rate and the most you may owe on loans); whether you are
+  solvent, insolvent (and what to do) or barred from credit after a bankruptcy (and the debt left);
+  and how many offers, contracts, leases and loans you have open, with the next deadline. Hover a
+  line to see what it means.
+- **Market**: prices, buying and selling (below).
+- **Contracts**: offers, contracts under way and your loans.
+- **Planets**: once **Planetary concessions** is researched, the NPC planets and their slots.
+
+Every tab can be read anywhere, even from remote view, but buying, selling, accepting, declining or
+abandoning a contract, borrowing, repaying and leasing need a trading hub of your force **within
+reach of your character**, never from remote view: the window uses the hub you clicked, or else the
+nearest one within reach, and the Market tab says when there is none. If a purchase's preview was
+shown for another hub, or without a hub, the purchase is refused once and the preview updated, so
+that you always see the freight fee before paying.
+
 ## Building status
 
 Every building of the mod carries a status, next to a coloured light: green when it works,
@@ -14,12 +38,12 @@ within 10 tiles, a lightning bolt when its hub, or the building itself, has no p
 read why under the icon. What each building says (sales held below their price floor, shipments on
 the way, an order combinator's last reading and budget left, a catapult's charge, what a contract
 chest still waits for...) is listed in [terminal.md](terminal.md#building-status); a rented machine
-keeps the game's own status, and its contract's progress is in the contracts window. Statuses
+keeps the game's own status, and its contract's progress is in the Contracts tab. Statuses
 refresh about every 5 seconds (longer with more than 240 buildings of the mod).
 
 ## Market feed
 
-The prices listed in the market window and emitted by price combinators are read at most once per
+The prices listed in the Market tab and emitted by price combinators are read at most once per
 period: 30 s without research, 10 s with **Galactic telecommunications 1**, 2 s with **level 2**,
 which also shows the trend column and a price history line for the selected item. What you pay or
 receive is always the live price, shown in the window's preview. With many price combinators,
@@ -31,7 +55,7 @@ Your force may spend below zero: purchases, contract guarantees, lease deposits 
 imports and orders all go through as long as they keep the balance above minus the **overdraft
 limit**: 10 000 credits, raised to 25 000 by the **Overdraft 1** research and to 100 000 by
 **Overdraft 2** (with a reputation of 0 or more; from −5 down, a level gives only half of what it
-adds to 10 000). The market window shows the overdraft you have left next to the balance.
+adds to 10 000). The Market tab shows the overdraft you have left next to the balance.
 Each minute your balance went below zero, it pays **0.5 % interest** on the lowest it reached in
 that minute (counted up to the limit, so at most 50 credits a minute at 10 000), even if that takes
 it past the limit; past the limit, nothing more can be bought until sales bring the balance back,
@@ -89,7 +113,7 @@ nothing.
 - Every **10 seconds**, it buys, for each **item or fluid signal** with a positive value, that many
   units (items of normal quality). They arrive by orbital capsule about 30 s later, items in the
   hub's import chests and fluids in its import manifolds, with
-  the freight fee, like a purchase from the market window.
+  the freight fee, like a purchase from the Market tab.
 - **Budget**: it buys **nothing** without a positive **Budget** signal on its input. The value is the
   most your force spends through all its order combinators in 10 s (never more than your available
   funds: your balance plus what is left of your overdraft).
@@ -118,9 +142,9 @@ by up to about 600 plates (three orders land within 30 s); lower the threshold i
 
 Researched with **Contracts** (after the Galactic Bazaar and logistic science). Every 5 minutes, up
 to 3 at a time, a counterparty offers you to craft something you already know how to make. Open
-them with the **Contracts** button of the market window.
+them in the **Contracts** tab.
 
-- **Accept** at the hub you opened the window from: it needs an **import chest**, and enough
+- **Accept** within reach of a hub: it needs an **import chest**, and enough
   credits for the **guarantee** (deposit plus penalty), which is held until the end. The
   ingredients arrive free by orbital capsule about 30 s later.
 - Craft the products and put them in a **contract chest** within 10 tiles of a hub: every second,
@@ -129,14 +153,14 @@ them with the **Contracts** button of the market window.
   abandoned**: the guarantee is lost, and −1 reputation. The guarantee is set at acceptance above
   what the ingredients sell for then, so keeping them does not pay.
 - The reward is the value your crafting adds, so recipes that add little value pay little.
-- **Reputation** (from −20 to 20, shown in the market window) lowers your freight fees, down to half
+- **Reputation** (from −20 to 20, shown in the Market tab) lowers your freight fees, down to half
   at 20, and makes offers larger, up to three times at 20. Below zero, fees rise and offers shrink, down to half their size at −5.
 - At most 8 contracts are open at a time, offers and active ones together.
 - An offer not accepted within 5 minutes expires; **Decline** removes it at once.
 
 ## Loans
 
-The **Contracts** window has a credit line: your debt, what your reputation allows, and one
+The **Contracts** tab has a credit line: your debt, what your reputation allows, and one
 **Borrow** button per amount (5 000, 20 000, 100 000 credits); hover one to see its rate and
 installments, or why it is refused. Borrowing needs the **Credit** research (after Contracts); loans
 you already have are repaid whether or not you have it.
@@ -155,13 +179,13 @@ you already have are repaid whether or not you have it.
   your overdraft limit: your balance drops into the overdraft (and pays its interest), and what does
   not fit is taken from your income as it comes. No new loan until they are paid.
 - No loan either while your balance is beyond the overdraft limit.
-- Loans take rows of the Contracts window (8 at most, with your other contracts).
+- Loans take rows of the Contracts tab (8 at most, with your other contracts).
 
 ## Insolvency and bankruptcy
 
 Your force is **insolvent** when its balance goes past the overdraft limit (interest can push it
-there), or when it owes arrears it cannot pay. You are told so by an alert and in the chat, and the market window
-shows **Insolvent: bankruptcy in m:ss**.
+there), or when it owes arrears it cannot pay. You are told so by an alert and in the chat, the Market tab
+shows **Insolvent: bankruptcy in m:ss**, and the Overview says what balance to keep.
 
 - You have **10 minutes** to recover: bring your balance back until 5 % of your overdraft limit is
   left (**−9 500 credits** at the base limit; the message says the figure) and keep it there for a
@@ -179,7 +203,7 @@ shows **Insolvent: bankruptcy in m:ss**.
   - you get **no credit**: no loan and an overdraft limit of 0, for **60 minutes and until the debt is
     repaid**. Each new bankruptcy doubles that time, up to 8 hours. When credit returns, a researched
     overdraft gives only half its extra at reputation −20, until your reputation recovers.
-- The market window shows **Bankrupt: no credit for m:ss, X of debt to repay**, then **no credit
+- The Market tab shows **Bankrupt: no credit for m:ss, X of debt to repay**, then **no credit
   until X of debt is repaid** once the time has passed; you are told when credit returns.
 - Going bankrupt on purpose rarely pays: the surcharge costs more than the overdraft's interest
   unless your debt would take you more than about 100 minutes of income to repay, and you still
@@ -190,7 +214,7 @@ shows **Insolvent: bankruptcy in m:ss**.
 
 Researched with **Capacity rental** (after Contracts and Automation 2). Build **rental assemblers**
 within 10 tiles of a trading hub and power them; you cannot open them. Every 5 minutes, each idle
-one is offered for rent in the **Contracts** window (hover the counterparty to see the kind).
+one is offered for rent in the **Contracts** tab (hover the counterparty to see the kind).
 
 - **Accept**: the guarantee is held and the machine starts on the counterparty's recipe. Its
   ingredients arrive in it, a few crafts at a time; its products leave it as they come.
@@ -203,8 +227,8 @@ one is offered for rent in the **Contracts** window (hover the counterparty to s
 
 ## NPC planets
 
-Researched with **Planetary concessions** (after Contracts), the **Planets** button of the market
-window lists the planets of the galaxy: what each extracts or
+Researched with **Planetary concessions** (after Contracts), the **Planets** tab lists the planets
+of the galaxy: what each extracts or
 crafts, how far it is, and how many of its slots are free for your force. Each force has its own
 slots, and its transit terms: how much longer goods from it take to land, and the most of a
 shipment that can be lost on the way (farther planets risk more). With Space Age, Vulcanus, Fulgora,
@@ -213,18 +237,18 @@ electromagnetics, organic, cryogenics; they only craft the recipes they could ho
 
 ### Mining concessions
 
-Open the Planets window from the market window of a hub with an import chest, and press **Lease**
+Within reach of a hub with an import chest, open the Planets tab and press **Lease**
 next to an ore. For 30 minutes the planet ships you 150 units of it every 5 minutes, by transit, to
 that hub's import chests. Each shipment is charged at the ore's base value — usually between what the
 market pays and what it asks — and only when it is shipped; if your hub or its import chest is gone,
 that period is skipped, free. Ore in flight when the hub is removed is sold back for you. One period's charge is held as a guarantee and
-comes back at the end. If you cannot pay a charge, or abandon the lease in the Contracts window, the
+comes back at the end. If you cannot pay a charge, or abandon the lease in the Contracts tab, the
 guarantee is lost and your reputation drops by 1. Each planet has only a few slots per ore.
 
 ### Outsourced production
 
 Researched with **Outsourcing** (after Planetary concessions and chemical science). On a crafting
-row of the Planets window (smelting, assembly, chemistry…), pick one of your recipes and press
+row of the Planets tab (smelting, assembly, chemistry…), pick one of your recipes and press
 **Book**. For 30 minutes the planet buys the ingredients, crafts the recipe as one machine
 of speed 1 would, and ships you the products every 5 minutes by transit, charged at 105 % of their base
 value (the market price without the freight fee) — otherwise the terms of a mining concession. The

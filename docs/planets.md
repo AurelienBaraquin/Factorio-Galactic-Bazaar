@@ -2,7 +2,7 @@
 
 Places outside the map where a force will extract resources and have goods crafted (M5,
 [ADR-0018](adr/0018-npc-planets-with-slot-capacity.md)). The pure model is
-`scripts/core/planets.lua`; the runtime side is `scripts/planets.lua`, the window
+`scripts/core/planets.lua`; the runtime side is `scripts/planets.lua`, the Planets tab
 `scripts/planets_gui.lua`, transit `scripts/core/transit.lua`, mining concessions and outsourced
 production `scripts/concessions.lua`.
 
@@ -12,7 +12,7 @@ The outsourcing branch (#88, `prototypes/technologies.lua`, [terminal.md](termin
 
 | Technology | After | Cost | Unlocks |
 |---|---|---|---|
-| `gb-planetary-concessions` | `gb-contracts` | 200 × red, green | the Planets button of the market window and mining concessions |
+| `gb-planetary-concessions` | `gb-contracts` | 200 × red, green | the Planets tab of the Galactic Bazaar window and mining concessions |
 | `gb-outsourcing` | `gb-planetary-concessions`, chemical science | 300 × red, green, blue | booking crafting slots (the Book buttons stay disabled before, with a tooltip saying so) |
 
 Their effects are script-side (`concessions.CONCESSION_TECHNOLOGY`, `OUTSOURCING_TECHNOLOGY`):
@@ -102,7 +102,7 @@ count in the hub's capsule queue bound while in flight, longer than a purchase's
 
 ## Mining concessions
 
-A force leases one slot of a resource a planet extracts (#85), from the planets window, at the hub
+A force leases one slot of a resource a planet extracts (#85), from the Planets tab, at the hub
 it was opened from (`concessions.lease(force, hub, planet, resource)`). The lease is a service
 contract of kind `concession` ([contracts.md](contracts.md), [ADR-0019](adr/0019-service-contracts-with-a-charge.md)),
 priced by `scripts/core/contract_offers.lua`:
@@ -113,16 +113,16 @@ priced by `scripts/core/contract_offers.lua`:
 | Shipments | every `CONCESSION_PERIOD_TICKS` (5 min) on the lease's schedule — six periods, the last at the end of the term — `UNITS_PER_SLOT_MINUTE` (30) units a minute of the period, 150 per slot, shipped by transit to the lease's hub |
 | Charge | the units shipped × their base value × `CONCESSION_PRICE` (1), fixed at the lease: between the market's sell and buy prices while the market is near its base value (a force that stores the ore can still sell it higher when the market drifts up); taken only for a period shipped: a period whose hub or import chest is gone is skipped before the funds are checked, one whose shipment is refused (a full queue) is not charged |
 | Guarantee | one period's charge, held from the lease; back at the end of the term |
-| Refusals | `not-researched`, `unknown-specialty`, `no-capacity`, `not-tradeable` (no base value), `no-import-chest`, `too-many-contracts` (the contracts window already lists `contracts.MAX_LISTED`, 8), `insufficient-funds`, `insolvent` (the force is insolvent, [contracts.md](contracts.md)); a lease is made whole or not at all |
+| Refusals | `not-researched`, `unknown-specialty`, `no-capacity`, `not-tradeable` (no base value), `no-import-chest`, `too-many-contracts` (the Contracts tab already lists `contracts.MAX_LISTED`, 8), `insufficient-funds`, `insolvent` (the force is insolvent, [contracts.md](contracts.md)); a lease is made whole or not at all |
 | Hub removed | ore in flight was paid for: it is sold back for the force like a purchase (each capsule carries the price paid per arriving unit) |
-| End | a charge the available funds (balance plus overdraft) cannot cover, or an abandon from the contracts window, defaults the lease (guarantee kept, reputation −1); every `SWEEP_TICKS` (60), leases whose contract ended release their slot. On configuration change, a lease whose specialty is gone is voided (guarantee back), one whose ore is gone withdrawn like any listed contract |
+| End | a charge the available funds (balance plus overdraft) cannot cover, or an abandon from the Contracts tab, defaults the lease (guarantee kept, reputation −1); every `SWEEP_TICKS` (60), leases whose contract ended release their slot. On configuration change, a lease whose specialty is gone is voided (guarantee back), one whose ore is gone withdrawn like any listed contract |
 
 Leases live in `storage.concessions`; on a force merge they follow their contracts.
 
 ## Outsourced production
 
 A force books one slot of a crafting category a planet serves (smelting, assembly, chemistry…) for
-one of its own recipes (#86), from the planets window: pick the recipe on the row, then **Book**
+one of its own recipes (#86), from the Planets tab: pick the recipe on the row, then **Book**
 (`concessions.book(force, hub, planet, category, recipe)`). It is a lease like a concession, of kind
 `outsourcing`, on the same term, period, guarantee and refusals, with these differences:
 
@@ -137,14 +137,13 @@ one of its own recipes (#86), from the planets window: pick the recipe on the ro
 A booking keeps its products and amount from the day it was made, even if a mod later changes the
 recipe.
 
-## Window
+## Planets tab
 
-A **Planets** button in the market window opens a read-only window: each planet's specialties, its
-distance, its transit terms (extra delay in seconds, max loss), the slots free for the player's force out of the total and, for a resource, a **Lease** button (its tooltip gives
-the terms; disabled without a free slot) or, for a crafting category, a recipe picker and a **Book**
-button, refreshed every second
-(`planets_gui.REFRESH_TICKS`). A lease re-checks that the window's hub is the player's force's and
-within reach. Like the game's windows it becomes the player's opened window,
-replacing the market window. It closes with its button, E or Esc, when the player leaves, changes
-force or is removed, and on configuration change. A planet or category without a locale key shows
-its internal name.
+The Planets tab of the Galactic Bazaar window ([window.md](window.md)), enabled once
+`gb-planetary-concessions` is researched (before, it is disabled with a tooltip naming the
+research): each planet's specialties, its distance, its transit terms (extra delay in seconds, max
+loss), the slots free for the player's force out of the total and, for a resource, a **Lease**
+button (its tooltip gives the terms; disabled without a free slot) or, for a crafting category, a
+recipe picker and a **Book** button, refreshed every second while shown. It can be read anywhere; a
+lease or booking goes to the window's hub, which must be the player's force's and within reach when
+the button is pressed. A planet or category without a locale key shows its internal name.

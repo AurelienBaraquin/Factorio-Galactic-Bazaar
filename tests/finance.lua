@@ -4,8 +4,8 @@
 -- self-heal at the interest tick, saves made before the levels, and persistence.
 local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
+local bazaar_gui = require("scripts.bazaar_gui")
 local contracts = require("scripts.contracts")
-local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
 local finance = require("scripts.finance")
 local forces = require("scripts.forces")
@@ -43,7 +43,7 @@ describe("financial engineering research", function()
     state().contracts.open = {}
   end)
   after_each(function()
-    contracts_gui.close(1)
+    bazaar_gui.close(1)
     if storage.gb_test_finance_hub and storage.gb_test_finance_hub.valid then storage.gb_test_finance_hub.destroy() end
     storage.gb_test_finance_hub = nil
     local saved = storage.gb_test_finance
@@ -65,8 +65,8 @@ describe("financial engineering research", function()
     local hub = player.surface.create_entity({ name = "gb-hub", force = "player", raise_built = true,
       position = { player.position.x + 3, player.position.y } })
     storage.gb_test_finance_hub = hub
-    contracts_gui.open(player, hub.unit_number)
-    local button = find(player.gui.screen.gb_contracts, "loan-borrow", "tier", 1)
+    bazaar_gui.open(player, "contracts", hub)
+    local button = find(player.gui.screen.gb_bazaar, "loan-borrow", "tier", 1)
     assert.is_false(button.enabled)
     local refusal = button.tooltip[3][3]
     assert.are.equal("gb-loans.refused-not-researched", refusal[1])

@@ -24,7 +24,7 @@ version, which stays in the console once the alert is gone.
 |---|---|---|---|---|---|
 | `contract-offer` | contracts | an incoming offer is made (`incoming.make_offer`), or a rental offer pass offers machines (`rental.on_offer_tick`: one notification per force per pass, counting the machines offered, the alert at the first) | `signal-info` | yes: how many offers, the kind of contract and how long the offer stands | once per minute per kind of contract (incoming, rental), the count carried |
 | `contract-due` | contracts | at a contract settlement, an active contract that requires goods is due within `DUE_SOON_TICKS` (2 min) and not complete | `signal-hourglass` | yes: time left, goods still owed, the guarantee at stake | once per contract |
-| `contract-fulfilled` | contracts | the settlement fulfils a contract | `signal-check` | yes | none (bounded by the contracts window's 8 rows) |
+| `contract-fulfilled` | contracts | the settlement fulfils a contract | `signal-check` | yes | none (bounded by the Contracts tab's 8 rows) |
 | `contract-failed` | contracts | the settlement fails a contract (deadline passed, or a charge the force could not pay) | `signal-deny` | yes | none |
 | `loan-defaulted` | finance | a loan installment could not be paid: the loan fails, the rest becomes arrears | `signal-exclamation-mark` | yes: the arrears | none |
 | `delivery-landed` | deliveries | an unloading pass finished unloading shipments of the force at a hub | the hub's icon | no | one alert per hub per pass; at most one per hub every 30 s, counting every shipment that finished landing since the last alert |
@@ -35,7 +35,7 @@ version, which stays in the console once the alert is gone.
 
 The insolvency chat lines are the messages the insolvency check printed before #107
 ([contracts.md](contracts.md#insolvency-and-bankruptcy)), unchanged. Not told: expired or declined
-offers, contracts a player abandons or repays from the contracts window (the window prints the
+offers, contracts a player abandons or repays from the Contracts tab (the window prints the
 result), contracts voided because their goods left the game, and contracts a bankruptcy ends (the
 bankruptcy message counts them). A shipment that landed but waits for room in the import chests or
 manifolds is told only once it has finished unloading. Goods owed are shown with their quality when

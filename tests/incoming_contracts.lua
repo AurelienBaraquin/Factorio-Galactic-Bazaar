@@ -1,9 +1,9 @@
 -- In-game tests of incoming contracts (scripts/incoming_contracts.lua, scripts/contracts_gui.lua, #76):
 -- offers gated on research, ingredients shipped free on acceptance, products collected from contract
--- chests, contract cargo never sold back, and the contracts window.
+-- chests, contract cargo never sold back, and the Contracts tab.
 local test_helpers = require("tests.helpers")
+local bazaar_gui = require("scripts.bazaar_gui")
 local contracts = require("scripts.contracts")
-local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
 local freight = require("scripts.freight")
 local incoming = require("scripts.incoming_contracts")
@@ -58,7 +58,7 @@ describe("incoming contracts", function()
   end)
   after_each(function()
     player = game.get_player(1)
-    contracts_gui.close(player.index)
+    bazaar_gui.close(player.index)
     for _, entity in ipairs(created or {}) do
       if entity.valid then
         storage.freight.hubs[entity.unit_number] = nil
@@ -227,25 +227,46 @@ describe("incoming contracts", function()
     end)
   end)
 
-  test("the contracts window lists offers, and accepts and declines them", function()
+  test("the Contracts tab lists offers, and accepts and declines them", function()
     local first = contracts.offer(force().index, spec())
     local second = contracts.offer(force().index, spec())
-    contracts_gui.open(player, hub.unit_number)
-    local window = player.gui.screen.gb_contracts
+    bazaar_gui.open(player, "contracts", hub)
+    local window = player.gui.screen.gb_bazaar
     assert.is_true(window ~= nil)
-    contracts_gui.on_gui_click({ element = find(window, "contract-accept", first), player_index = player.index })
+    bazaar_gui.on_gui_input({ element = find(window, "contract-accept", first), player_index = player.index })
     assert.are.equal(core.ACTIVE, contracts.get(force().index, first).state)
-    contracts_gui.on_gui_click({ element = find(window, "contract-decline", second), player_index = player.index })
+    bazaar_gui.on_gui_input({ element = find(window, "contract-decline", second), player_index = player.index })
     assert.is_nil(contracts.get(force().index, second))
-    contracts_gui.on_gui_click({ element = find(window, "contract-abandon", first), player_index = player.index })
+    bazaar_gui.on_gui_input({ element = find(window, "contract-abandon", first), player_index = player.index })
     assert.is_nil(contracts.get(force().index, first))
   end)
 
-  test("the contracts window closes when its hub is removed", function()
-    contracts_gui.open(player, hub.unit_number)
+  test("the Contracts tab declines and abandons only within reach of a hub", function()
+    local offered = contracts.offer(force().index, spec())
+    local active = contracts.offer(force().index, spec())
+    incoming.accept(force().index, active, hub.unit_number)
+    bazaar_gui.open(player, "contracts", hub)
+    local window = player.gui.screen.gb_bazaar
+    local home = player.position
+    player.teleport({ home.x + 100, home.y })
+    bazaar_gui.on_gui_input({ element = find(window, "contract-decline", offered), player_index = player.index })
+    bazaar_gui.on_gui_input({ element = find(window, "contract-abandon", active), player_index = player.index })
+    player.teleport(home)
+    assert.are.equal(core.OFFERED, contracts.get(force().index, offered).state)
+    assert.are.equal(core.ACTIVE, contracts.get(force().index, active).state)
+    bazaar_gui.on_gui_input({ element = find(window, "contract-decline", offered), player_index = player.index })
+    assert.is_nil(contracts.get(force().index, offered))
+  end)
+
+  test("the Contracts tab accepts nothing once its hub is removed, and stays open", function()
+    local id = contracts.offer(force().index, spec())
+    bazaar_gui.open(player, "contracts", hub)
     hub.destroy()
     after_ticks(1, function()
-      assert.is_nil(player.gui.screen.gb_contracts)
+      assert.is_nil(bazaar_gui.window(player.index).hub)
+      bazaar_gui.on_gui_input({ element = find(player.gui.screen.gb_bazaar, "contract-accept", id),
+        player_index = player.index })
+      assert.are.equal(core.OFFERED, contracts.get(force().index, id).state)
     end)
   end)
 

@@ -1,24 +1,16 @@
--- The planets window (#83, #85): the NPC planets, their distance, transit terms, specialties and the
--- slots free for the player's force, opened from the market window of a hub. A resource specialty
--- can be leased from it (a mining concession delivered to that hub). Rows are built once on opening
--- and updated in place. Interface state lives in storage.planets_gui.
+-- The Planets tab of the Galactic Bazaar window (#83, #85, scripts/bazaar_gui.lua), available once
+-- the force has researched planetary concessions: the NPC planets, their distance, transit terms,
+-- specialties and the slots free for the player's force. A resource specialty can be leased from it
+-- (a mining concession delivered to the window's hub, which must be within reach), a crafting one
+-- booked. Rows are built once and updated in place. Interface state is the tab's view in
+-- storage.bazaar_gui.
+local bazaar_gui = require("scripts.bazaar_gui")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
-local hubs = require("scripts.hubs")
 local planets = require("scripts.planets")
 local transit = require("scripts.core.transit")
 
 local planets_gui = {}
-
-planets_gui.REFRESH_TICKS = 60
-
-local WINDOW = "gb_planets"
-
-local function window_of(player_index)
-  local data = storage.planets_gui[player_index]
-  local window = data and data.elements.window
-  return window and window.valid and window or nil
-end
 
 -- How a specialty reads: an item icon for a resource, the category's name for crafting.
 local function specialty_caption(specialty)
@@ -29,10 +21,10 @@ local function specialty_caption(specialty)
   return { "?", { "gb-planets.category-" .. specialty.name }, category and category.localised_name or specialty.name }
 end
 
-local function refresh(player, data)
+local function refresh(player, view)
   local can_lease = concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY)
   local can_book = concessions.researched(player.force, concessions.OUTSOURCING_TECHNOLOGY)
-  for _, row in ipairs(data.elements.rows) do
+  for _, row in ipairs(view.elements.rows) do
     local free = planets.free(player.force_index, row.planet, row.kind, row.name) or 0
     row.slots.caption = { "gb-planets.slots", free, row.total }
     if row.lease then row.lease.enabled = can_lease and free > 0 end
@@ -53,12 +45,11 @@ local function lease_tooltip(planet, resource)
     string.format("%.0f", spec.deposit), string.format("%.4g", terms.max_loss * 100) }
 end
 
-local function build(player)
-  local window = player.gui.screen.add({ type = "frame", name = WINDOW, direction = "vertical",
-    caption = { "gb-planets.title" } })
-  local elements = { window = window, rows = {} }
-  local body = window.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
-  body.add({ type = "button", caption = { "gb-planets.close" }, tags = { gb_action = "planets-close" } })
+-- The rows are taken from the catalog when the tab is first shown; the catalog only changes on
+-- configuration change, which closes every window.
+local function build(_, container, view)
+  local elements = { rows = {} }
+  local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   local list = body.add({ type = "table", column_count = 6 })
   for _, header in ipairs({ "planet", "distance", "transit", "specialty", "free", "lease" }) do
     list.add({ type = "label", style = "bold_label", caption = { "gb-planets.column-" .. header } })
@@ -89,44 +80,23 @@ local function build(player)
       elements.rows[#elements.rows + 1] = row
     end
   end
-  window.force_auto_center()
-  return elements
-end
-
---- Opens the planets window of a player, at the hub concessions are delivered to.
-function planets_gui.open(player, hub_unit_number)
-  planets_gui.close(player.index)
-  local data = { hub = hub_unit_number, elements = build(player) }
-  storage.planets_gui[player.index] = data
-  refresh(player, data)
-  -- Like the game's windows: E or Esc closes it, and it replaces the market window.
-  player.opened = data.elements.window
-end
-
-function planets_gui.close(player_index)
-  local window = window_of(player_index)
-  if window then window.destroy() end
-  storage.planets_gui[player_index] = nil
+  view.elements = elements
 end
 
 -- Leases a slot from a lease or book button, at the window's hub, which must still be the player's
 -- force's and within reach (GUI events are player input). A book button books its row's recipe.
-local function lease(player, data, element)
-  local hub = hubs.get(data.hub)
-  if not (hub and hub.force == player.force and player.can_reach_entity(hub)) then
-    planets_gui.close(player.index)
-    return player.print({ "gb-planets.hub-unavailable" })
-  end
-  local tags = element.tags
+local function lease(player, view, tags, window, element)
+  local hub = bazaar_gui.hub(player, window)
+  if not hub then return player.print(bazaar_gui.no_hub_message(player)) end
   local id, reason
   if tags.gb_action == "planets-book" then
     local recipe
-    for _, row in ipairs(data.elements.rows) do
+    for _, row in ipairs(view.elements.rows) do
       if row.book == element then recipe = row.recipe.elem_value end
     end
-    id, reason = concessions.book(player.force_index, data.hub, tags.planet, tags.category, recipe)
+    id, reason = concessions.book(player.force_index, hub.unit_number, tags.planet, tags.category, recipe)
   else
-    id, reason = concessions.lease(player.force_index, data.hub, tags.planet, tags.resource)
+    id, reason = concessions.lease(player.force_index, hub.unit_number, tags.planet, tags.resource)
   end
   if id then
     local contract = contracts.get(player.force_index, id)
@@ -141,50 +111,16 @@ local function lease(player, data, element)
   else
     player.print({ "gb-planets.refused-" .. reason })
   end
-  refresh(player, data)
+  refresh(player, view)
 end
 
---- on_gui_click: the close, lease and book buttons of this window.
-function planets_gui.on_gui_click(event)
-  local element = event.element
-  if not (element and element.valid and element.get_mod() == script.mod_name) then return end
-  local action = element.tags.gb_action
-  local data = storage.planets_gui[event.player_index]
-  if action == "planets-close" then
-    planets_gui.close(event.player_index)
-  elseif (action == "planets-lease" or action == "planets-book") and data and window_of(event.player_index) then
-    lease(game.get_player(event.player_index), data, element)
-  end
-end
-
---- on_gui_closed: E, Esc or another window closes this one.
-function planets_gui.on_gui_closed(event)
-  local element = event.element
-  if element and element.valid and element.name == WINDOW and element.get_mod() == script.mod_name then
-    planets_gui.close(event.player_index)
-  end
-end
-
---- on_nth_tick(REFRESH_TICKS): refreshes the open windows of connected players.
-function planets_gui.on_refresh_tick()
-  for player_index, data in pairs(storage.planets_gui) do
-    local player = game.get_player(player_index)
-    if player and player.connected and window_of(player_index) then refresh(player, data) end
-  end
-end
-
---- on_player_left_game, on_player_changed_force and on_player_removed: the window no longer applies.
-function planets_gui.on_player_event(event)
-  planets_gui.close(event.player_index)
-end
-
---- on_init and on_configuration_changed: creates the state and closes every window (the catalog
---- may have changed).
-function planets_gui.init()
-  storage.planets_gui = storage.planets_gui or {}
-  local open = {}
-  for player_index in pairs(storage.planets_gui) do open[#open + 1] = player_index end
-  for _, player_index in ipairs(open) do planets_gui.close(player_index) end
-end
+bazaar_gui.register_tab({
+  name = "planets", order = 40, build = build, refresh = refresh,
+  actions = { ["planets-lease"] = lease, ["planets-book"] = lease },
+  available = function(player) return concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY) end,
+  locked_tooltip = function()
+    return { "gb-bazaar.tab-locked", prototypes.technology[concessions.CONCESSION_TECHNOLOGY].localised_name }
+  end,
+})
 
 return planets_gui

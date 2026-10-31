@@ -133,17 +133,25 @@ function account.repay_debt(state, tick)
   return paid
 end
 
---- Charges a force one period of interest at `tick`, on the lowest balance it had since the last
---- charge (a debt repaid within the period still pays), the debt counted up to the overdraft limit so
---- that a debt beyond it grows linearly, not without bound, until the force recovers or goes bankrupt
---- (ADR-0022). The charge may take the balance beyond the limit. Starts the next period. Returns the
---- credits charged (0 when none).
-function account.charge_interest(state, tick)
+--- The interest a charge would take now, without changing anything: INTEREST_RATE of the lowest
+--- balance since the last charge (a debt repaid within the period still pays), the debt counted up to
+--- the overdraft limit; 0 without debt in the period or under INTEREST_MIN.
+function account.interest_due(state)
   local low = math.min(state.overdraft_low or state.balance, state.balance)
-  state.overdraft_low = state.balance
   if low >= 0 then return 0 end
   local interest = math.min(-low, account.overdraft_limit(state)) * account.INTEREST_RATE
   if interest < account.INTEREST_MIN then return 0 end
+  return interest
+end
+
+--- Charges a force one period of interest at `tick` (`interest_due`); counting the debt up to the
+--- overdraft limit makes a debt beyond it grow linearly, not without bound, until the force recovers
+--- or goes bankrupt (ADR-0022). The charge may take the balance beyond the limit. Starts the next
+--- period. Returns the credits charged (0 when none).
+function account.charge_interest(state, tick)
+  local interest = account.interest_due(state)
+  state.overdraft_low = state.balance
+  if interest <= 0 then return 0 end
   record(state, -interest, {
     tick = tick, kind = account.INTEREST_KIND, key = "account/overdraft", merge_ticks = account.INTEREST_MERGE_TICKS,
   })

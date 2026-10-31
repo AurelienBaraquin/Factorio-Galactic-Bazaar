@@ -79,11 +79,10 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   reputation; `finance.init` does it for every force on init, configuration change and at the start
   of each interest tick ([contracts.md](contracts.md#research)).
 - **Incoming contracts**: every `incoming.OFFER_TICKS`, forces that researched contracts get an
-  offer; every `incoming.COLLECT_TICKS`, contract chests hand over what active contracts need; every
-  `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).
+  offer; every `incoming.COLLECT_TICKS`, contract chests hand over what active contracts need ([contracts.md](contracts.md)).
 - **Planets**: on init and configuration change, `planets.init` limits the NPC planet catalog to the
-  loaded game; every `planets_gui.REFRESH_TICKS`, open planets windows refresh ([planets.md](planets.md)).
-- **Loans**: the contracts window's credit line borrows a tier (`loans.borrow`: a loan contract
+  loaded game ([planets.md](planets.md)).
+- **Loans**: the Contracts tab's credit line borrows a tier (`loans.borrow`: a loan contract
   offered and accepted at once, its principal paid); its installments run in the contract
   settlement with no service; every `loans.COLLECT_TICKS`, arrears a defaulted loan left are taken
   from each force's available funds, down to its overdraft limit ([contracts.md](contracts.md)).
@@ -109,10 +108,17 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Delivery**: a purchase is paid and queued in capsules (`freight.order`); every
   `freight.UNLOAD_INTERVAL` ticks landed capsules are unloaded into import chests; a removed hub's
   queue is sold back ([terminal.md](terminal.md)).
-- **Market window**: the `gb-open-hub` input opens it; `on_gui_click` and `on_gui_text_changed`
-  dispatch on the `gb_action` tag of this mod's elements; `on_gui_closed`, a destroyed hub and the
-  player events (left, changed force, removed) close it; the refresh runs every
-  `market_gui.SLOT_TICKS`.
+- **Galactic Bazaar window** ([window.md](window.md), [ADR-0023](adr/0023-central-window.md)): the
+  tab modules (`overview_gui`, `market_gui`, `contracts_gui`, `planets_gui`) register with
+  `scripts/bazaar_gui.lua` when `control.lua` requires them; the `gb-toggle-bazaar` input and the mod
+  button open or close it, the `gb-open-hub` input opens it on the Market tab bound to the clicked
+  hub; every GUI input event (`bazaar_gui.GUI_EVENTS`: click, text, confirmed, element, checkbox,
+  selection, value) dispatches on the `gb_action` tag of this mod's elements to the window or the
+  tab owning that action, `on_gui_selected_tab_changed` builds and
+  shows a tab; `on_gui_closed` and the player events (left, changed force, removed) close it; a
+  destroyed hub is unbound; every `bazaar_gui.SLOT_TICKS` the shown tab of the windows whose slot
+  comes up is refreshed; the research events, `on_player_created`, the force resets and, as a
+  self-heal, every `forces.INTEREST_TICKS`, show or hide the mod button.
 - **Building status**: every `entity_status.PASS_TICKS`, the next buildings of the mod are given a
   custom status and, while stopped (no hub, no power), a rendered alert; the buildings are listed as
   they are built and destroyed, and a building is also refreshed when built
@@ -127,7 +133,7 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Remote interface**: `control.lua` registers `galactic-bazaar` (`value_overrides.REMOTE`); an
   override call checks its input, stores it, rebuilds the base values and rebases the markets
   ([pricing.md](pricing.md)).
-- **Market feed**: the market window's list and the price combinators read prices through
+- **Market feed**: the Market tab's list and the price combinators read prices through
   `telecom.quote` or on the force's telecommunications period, so what a force sees is at most that
   old; trades always use live prices ([terminal.md](terminal.md), ADR-0012).
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
