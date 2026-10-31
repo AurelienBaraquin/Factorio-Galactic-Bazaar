@@ -1,5 +1,6 @@
 -- In-game tests of the cargo module (scripts/cargo.lua): attachment to hubs in range, export
 -- selling (spoilable stacks by freshness), import delivery, and the export batch budget.
+local test_helpers = require("tests.helpers")
 local cargo = require("scripts.cargo")
 local market = require("scripts.market")
 
@@ -21,7 +22,7 @@ describe("cargo module", function()
     surface = game.surfaces[1]
     created = {}
     saved_balance = player_state().balance
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
   after_each(function()
@@ -29,7 +30,7 @@ describe("cargo module", function()
     for _, entity in ipairs(created or {}) do
       if entity.valid then entity.destroy() end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
 

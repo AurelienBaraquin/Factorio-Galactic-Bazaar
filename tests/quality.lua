@@ -1,5 +1,6 @@
 -- In-game tests of quality values (ADR-0008): one value and one market per quality when a quality
 -- mod is active (Space Age), and nothing different without one.
+local test_helpers = require("tests.helpers")
 local cargo = require("scripts.cargo")
 local market = require("scripts.market")
 local pricing = require("scripts.pricing")
@@ -14,13 +15,13 @@ describe("quality", function()
   before_each(function()
     created = {}
     saved_balance = player_state().balance
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
   end)
   after_each(function()
     for _, entity in ipairs(created or {}) do
       if entity.valid then entity.destroy() end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     for key in pairs(player_state().markets) do
       if key:find(GEAR, 1, true) then player_state().markets[key] = nil end
     end

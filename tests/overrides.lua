@@ -1,5 +1,6 @@
 -- In-game tests of value overrides (scripts/pricing.lua, ADR-0007): the remote interface other mods
 -- call, its input checks, and persistence.
+local test_helpers = require("tests.helpers")
 local market = require("scripts.market")
 local pricing = require("scripts.pricing")
 local value_overrides = require("scripts.value_overrides")
@@ -76,7 +77,7 @@ describe("value overrides", function()
     local force_index = game.forces.player.index
     local state = storage.forces[force_index]
     local saved_balance = state.balance
-    state.balance = 0
+    test_helpers.set_balance(state, 0)
     market.sell(force_index, "item", "iron-plate", market.sellable(force_index, "item", "iron-plate", 0.01))
     local ratio = market.quote(force_index, "item", "iron-plate").mid / original.plate
     call("set_value", "item", "iron-plate", original.plate * 100)
@@ -84,7 +85,7 @@ describe("value overrides", function()
     assert.is_true(math.abs(quote.mid / (original.plate * 100) - ratio) < 1e-6 * ratio)
     assert.is_true(market.preview(force_index, "item", "iron-plate", "buy", 1) > 0)
     state.markets["item/iron-plate"] = nil
-    state.balance = saved_balance
+    test_helpers.set_balance(state, saved_balance)
   end)
 
   test("recompute every base value quickly", function()

@@ -1,5 +1,6 @@
 -- In-game tests of the contract engine's runtime side (scripts/contracts.lua, ADR-0015): offers,
 -- deposits, settlement through the force's account, reputation, force merge and persistence.
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
@@ -23,13 +24,13 @@ describe("contracts", function()
     storage.gb_test_contracts = {
       balance = state().balance, reputation = state().reputation, history = #state().contracts.history,
     }
-    state().balance = 1000
+    test_helpers.set_balance(state(), 1000)
   end)
   after_each(function()
     local saved = storage.gb_test_contracts
     if saved then
-      state().balance, state().reputation = saved.balance, saved.reputation
-      state().overdraft_low = state().balance
+      test_helpers.set_balance(state(), saved.balance)
+      state().reputation = saved.reputation
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       storage.gb_test_contracts = nil
@@ -51,7 +52,7 @@ describe("contracts", function()
   end)
 
   test("accept from a zero balance, the guarantee going on overdraft", function()
-    state().balance = 0
+    test_helpers.set_balance(state(), 0)
     local id = contracts.offer(force_index(), spec())
     assert.is_true(contracts.accept(force_index(), id))
     assert.are.equal(-300, state().balance)
@@ -69,7 +70,7 @@ describe("contracts", function()
 
   test("refuse an acceptance the force cannot guarantee, overdraft included, changing nothing", function()
     local balance = 250 - account.overdraft_limit(state())
-    state().balance = balance
+    test_helpers.set_balance(state(), balance)
     local id = contracts.offer(force_index(), spec())
     assert.are.same({ false, "insufficient-funds" }, { contracts.accept(force_index(), id) })
     assert.are.equal(core.OFFERED, contracts.get(force_index(), id).state)
@@ -79,7 +80,7 @@ describe("contracts", function()
   test("fail a late contract: the guarantee is kept even if the force spent into its overdraft", function()
     local id = contracts.offer(force_index(), spec())
     contracts.accept(force_index(), id)
-    state().balance = -5000
+    test_helpers.set_balance(state(), -5000)
     local reputation = state().reputation
     contracts.on_settle_tick({ tick = game.tick + 601 })
     assert.are.equal(-5000, state().balance)
@@ -107,7 +108,7 @@ describe("contracts", function()
   test("carry a merged force's open contracts over", function()
     local source = game.create_force("gb-test-contracts")
     local source_state = storage.forces[source.index]
-    source_state.balance = 1000
+    test_helpers.set_balance(source_state, 1000)
     source_state.reputation = 5
     state().reputation = 2
     local id = contracts.offer(source.index, spec())

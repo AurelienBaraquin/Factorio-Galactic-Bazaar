@@ -57,13 +57,18 @@ PATH=~/.local/share/factorio-headless/factorio/bin/x64:$PATH npm run test:game -
 
 The tests in `tests/` run inside a headless Factorio 2.1.24 (install: [README](../README.md)),
 in an isolated `factorio-test-data-dir/` that never touches a real mods folder. They cover the
-adapters in `scripts/`: storage lifecycle and force events (`tests/forces.lua`), the overdraft and its interest (`tests/overdraft.lua`), contracts (`tests/contracts.lua`), loans, their default, repayment, merge and the contracts window's credit line (`tests/loans.lua`), the financial engineering research: borrowing gated by credit, overdraft levels from research events, resets and older saves (`tests/finance.lua`), incoming contracts, the contract chest and the contracts window (`tests/incoming_contracts.lua`), machine rental (`tests/rental.lua`), NPC planets, transit and their window (`tests/planets.lua`), mining concessions, outsourced production and their research gating (`tests/concessions.lua`), the production
+adapters in `scripts/`: storage lifecycle and force events (`tests/forces.lua`), the overdraft and its interest (`tests/overdraft.lua`), contracts (`tests/contracts.lua`), loans, their default, repayment, merge and the contracts window's credit line (`tests/loans.lua`), the financial engineering research: borrowing gated by credit, overdraft levels from research events, resets and older saves (`tests/finance.lua`), insolvency, its refusals, bankruptcy, force merge and the market window's status (`tests/insolvency.lua`), incoming contracts, the contract chest and the contracts window (`tests/incoming_contracts.lua`), machine rental (`tests/rental.lua`), NPC planets, transit and their window (`tests/planets.lua`), mining concessions, outsourced production and their research gating (`tests/concessions.lua`), the production
 graph and base values built from the real prototypes (`tests/recipe_graph.lua`,
 `tests/pricing.lua`), value overrides through the remote interface (`tests/overrides.lua`), quality values and markets (`tests/quality.lua`, effective in the Space Age run), per-force trading (`tests/market.lua`), the terminal buildings
 (`tests/hubs.lua`, `tests/cargo.lua`, including spoilable goods priced by freshness in the Space Age run), catapults (`tests/catapult.lua`), fluid manifolds (`tests/manifold.lua`), delivery by orbital capsule and tiers (`tests/freight.lua`), docking bays (`tests/docking_bay.lua`), teleporters (`tests/teleporter.lua`), power trading (`tests/power.lua`), price signal combinators (`tests/price_signals.lua`), order combinators (`tests/circuit_orders.lua`), telecommunications (`tests/telecom.lua`), the coherence of the research tree (`tests/technologies.lua`) and the market window driven through the test save's
 player (`tests/market_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
-re-fetches what it needs instead of trusting the file's locals. `control.lua` registers them only when the `factorio-test` mod is
+re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
+between tests, so a test never assigns a force's balance directly: it calls
+`test_helpers.set_balance(state, balance)` from `tests/helpers.lua`, which also resets the low-water
+marks (`overdraft_low`, `solvency_low`) and drops any insolvency or recovery in progress, or the
+interest or insolvency check would act on the balance the test left behind. Name the module's local
+`test_helpers`: `helpers` is the game's own global (`helpers.create_profiler`). `control.lua` registers them only when the `factorio-test` mod is
 active, so they are inert in a normal game. CLI configuration: the `factorio-test` key of
 `package.json`.
 

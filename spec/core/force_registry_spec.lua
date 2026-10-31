@@ -3,7 +3,7 @@ local force_registry = require("scripts.core.force_registry")
 local function new_state()
   return {
     balance = 0, overdraft_low = 0, journal = {}, markets = {}, reputation = 0, contracts = { open = {}, history = {} },
-    reservations = {}, arrears = 0,
+    reservations = {}, arrears = 0, solvency_low = 0, bankruptcies = 0, bankruptcy_debt = 0,
   }
 end
 
@@ -72,6 +72,23 @@ describe("force_registry.merge", function()
     forces[1].overdraft_level, forces[2].overdraft_level = 0, 2
     force_registry.merge(forces, 2, 1)
     assert.are.equal(0, forces[1].overdraft_level)
+  end)
+
+  it("keeps the stricter insolvency of the two forces", function()
+    local forces = { [1] = new_state(), [2] = new_state() }
+    forces[2].insolvent_since, forces[2].bankruptcies = 120, 1
+    forces[1].credit_ban_until = 5000
+    force_registry.merge(forces, 2, 1)
+    assert.are.equal(120, forces[1].insolvent_since)
+    assert.are.equal(5000, forces[1].credit_ban_until)
+    assert.are.equal(1, forces[1].bankruptcies)
+  end)
+
+  it("adds up the lowest balances since the last insolvency check", function()
+    local forces = { [1] = new_state(), [2] = new_state() }
+    forces[1].solvency_low, forces[2].solvency_low = -300, -100
+    force_registry.merge(forces, 2, 1)
+    assert.are.equal(-400, forces[1].solvency_low)
   end)
 
   it("creates the destination state when it is missing", function()

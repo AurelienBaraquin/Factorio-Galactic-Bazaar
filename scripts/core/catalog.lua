@@ -1,5 +1,5 @@
--- What the market interface lists and how it shows numbers: search, pages, price trend and credit
--- formatting. Pure Lua.
+-- What the market interface lists and how it shows numbers: search, pages, price trend, credit and
+-- duration formatting. Pure Lua.
 local catalog = {}
 
 -- Rows on one page of the market list; also the most keys the interface reads at once (ADR-0004).
@@ -60,6 +60,12 @@ local UNITS = { { 1, "" }, { 1e3, "k" }, { 1e6, "M" }, { 1e9, "G" }, { 1e12, "T"
 local function round_short(scaled)
   local decimals = scaled >= 99.95 and 0 or scaled >= 9.995 and 1 or 2
   return string.format("%." .. decimals .. "f", scaled), decimals
+end
+
+--- A duration in ticks as "m:ss" (whole seconds, at least 0:00).
+function catalog.format_duration(ticks)
+  local seconds = math.max(0, math.floor(ticks / 60))
+  return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
 --- A credit amount as short text: 2 decimals below 1000, then k / M / G / T with 3 significant

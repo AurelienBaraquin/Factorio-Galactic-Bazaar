@@ -45,11 +45,6 @@ local function goods_text(list, delivered)
   return table.concat(parts, "  ")
 end
 
-local function minutes(ticks)
-  local seconds = math.max(0, math.floor(ticks / 60))
-  return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
-end
-
 -- Why a loan action (Borrow, or any refused abandon: a loan's Repay included) is refused, as a
 -- localised string; the credit technology's name is its parameter (used by `not-researched`, ignored
 -- by the other reasons).
@@ -110,8 +105,9 @@ local function refresh(player, data)
           string.format("%.0f", core.guarantee(contract)) }
         or { "gb-contracts.terms", string.format("%.0f", contract.reward),
           string.format("%.0f", core.guarantee(contract)) }
-      row.time.caption = offered and { "gb-contracts.offer-ends", minutes(contract.accept_by - game.tick) }
-        or { "gb-contracts.due-in", minutes(contract.due_tick - game.tick) }
+      row.time.caption = offered
+        and { "gb-contracts.offer-ends", catalog.format_duration(contract.accept_by - game.tick) }
+        or { "gb-contracts.due-in", catalog.format_duration(contract.due_tick - game.tick) }
       row.primary.caption = offered and { "gb-contracts.accept" } or { "gb-contracts.abandon" }
       row.primary.tags = { gb_action = offered and "contract-accept" or "contract-abandon", id = contract.id }
       row.primary.tooltip = ""

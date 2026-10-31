@@ -1,5 +1,6 @@
 -- In-game tests of purchase deliveries by orbital capsule (scripts/freight.lua): payment, landing
 -- after the delay, waiting for room, bounded queue, and settlement when the hub is removed.
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local freight = require("scripts.freight")
 
@@ -30,7 +31,7 @@ describe("orbital capsule", function()
     surface = game.surfaces[1]
     created = {}
     saved_balance, saved_reputation = player_state().balance, player_state().reputation
-    player_state().balance = 1e6
+    test_helpers.set_balance(player_state(), 1e6)
     player_state().markets["item/" .. GEAR] = nil
     hub = place("gb-hub", 0, 0)
     chest = place("gb-import-chest", 3, 0)
@@ -43,21 +44,21 @@ describe("orbital capsule", function()
         entity.destroy()
       end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     if saved_reputation then player_state().reputation = saved_reputation end
     player_state().overdraft_low = player_state().balance
     player_state().markets["item/" .. GEAR] = nil
   end)
 
   test("orders on overdraft, down to exactly the limit, fee included", function()
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
     local cost, fee = freight.preview(game.forces.player.index, GEAR, 50)
     assert.is_true(freight.order(game.forces.player.index, hub.unit_number, GEAR, 50))
     assert.is_true(math.abs(player_state().balance + cost + fee) < 1e-6)
     local floor = -account.overdraft_limit(player_state())
     cost, fee = freight.preview(game.forces.player.index, GEAR, 50)
     -- A micro-credit above the exact need: adding the limit back can lose the last bit of a float.
-    player_state().balance = floor + cost + fee + 1e-6
+    test_helpers.set_balance(player_state(), floor + cost + fee + 1e-6)
     assert.is_true(freight.order(game.forces.player.index, hub.unit_number, GEAR, 50))
     assert.is_true(player_state().balance >= floor)
     assert.is_true(player_state().balance - floor < 1e-5)
@@ -171,7 +172,7 @@ describe("orbital capsule", function()
   test("moves the capsules of a merged force to the destination force", function()
     local source = game.create_force("gb-test-freight")
     local source_index = source.index
-    storage.forces[source_index].balance = 1e6
+    test_helpers.set_balance(storage.forces[source_index], 1e6)
     freight.order(source_index, hub.unit_number, GEAR, 50)
     game.merge_forces(source, "player")
     after_ticks(1, function()

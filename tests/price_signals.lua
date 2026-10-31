@@ -1,5 +1,6 @@
 -- In-game tests of the price signal combinators (scripts/price_signals.lua, ADR-0010): prices and
 -- balance on the circuit network, scaling, hub requirement and refresh.
+local test_helpers = require("tests.helpers")
 local market = require("scripts.market")
 local price_signals = require("scripts.price_signals")
 local signals = require("scripts.core.signals")
@@ -44,7 +45,7 @@ describe("price signal combinators", function()
     surface = game.surfaces[1]
     created = {}
     saved_balance = player_state().balance
-    player_state().balance = 12345.4
+    test_helpers.set_balance(player_state(), 12345.4)
     storage.price_signals.snapshots = {}
     storage.price_signals.builders = {}
     hub = place("gb-hub", 0)
@@ -54,7 +55,7 @@ describe("price signal combinators", function()
     for _, entity in ipairs(created or {}) do
       if entity.valid then entity.destroy() end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     storage.price_signals.snapshots = {}
     storage.price_signals.builders = {}
   end)
@@ -114,7 +115,7 @@ describe("price signal combinators", function()
     local combinator = place("gb-sell-price-combinator", 3)
     local pole = reader(combinator)
     update_all()
-    player_state().balance = 777
+    test_helpers.set_balance(player_state(), 777)
     update_all()
     after_ticks(2, function()
       assert.are.equal(777, pole.get_circuit_network(W.circuit_red).get_signal(CREDITS))

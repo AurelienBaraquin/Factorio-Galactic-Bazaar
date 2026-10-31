@@ -11,6 +11,7 @@ local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local insolvency = require("scripts.core.insolvency")
 local offers = require("scripts.core.contract_offers")
 local planets = require("scripts.planets")
 
@@ -41,6 +42,8 @@ end
 local function make_lease(force_index, hub_unit_number, planet_name, specialty, spec, item, units)
   if not cargo.has_import(hub_unit_number) then return nil, "no-import-chest" end
   if #contracts.listed(force_index) >= contracts.MAX_LISTED then return nil, "too-many-contracts" end
+  -- Before the offer is filed, so that a refusal leaves no declined contract behind.
+  if insolvency.insolvent(storage.forces[force_index]) then return nil, "insolvent" end
   if account.available(storage.forces[force_index]) < spec.deposit then return nil, "insufficient-funds" end
   local id = contracts.offer(force_index, spec)
   if not id then return nil, "not-tradeable" end
@@ -70,7 +73,7 @@ end
 --- Leases one slot of `resource` on `planet_name` for a force, delivered to a hub of its force.
 --- Either the lease is made whole (contract accepted, slot reserved) or nothing changes. Returns the
 --- contract id, or nil and a reason (not-researched, unknown-specialty, no-capacity, not-tradeable,
---- no-import-chest, too-many-contracts, insufficient-funds).
+--- no-import-chest, too-many-contracts, insufficient-funds, insolvent).
 function concessions.lease(force_index, hub_unit_number, planet_name, resource)
   if not concessions.researched(game.forces[force_index], concessions.CONCESSION_TECHNOLOGY) then
     return nil, "not-researched"

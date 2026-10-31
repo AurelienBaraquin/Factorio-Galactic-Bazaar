@@ -84,5 +84,7 @@ its counterparties would give.
 - Trade-offs accepted: interest is charged per whole minute on the period's lowest balance, so a
   brief dip pays a full minute; a force beyond the limit has no further consequence until bankruptcy
   exists. The `gb-credits` signal and the window show a negative balance.
-- Follow-up: #96 (loans, [ADR-0021](0021-loans.md)), #97 (bankruptcy, what happens beyond `-limit`), #98 (research raising the
-  limit: done, `state.overdraft_level` read by `overdraft_limit`, [contracts.md](../contracts.md#research)).
+- Follow-up: #96 (loans, [ADR-0021](0021-loans.md)), #97 (bankruptcy, what happens beyond `-limit`:
+  done, [ADR-0022](0022-insolvency-and-bankruptcy.md), which also sets the limit to 0 during a credit
+  ban), #98 (research raising the limit: done, `state.overdraft_level` read by `overdraft_limit`,
+  [contracts.md](../contracts.md#research)).

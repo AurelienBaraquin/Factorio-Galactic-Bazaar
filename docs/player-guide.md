@@ -21,7 +21,8 @@ limit**: 10 000 credits, raised to 25 000 by the **Overdraft 1** research and to
 adds to 10 000). The market window shows the overdraft you have left next to the balance.
 Each minute your balance went below zero, it pays **0.5 % interest** on the lowest it reached in
 that minute (counted up to the limit, so at most 50 credits a minute at 10 000), even if that takes
-it past the limit; past the limit, nothing more can be bought until sales bring the balance back.
+it past the limit; past the limit, nothing more can be bought until sales bring the balance back,
+and your force is **insolvent** (see below).
 
 ## Price signal combinators
 
@@ -142,6 +143,35 @@ you already have are repaid whether or not you have it.
   not fit is taken from your income as it comes. No new loan until they are paid.
 - No loan either while your balance is beyond the overdraft limit.
 - Loans take rows of the Contracts window (8 at most, with your other contracts).
+
+## Insolvency and bankruptcy
+
+Your force is **insolvent** when its balance goes past the overdraft limit (interest can push it
+there), or when it owes arrears it cannot pay. You are told so in the chat, and the market window
+shows **Insolvent: bankruptcy in m:ss**.
+
+- You have **10 minutes** to recover: bring your balance back until 5 % of your overdraft limit is
+  left (**−9 500 credits** at the base limit; the message says the figure) and keep it there for a
+  **whole minute**, with no arrears left. A sale just before a check does not count if the balance
+  was still too low earlier in that second, and a dip under that figure restarts the minute.
+- Meanwhile no contract is accepted and no loan is granted. You can still sell, from the window,
+  export chests, export manifolds and power substations, and deliver to your contracts.
+- Still insolvent after 10 minutes, your force goes **bankrupt**. Nothing you owe is cancelled:
+  - every open contract ends (offers declined, active contracts failed, their guarantees kept);
+  - everything you owe — a negative balance, arrears, the installments left on your loans — plus a
+    **25 % restructuring surcharge** becomes one **bankruptcy debt**, frozen: it earns no interest.
+    Your balance is set to 0, and every credit you receive (sales, exports, rewards) goes to the debt
+    first, so you cannot spend income before it is repaid;
+  - your reputation falls to −20;
+  - you get **no credit**: no loan and an overdraft limit of 0, for **60 minutes and until the debt is
+    repaid**. Each new bankruptcy doubles that time, up to 8 hours. When credit returns, a researched
+    overdraft gives only half its extra at reputation −20, until your reputation recovers.
+- The market window shows **Bankrupt: no credit for m:ss, X of debt to repay**, then **no credit
+  until X of debt is repaid** once the time has passed; you are told when credit returns.
+- Going bankrupt on purpose rarely pays: the surcharge costs more than the overdraft's interest
+  unless your debt would take you more than about 100 minutes of income to repay, and you still
+  lose every contract, your reputation and your credit.
+- What was already paid still arrives: capsules in flight, shipments from planets in transit.
 
 ## Machine rental
 

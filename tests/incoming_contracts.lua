@@ -1,6 +1,7 @@
 -- In-game tests of incoming contracts (scripts/incoming_contracts.lua, scripts/contracts_gui.lua, #76):
 -- offers gated on research, ingredients shipped free on acceptance, products collected from contract
 -- chests, contract cargo never sold back, and the contracts window.
+local test_helpers = require("tests.helpers")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
@@ -49,7 +50,7 @@ describe("incoming contracts", function()
       balance = state().balance, reputation = state().reputation, history = #state().contracts.history,
       researched = force().technologies[incoming.TECHNOLOGY].researched,
     }
-    state().balance = 1000
+    test_helpers.set_balance(state(), 1000)
     state().contracts.open = {}
     hub = place("gb-hub", 3, 0)
     hub.energy = hub.electric_buffer_size
@@ -66,8 +67,8 @@ describe("incoming contracts", function()
     end
     local saved = storage.gb_test_incoming
     if saved then
-      state().balance, state().reputation = saved.balance, saved.reputation
-      state().overdraft_low = state().balance
+      test_helpers.set_balance(state(), saved.balance)
+      state().reputation = saved.reputation
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       force().technologies[incoming.TECHNOLOGY].researched = saved.researched
@@ -118,7 +119,7 @@ describe("incoming contracts", function()
   end)
 
   test("acceptance from a zero balance puts the guarantee on overdraft", function()
-    state().balance = 0
+    test_helpers.set_balance(state(), 0)
     local id = contracts.offer(force().index, spec())
     assert.is_true(incoming.accept(force().index, id, hub.unit_number))
     assert.are.equal(-300, state().balance)

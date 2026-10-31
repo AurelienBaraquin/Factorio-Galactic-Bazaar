@@ -8,6 +8,7 @@
 -- full instead of abandoned.
 local account = require("scripts.core.account")
 local core = require("scripts.core.contracts")
+local insolvency = require("scripts.core.insolvency")
 local reputation = require("scripts.core.reputation")
 
 local contracts = {}
@@ -53,14 +54,15 @@ function contracts.get(force_index, id)
 end
 
 --- Whether a force could accept an offer now, with a guarantee of `guarantee` (the contract's own
---- by default). Returns true, or false and a reason (unknown, not-offered, expired,
---- insufficient-funds).
+--- by default). Returns true, or false and a reason (unknown, not-offered, expired, insolvent: no
+--- contract is taken while the force is insolvent, ADR-0022; insufficient-funds).
 function contracts.can_accept(force_index, id, guarantee)
   local state = state_of(force_index)
   local contract = state and state.contracts.open[id]
   if not contract then return false, "unknown" end
   if contract.state ~= core.OFFERED then return false, "not-offered" end
   if game.tick > contract.accept_by then return false, "expired" end
+  if insolvency.insolvent(state) then return false, "insolvent" end
   if account.available(state) < (guarantee or core.guarantee(contract)) then return false, "insufficient-funds" end
   return true
 end

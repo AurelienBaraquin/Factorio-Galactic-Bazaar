@@ -1,4 +1,5 @@
 -- In-game tests of the market window (scripts/market_gui.lua), driven through the test save's player.
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local catalog = require("scripts.core.catalog")
 local freight = require("scripts.freight")
@@ -51,7 +52,7 @@ describe("market window", function()
     created = {}
     saved_balance = force_state().balance
     saved_reputation = force_state().reputation
-    force_state().balance = 1e6
+    test_helpers.set_balance(force_state(), 1e6)
     force_state().markets["item/iron-gear-wheel"] = nil
     player.get_main_inventory().clear()
     hub = place("gb-hub", 3, 0)
@@ -65,7 +66,7 @@ describe("market window", function()
     for _, entity in ipairs(created) do
       if entity.valid then entity.destroy() end
     end
-    if saved_balance then force_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(force_state(), saved_balance) end
     if saved_reputation then force_state().reputation = saved_reputation end
     force_state().markets["item/iron-gear-wheel"] = nil
     player.get_main_inventory().clear()
@@ -83,12 +84,12 @@ describe("market window", function()
   end)
 
   test("shows the overdraft left and its limit", function()
-    force_state().balance = -400
+    test_helpers.set_balance(force_state(), -400)
     market_gui.open(player, hub)
     local limit = account.overdraft_limit(force_state())
     assert.are.same({ "gb-gui.overdraft", catalog.format_credits(limit - 400), catalog.format_credits(limit) },
       data().elements.overdraft.caption)
-    force_state().balance = 1e6
+    test_helpers.set_balance(force_state(), 1e6)
     market_gui.close(player.index)
     market_gui.open(player, hub)
     assert.are.equal(catalog.format_credits(limit), data().elements.overdraft.caption[2])
@@ -221,7 +222,7 @@ describe("market window", function()
   test("refreshes an open window in its player's slot, keeping the row elements", function()
     market_gui.open(player, hub)
     local first_row = data().elements.rows[1].icon
-    force_state().balance = 2500
+    test_helpers.set_balance(force_state(), 2500)
     local profiler = helpers.create_profiler()
     refresh_slot_of_player()
     profiler.stop()

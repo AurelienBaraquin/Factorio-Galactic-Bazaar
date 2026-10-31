@@ -1,4 +1,5 @@
--- The market window, opened by clicking a trading hub within reach: balance and overdraft left, a searchable and paged
+-- The market window, opened by clicking a trading hub within reach: balance and overdraft left, the
+-- force's insolvency or credit ban with the time left (ADR-0022), a searchable and paged
 -- list of tradeable items with their prices, and a panel to buy into the hub's import chests or sell
 -- from the player's inventory. Interface state is per player in storage.players; economy state
 -- stays per force. Every action is re-validated, since GUI events are player input.
@@ -8,6 +9,7 @@ local catalog = require("scripts.core.catalog")
 local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
+local insolvency = require("scripts.core.insolvency")
 local market = require("scripts.market")
 local concessions = require("scripts.concessions")
 local planets_gui = require("scripts.planets_gui")
@@ -66,6 +68,23 @@ local function refresh_status(player, data)
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(state.balance) }
   elements.overdraft.caption = { "gb-gui.overdraft", catalog.format_credits(account.overdraft_left(state)),
     catalog.format_credits(account.overdraft_limit(state)) }
+  local grace, ban = insolvency.grace_left(state, game.tick), insolvency.ban_left(state, game.tick)
+  elements.solvency.visible = grace ~= nil or ban ~= nil
+  if grace then
+    elements.solvency.caption = { "gb-gui.insolvent", catalog.format_duration(grace) }
+    elements.solvency.tooltip = { "gb-gui.insolvent-terms",
+      catalog.format_credits(insolvency.recovery_balance(state)) }
+  elseif ban then
+    local debt = state.bankruptcy_debt or 0
+    if ban <= 0 then
+      elements.solvency.caption = { "gb-gui.credit-ban-debt", catalog.format_credits(debt) }
+    elseif debt > 0 then
+      elements.solvency.caption = { "gb-gui.credit-ban", catalog.format_duration(ban), catalog.format_credits(debt) }
+    else
+      elements.solvency.caption = { "gb-gui.credit-ban-time", catalog.format_duration(ban) }
+    end
+    elements.solvency.tooltip = { "gb-gui.credit-ban-terms" }
+  end
   elements.reputation.caption = { "gb-gui.reputation", state.reputation }
   elements.reputation.tooltip = { "gb-gui.reputation-effects",
     string.format("%.4g", reputation.fee_factor(state.reputation) * 100),
@@ -209,6 +228,8 @@ local function build(player)
   elements.balance = status.add({ type = "label", style = "bold_label" })
   elements.overdraft = status.add({ type = "label", tooltip = { "gb-gui.overdraft-terms",
     string.format("%.4g", account.INTEREST_RATE * 100), account.INTEREST_TICKS / 3600 } })
+  elements.solvency = status.add({ type = "label", style = "bold_label" })
+  elements.solvency.style.font_color = { r = 1, g = 0.4, b = 0.3 }
   elements.reputation = status.add({ type = "label" })
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })

@@ -1,5 +1,6 @@
 -- In-game tests of order combinators (scripts/circuit_orders.lua, ADR-0011): buy orders from circuit
 -- signals, one per item and period, within a budget the force shares.
+local test_helpers = require("tests.helpers")
 local circuit_orders = require("scripts.circuit_orders")
 local freight = require("scripts.freight")
 local orders = require("scripts.core.orders")
@@ -55,7 +56,7 @@ describe("order combinator", function()
     created = {}
     saved_balance = player_state().balance
     saved_journal = player_state().journal
-    player_state().balance = 1e6
+    test_helpers.set_balance(player_state(), 1e6)
     player_state().journal = {}
     player_state().markets["item/" .. GEAR] = nil
     storage.circuit_orders.spent = {}
@@ -70,7 +71,7 @@ describe("order combinator", function()
         entity.destroy()
       end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     if saved_journal then player_state().journal = saved_journal end
     player_state().overdraft_low = player_state().balance
     player_state().markets["item/" .. GEAR] = nil
@@ -116,7 +117,7 @@ describe("order combinator", function()
   end)
 
   test("buys on overdraft from a zero balance", function()
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
     local combinator = place("gb-order-combinator", 3)
     emit({ combinator }, { { name = GEAR, count = 50 }, budget(1e5) })
     after_ticks(2, function()
@@ -127,7 +128,7 @@ describe("order combinator", function()
   end)
 
   test("refuses a price combinator's input even when the balance it emits is 0", function()
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
     local combinator = place("gb-order-combinator", 3)
     local prices = place("gb-buy-price-combinator", -3, 107)
     prices.get_wire_connector(W.circuit_red, true).connect_to(combinator.get_wire_connector(W.circuit_red, true))

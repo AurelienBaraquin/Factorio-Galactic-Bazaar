@@ -1,5 +1,6 @@
 -- In-game tests of the manifold module (scripts/manifold.lua, #63): fluids sold from export
 -- manifolds, bought into import manifolds by orbital capsule, and listed in the market window.
+local test_helpers = require("tests.helpers")
 local freight = require("scripts.freight")
 local manifold = require("scripts.manifold")
 
@@ -24,7 +25,7 @@ describe("manifold module", function()
     surface = game.surfaces[1]
     created = {}
     saved_balance = player_state().balance
-    player_state().balance = 1e6
+    test_helpers.set_balance(player_state(), 1e6)
     player_state().markets["fluid/" .. OIL] = nil
     hub = place("gb-hub", 0)
     hub.energy = hub.electric_buffer_size
@@ -36,7 +37,7 @@ describe("manifold module", function()
         entity.destroy()
       end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     player_state().markets["fluid/" .. OIL] = nil
   end)
 
