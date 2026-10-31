@@ -63,7 +63,10 @@ graph and base values built from the real prototypes (`tests/recipe_graph.lua`,
 (`tests/hubs.lua`, `tests/cargo.lua`, including spoilable goods priced by freshness in the Space Age run), catapults (`tests/catapult.lua`), fluid manifolds (`tests/manifold.lua`), delivery by orbital capsule and tiers (`tests/freight.lua`), docking bays (`tests/docking_bay.lua`), teleporters (`tests/teleporter.lua`), power trading (`tests/power.lua`), price signal combinators (`tests/price_signals.lua`), order combinators (`tests/circuit_orders.lua`), telecommunications (`tests/telecom.lua`), the coherence of the research tree (`tests/technologies.lua`) and the market window driven through the test save's
 player (`tests/market_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
-re-fetches what it needs instead of trusting the file's locals. `control.lua` registers them only when the `factorio-test` mod is
+re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
+between tests, so a test that restores a force's balance by assignment also resets its low-water
+marks (`overdraft_low`, `solvency_low`) to it, or the interest or insolvency check would act on the
+balance the test left behind. `control.lua` registers them only when the `factorio-test` mod is
 active, so they are inert in a normal game. CLI configuration: the `factorio-test` key of
 `package.json`.
 
