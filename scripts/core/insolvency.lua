@@ -100,7 +100,8 @@ local function end_contracts(state, tick)
       local outcome = contracts.default(contract, tick, 0)
       if outcome then
         owed = owed + (outcome.arrears or 0)
-        account.apply(state, 0, { tick = tick, kind = "contract-" .. contracts.FAILED, key = "contract/" .. id })
+        account.apply(state, 0, { tick = tick, kind = "contract-" .. contracts.FAILED, key = "contract/" .. id,
+          contract_kind = contract.kind })
       end
     end
     contracts.close(state, id)

@@ -1,11 +1,14 @@
 -- Credit account of one force: its balance and a bounded journal of transactions (ADR-0001).
 -- Pure Lua: operates on the force's state table from storage.forces.
 local reputation = require("scripts.core.reputation")
+local statement = require("scripts.core.statement")
 
 local account = {}
 
--- Journal entries kept per force; older ones are dropped.
-account.JOURNAL_SIZE = 100
+-- Journal entries kept per force; older ones are dropped. Sized for the Statement tab (#108), whose
+-- totals come from the ledger instead: about 7 minutes of a base trading 40 goods automatically and
+-- buying twice a minute, far longer for a smaller one (docs/data-model.md).
+account.JOURNAL_SIZE = 500
 
 -- Overdraft (ADR-0020): a force may spend down to -limit. Every INTEREST_TICKS, a force whose
 -- balance went below zero in the period pays INTEREST_RATE of its deepest debt, counted up to the
@@ -89,6 +92,7 @@ local function record(state, amount, entry)
   local journal = state.journal
   local position = entry.merge_ticks and merge_target(journal, entry)
   state.balance = balance
+  local category = statement.record(state, entry, amount)
   if position then
     local target = table.remove(journal, position)
     journal[#journal + 1] = target
@@ -100,13 +104,15 @@ local function record(state, amount, entry)
   end
   entry.amount = amount
   entry.balance = balance
+  entry.category = category
   entry.first_tick = entry.merge_ticks and entry.tick or nil
   journal[#journal + 1] = entry
   while #journal > account.JOURNAL_SIZE do table.remove(journal, 1) end
 end
 
 --- Adds `amount` credits (negative to spend) and records `entry` (a plain table, e.g.
---- {tick, kind, key, quantity}) with the amount and the resulting balance. A debit may take the
+--- {tick, kind, key, quantity}) with the amount, the resulting balance and its statement category,
+--- and counts the transaction in the force's ledger (scripts/core/statement.lua). A debit may take the
 --- balance below zero down to the overdraft limit, no further; a credit is always accepted. An entry
 --- with `merge_ticks` (a recurring transaction, such as power settlements) is added to a recent entry
 --- of the same kind and key started less than `merge_ticks` before, which then holds the totals, its
@@ -161,13 +167,14 @@ end
 
 --- Folds `source` into `destination` when two forces merge: balances add up, and so do the lowest
 --- balances of the period (each debt still pays its interest, and still counts towards insolvency);
---- journals are joined in tick order and trimmed to the newest entries.
+--- journals are joined in tick order and trimmed to the newest entries, and ledgers are folded together.
 function account.merge(destination, source)
   destination.overdraft_low = (destination.overdraft_low or destination.balance)
     + (source.overdraft_low or source.balance)
   destination.solvency_low = (destination.solvency_low or destination.balance)
     + (source.solvency_low or source.balance)
   destination.balance = destination.balance + source.balance
+  statement.merge_ledger(destination, source)
   local journal = destination.journal
   for _, entry in ipairs(source.journal) do journal[#journal + 1] = entry end
   table.sort(journal, function(a, b) return (a.tick or 0) < (b.tick or 0) end)

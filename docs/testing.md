@@ -68,7 +68,11 @@ figures, the removal of older saves' windows and each tab's refresh cost, with n
 `test_helpers.select_tab` picks a tab as a click would), the Logistics tab: hubs, purchases,
 incoming contract ingredients and planet shipments with their state, origin and cost, a long queue
 paged, modules and their status, the camera, selection refused for another force's hub or
-building, a save from before the tab, its refresh cost and a reload (`tests/logistics_gui.lua`), and that state survives a save and reload
+building, a save from before the tab, its refresh cost and a reload (`tests/logistics_gui.lua`), the Statement tab: rows updated in place,
+subjects and labels of every kind of entry, the category filter, period totals from the ledger,
+pagination, the contract kind recorded by a real loan, a save without the window's state, the
+ledger or entry categories, and its refresh cost on a full journal and ledger
+(`tests/statement_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
 re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
 between tests, so a test never assigns a force's balance directly: it calls
