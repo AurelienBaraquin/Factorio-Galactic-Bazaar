@@ -161,9 +161,20 @@ describe("contract lifecycle", function()
     assert.are.equal(880, contracts.payoff(loan))
     assert.is_nil(contracts.abandon(loan, 250))
     assert.are.equal(contracts.ACTIVE, loan.state)
-    assert.are.same({ state = contracts.FULFILLED, credits = -880, reputation = 0 }, contracts.repay(loan, 250))
+    assert.are.equal(8, contracts.periods_left(loan))
+    assert.are.same({ state = contracts.FULFILLED, credits = 0, reputation = 0 }, contracts.repay(loan, 250))
     assert.is_nil(contracts.repay(loan, 251))
     assert.is_nil(contracts.repay(active(), 0))
+  end)
+
+  it("never voids a loan, whose debt would vanish with it", function()
+    local terms = { requires = {}, charge = 110, installment_ticks = 100, duration_ticks = 1000, advance = 1000,
+      reward = 0, deposit = 0, penalty = 0 }
+    local loan = contracts.new(spec(terms), 0)
+    contracts.accept(loan, 0)
+    assert.is_nil(contracts.void(loan, 10))
+    assert.are.equal(contracts.ACTIVE, loan.state)
+    assert.are.equal(1100, contracts.payoff(loan))
   end)
 
   it("defaults a loan with the unpaid installment and every one left as arrears", function()

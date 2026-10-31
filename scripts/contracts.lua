@@ -110,8 +110,20 @@ end
 local function apply(state, id, outcome)
   if outcome.state ~= core.EXPIRED then move(state, outcome.credits, "contract-" .. outcome.state, id) end
   state.reputation = reputation.add(state.reputation, outcome.reputation)
-  if outcome.arrears then state.arrears = state.arrears + outcome.arrears end
+  if outcome.arrears then state.arrears = (state.arrears or 0) + outcome.arrears end
   core.close(state, id)
+end
+
+-- Repays an active loan: every installment left is taken first (`contract-repaid`), and the loan is
+-- settled only once that debit went through. Returns the outcome, or nil and maybe a reason.
+local function repay(state, id, contract)
+  if contract.state ~= core.ACTIVE then return nil end
+  local ok, reason = account.apply(state, -core.payoff(contract),
+    { tick = game.tick, kind = "contract-repaid", key = "contract/" .. id })
+  if not ok then return nil, reason end
+  local outcome = core.repay(contract, game.tick)
+  apply(state, id, outcome)
+  return outcome
 end
 
 --- Abandons an active contract: it is settled at once (failed unless already complete). A loan is
@@ -121,8 +133,8 @@ function contracts.abandon(force_index, id)
   local state = state_of(force_index)
   local contract = state and state.contracts.open[id]
   if not contract then return nil end
-  if contract.advance and state.balance < core.payoff(contract) then return nil, "insufficient-funds" end
-  local outcome = contract.advance and core.repay(contract, game.tick) or core.abandon(contract, game.tick)
+  if contract.advance then return repay(state, id, contract) end
+  local outcome = core.abandon(contract, game.tick)
   if outcome then apply(state, id, outcome) end
   return outcome
 end

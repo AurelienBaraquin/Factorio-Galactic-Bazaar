@@ -62,6 +62,12 @@ describe("loans.outstanding", function()
     open[2].state = contracts.FULFILLED
     assert.is_true(math.abs(loans.outstanding(open, 0) - 9000) < 1e-6)
   end)
+
+  it("counts whole periods, so that the principal left is exact", function()
+    local loan = taken(100000, -4)
+    for _ = 1, 9 do contracts.installment(loan, loan.next_installment) end
+    assert.are.equal(25000, loans.outstanding({ loan }, 0))
+  end)
 end)
 
 describe("loans.refusal", function()
@@ -71,6 +77,7 @@ describe("loans.refusal", function()
     assert.is_nil(loans.refusal(100000, 10, {}, 0))
     assert.are.equal("debt-cap", loans.refusal(20000, 0, { taken(20000), taken(20000) }, 0))
     assert.are.equal("in-arrears", loans.refusal(5000, 20, {}, 1))
+    assert.is_nil(loans.refusal(5000, 0, { taken(20000), taken(20000), taken(5000) }, 0))
   end)
 end)
 

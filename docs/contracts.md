@@ -34,12 +34,12 @@ trades are not contracts ([market.md](market.md)).
 | active (service) | a charge the available funds (balance plus overdraft, [data-model.md](data-model.md)) cannot cover, or `contracts.abandon` | failed | nothing back: the guarantee is kept | −1 |
 | active (loan) | every `installment_ticks` on its schedule up to the deadline: the charge, with no service | active | − charge (`contract-charge`) | — |
 | active (loan) | a charge the available funds cannot cover | failed | that charge and every one left become the force's arrears | −1 |
-| active (loan) | `contracts.abandon`: every charge left repaid at once (`contracts.payoff`), refused (`insufficient-funds`) when the available funds cannot cover it | fulfilled | − charges left (`contract-fulfilled`) | — |
+| active (loan) | `contracts.abandon`: every charge left (`contracts.payoff`) is taken first; refused (`insufficient-funds`), changing nothing, when the available funds cannot cover it, and settled only once taken | fulfilled | − charges left (`contract-repaid`) | — |
 | active (service) | its term ended (`due_tick` passed) and its last period charged | fulfilled | + deposit + penalty (`contract-fulfilled`) | — |
 | active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward − `paid` + deposit + penalty (`contract-fulfilled`) | +1 |
 | active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept, installments paid stay paid (`contract-failed`, amount 0) | −1 |
 | offered | offer window passed | expired | — | — |
-| active | `contracts.void(force, id)`: its goods no longer exist (a mod was removed) | voided | + deposit + penalty (`contract-voided`) | — |
+| active | `contracts.void(force, id)`: its goods no longer exist (a mod was removed); never a loan, whose debt would vanish | voided | + deposit + penalty (`contract-voided`) | — |
 
 A required amount within 10⁻⁶ of complete counts as delivered (fluid amounts are fractional).
 Settlement runs every `contracts.SETTLE_TICKS` (60), contract ids in order. A settled contract
@@ -112,10 +112,10 @@ A force borrows from the Galactic Credit Union (#96, [ADR-0020](adr/0020-loans.m
 | | |
 |---|---|
 | Unlock | none: the contracts window, opened from the market window, has a credit line from the start |
-| Tiers | `TIERS`: 5 000, 20 000 or 100 000 credits, each one button; the contract is offered and accepted at once (`loans.borrow`), or nothing changes |
+| Tiers | `TIERS`: 5 000, 20 000 or 100 000 credits, each one button; the contract is offered and accepted at once (`loans.borrow`), or nothing changes. Like Accept, the Borrow and Repay buttons need the window's hub to still be the force's and within reach, or the window closes |
 | Terms | the principal (`advance`) is paid at acceptance; `TERM_TICKS` (60 min), `PERIOD_TICKS` (5 min): 12 installments of principal × (1 + rate) / 12; no deposit, penalty or reward |
 | Rate | over the term, fixed at borrowing: `BASE_RATE` (10 %) − `RATE_STEP` (0.25 %) × reputation, 5 % at 20, 15 % at −20 |
-| Debt cap | `DEBT_CAP` (50 000) × the reputation's contract scale: 25 000 from −5 down, 150 000 at 20; the debt is the principal active loans still have to repay, in proportion to their installments left, plus arrears (`loans.outstanding`); a loan that would take it above the cap is refused (`debt-cap`) |
+| Debt cap | `DEBT_CAP` (50 000) × the reputation's contract scale: 25 000 from −5 down, 150 000 at 20; the debt is the principal active loans still have to repay, principal × whole installments left / 12, plus arrears (`loans.outstanding`); a loan that would take it above the cap is refused (`debt-cap`) |
 | Refusals | `debt-cap`; `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
 | Repay | the row's **Repay** button (`contracts.abandon`) pays every installment left at once, interest included; refused, changing nothing, when the balance cannot cover it |
 | Default | an installment the balance cannot cover fails the loan (−1 reputation); that installment and every one left become the force's `arrears`, taken every `loans.COLLECT_TICKS` (60) from whatever its balance holds (`loan-arrears`, journaled in one entry per minute) |

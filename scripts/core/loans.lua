@@ -53,7 +53,7 @@ function loans.outstanding(open, arrears)
   local debt = arrears
   for _, contract in pairs(open) do
     if contract.advance and contract.state == contracts.ACTIVE then
-      debt = debt + contract.advance * contracts.payoff(contract) / (contract.charge * loans.periods())
+      debt = debt + contract.advance * contracts.periods_left(contract) / loans.periods()
     end
   end
   return debt

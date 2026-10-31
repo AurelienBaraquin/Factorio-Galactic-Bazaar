@@ -10,13 +10,14 @@ local core = require("scripts.core.loans")
 local loans = {}
 
 loans.COLLECT_TICKS = 60
--- Ticks over which a force's arrears payments share one journal entry.
+-- Ticks over which a force's arrears payments share one journal entry. Arrears are read `or 0`: a
+-- save made before loans has none until on_configuration_changed adds them.
 local COLLECT_MERGE_TICKS = 3600
 
 --- A force's debt (principal still to repay plus arrears) and its cap.
 function loans.debt(force_index)
   local state = storage.forces[force_index]
-  return core.outstanding(state.contracts.open, state.arrears), core.cap(state.reputation)
+  return core.outstanding(state.contracts.open, state.arrears or 0), core.cap(state.reputation)
 end
 
 --- The terms a force is offered for each tier: {principal, rate, charge, refusal}, `refusal` nil when
@@ -30,7 +31,7 @@ function loans.offers(force_index)
     list[tier] = {
       principal = principal, rate = core.rate(state.reputation), charge = spec.charge,
       refusal = full and "too-many-contracts"
-        or core.refusal(principal, state.reputation, state.contracts.open, state.arrears),
+        or core.refusal(principal, state.reputation, state.contracts.open, state.arrears or 0),
     }
   end
   return list
@@ -59,7 +60,7 @@ end
 --- on_nth_tick(COLLECT_TICKS): each force owing arrears pays what its balance can of them.
 function loans.on_collect_tick(event)
   for _, state in pairs(storage.forces) do
-    local paid = core.collect(state.arrears, state.balance)
+    local paid = core.collect(state.arrears or 0, state.balance)
     if paid > 0 then
       account.apply(state, -paid, { tick = event.tick, kind = "loan-arrears", key = "loans",
         merge_ticks = COLLECT_MERGE_TICKS })

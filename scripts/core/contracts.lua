@@ -222,14 +222,18 @@ function contracts.installment(contract, tick)
   return earned
 end
 
---- What an active contract with a charge still has to take: its periods scheduled from its next
---- installment up to its deadline, times the charge; 0 for any other contract.
-function contracts.payoff(contract)
+--- Periods an active contract with a charge still has to charge: those scheduled from its next
+--- installment up to its deadline, a whole number; 0 for any other contract.
+function contracts.periods_left(contract)
   if contract.state ~= contracts.ACTIVE or not contract.charge or contract.next_installment > contract.due_tick then
     return 0
   end
-  local left = math.floor((contract.due_tick - contract.next_installment) / contract.installment_ticks) + 1
-  return left * contract.charge
+  return math.floor((contract.due_tick - contract.next_installment) / contract.installment_ticks) + 1
+end
+
+--- What an active contract with a charge still has to take: its periods left times the charge.
+function contracts.payoff(contract)
+  return contracts.periods_left(contract) * (contract.charge or 0)
 end
 
 --- Defaults an active contract at `tick` (a charge of `unpaid` credits the force could not pay): it
@@ -242,14 +246,13 @@ function contracts.default(contract, tick, unpaid)
   return { state = contracts.FAILED, credits = 0, reputation = -1, arrears = arrears }
 end
 
---- Repays an active loan at `tick`: it is fulfilled at once, the force paying every charge left
---- (`payoff`, as negative credits, plus its guarantee back), without reputation. Returns the outcome,
---- or nil when it is not an active loan. The adapter checks the force can pay first.
+--- Repays an active loan at `tick`, once the adapter has taken every charge left (`payoff`) from the
+--- force: it is fulfilled at once, its guarantee given back, without reputation. Returns the outcome,
+--- or nil when it is not an active loan.
 function contracts.repay(contract, tick)
   if contract.state ~= contracts.ACTIVE or not contract.advance then return nil end
-  local owed = contracts.payoff(contract)
   contract.state, contract.settled_tick = contracts.FULFILLED, tick
-  return { state = contracts.FULFILLED, credits = contracts.guarantee(contract) - owed, reputation = 0 }
+  return { state = contracts.FULFILLED, credits = contracts.guarantee(contract), reputation = 0 }
 end
 
 --- Abandons an active contract at `tick`: it is settled at once, failed unless every required unit
@@ -264,9 +267,10 @@ end
 
 --- Voids an active contract at `tick` that can no longer be fulfilled through no fault of the force
 --- (its goods no longer exist): the outcome gives the whole guarantee back, without reputation.
---- Returns nil when it is not active.
+--- Returns nil when it is not active. A loan is never voided: it has no goods, and voiding it would
+--- cancel the debt the force still owes.
 function contracts.void(contract, tick)
-  if contract.state ~= contracts.ACTIVE then return nil end
+  if contract.state ~= contracts.ACTIVE or contract.advance then return nil end
   contract.state, contract.settled_tick = contracts.VOIDED, tick
   return { state = contracts.VOIDED, credits = contracts.guarantee(contract), reputation = 0 }
 end

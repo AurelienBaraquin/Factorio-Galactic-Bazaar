@@ -49,6 +49,8 @@ changes.
   and that installment plus every one left, interest included, become the force's **arrears**
   (`storage.forces[i].arrears`). Every second, arrears are taken from whatever the balance holds
   (`loan-arrears`); no loan is granted while any are owed.
+- **Void**: a loan has no goods and is never voided (on a configuration change), which would cancel
+  its debt.
 - **Abandon**: a loan is repaid, not abandoned. The contracts window's button repays every
   installment left at once (the contract is fulfilled), or is refused, changing nothing, when the
   balance cannot cover it.
