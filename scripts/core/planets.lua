@@ -27,6 +27,39 @@ planets.CATALOG = {
   } },
 }
 
+-- Real planets (#87): any planet other than the home one (Space Age's Vulcanus, Fulgora, Gleba,
+-- Aquilo, or a mod's) joins the catalog with the item resources it generates and its signature
+-- crafting category (of the recipes only it can host), each with these slots; its distance in transit units
+-- is its distance from the home planet in space, DISTANCE_PER_UNIT per unit, at least 1.
+planets.REAL_RESOURCE_SLOTS = 3
+planets.REAL_CRAFTING_SLOTS = 2
+planets.DISTANCE_PER_UNIT = 10
+
+--- Distance in transit units between two space locations given as {distance, orientation} (polar
+--- coordinates of the star map, orientation in turns).
+function planets.distance_units(from, to)
+  local function point(location)
+    local angle = 2 * math.pi * location.orientation
+    return location.distance * math.sin(angle), -location.distance * math.cos(angle)
+  end
+  local x1, y1 = point(from)
+  local x2, y2 = point(to)
+  local space = math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2)
+  return math.max(1, math.ceil(space / planets.DISTANCE_PER_UNIT - 1e-9))
+end
+
+--- A catalog entry for a real planet: `resources` and `categories` are sorted lists of names.
+function planets.real_planet(name, distance, resources, categories)
+  local specialties = {}
+  for _, resource in ipairs(resources) do
+    specialties[#specialties + 1] = { kind = "resource", name = resource, slots = planets.REAL_RESOURCE_SLOTS }
+  end
+  for _, category in ipairs(categories) do
+    specialties[#specialties + 1] = { kind = "crafting", name = category, slots = planets.REAL_CRAFTING_SLOTS }
+  end
+  return { name = name, distance = distance, real = true, specialties = specialties }
+end
+
 --- The catalog limited to what exists: `exists(kind, name)` tells whether a resource item or a
 --- crafting category is in the game. Planets left without a specialty are dropped. Returns a new
 --- list; the source is not changed.
@@ -40,7 +73,8 @@ function planets.available_catalog(catalog, exists)
       end
     end
     if #specialties > 0 then
-      list[#list + 1] = { name = planet.name, distance = planet.distance, specialties = specialties }
+      list[#list + 1] = { name = planet.name, distance = planet.distance, real = planet.real,
+        specialties = specialties }
     end
   end
   return list

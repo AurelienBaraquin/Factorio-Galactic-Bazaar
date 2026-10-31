@@ -8,7 +8,7 @@ production `scripts/concessions.lua`.
 
 ## Catalog
 
-The same for every force (`planets.CATALOG`). A slot is one mining drill or one machine of crafting
+The abstract planets are the same for every force (`planets.CATALOG`); real planets follow. A slot is one mining drill or one machine of crafting
 speed 1, abstracted; distance is in transit units.
 
 | Planet | Distance | Specialties (slots) |
@@ -17,6 +17,36 @@ speed 1, abstracted; distance is in transit units.
 | `carbo` | 2 | coal (4), stone (3), smelting (2) |
 | `fabrica-nova` | 2 | assembly `crafting` (4), advanced assembly `advanced-crafting` (2) |
 | `uranos-deep` | 4 | uranium ore (2), chemistry (2) |
+
+## Real planets
+
+Every planet of the loaded game other than Nauvis — with Space Age, Vulcanus, Fulgora, Gleba and
+Aquilo; with another mod, its planets — joins the catalog after the abstract ones (#87), named by the
+game's own locale:
+
+| | |
+|---|---|
+| Resources | the items mined from the resource entities its map generation places (fluids such as geysers or brine left out), `REAL_RESOURCE_SLOTS` (3) slots each |
+| Crafting | its signature category: of the visible recipes whose surface conditions it meets and Nauvis does not, the category most of them belong to (ties to the first name), `REAL_CRAFTING_SLOTS` (2) slots. On configuration change a planet keeps the category it had while it still has such a recipe, so that another mod's recipes cannot flip it and void bookings on it |
+| Bookings | a real planet crafts only the recipes whose surface conditions it meets (`wrong-planet` otherwise); an abstract planet crafts any recipe of its categories |
+| Distance | its distance from Nauvis on the star map (polar coordinates `distance`, `orientation`), `DISTANCE_PER_UNIT` (10) per transit unit, at least 1 |
+
+With Space Age 2.1.24 this gives:
+
+| Planet | Distance | Specialties |
+|---|---|---|
+| Vulcanus | 2 | calcite, coal, tungsten ore (3 each), metallurgy (2) |
+| Fulgora | 2 | scrap (3), electromagnetics (2) |
+| Gleba | 2 | stone (3), organic (2) |
+| Aquilo | 3 | cryogenics (2) |
+
+Without Space Age nothing changes: the catalog holds the abstract planets only. A modded planet
+named like an abstract planet is left out (the abstract one would shadow it). Without a `nauvis`
+prototype (an overhaul), distances are measured from the centre of the star map and every
+planet-only recipe counts. Real planets, their items and categories are named by their prototypes'
+own localised names.
+
+## Catalog filtering
 
 On `on_init` and `on_configuration_changed` the catalog is limited to the loaded game
 (`planets.init`): a resource specialty is kept when its item exists, a crafting specialty when its

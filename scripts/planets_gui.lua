@@ -23,9 +23,10 @@ end
 -- How a specialty reads: an item icon for a resource, the category's name for crafting.
 local function specialty_caption(specialty)
   if specialty.kind == "resource" then
-    return { "", "[item=" .. specialty.name .. "] ", { "item-name." .. specialty.name } }
+    return { "", "[item=" .. specialty.name .. "] ", prototypes.item[specialty.name].localised_name }
   end
-  return { "?", { "gb-planets.category-" .. specialty.name }, specialty.name }
+  local category = prototypes.recipe_category[specialty.name]
+  return { "?", { "gb-planets.category-" .. specialty.name }, category and category.localised_name or specialty.name }
 end
 
 local function refresh(player, data)
@@ -59,7 +60,7 @@ local function build(player)
   end
   for _, planet in ipairs(planets.catalog()) do
     for _, specialty in ipairs(planet.specialties) do
-      list.add({ type = "label", caption = { "?", { "gb-planets.name-" .. planet.name }, planet.name } })
+      list.add({ type = "label", caption = planets.caption(planet.name) })
       list.add({ type = "label", caption = { "gb-planets.distance", planet.distance } })
       local terms = transit.terms(planet.distance)
       list.add({ type = "label", caption = { "gb-planets.transit", string.format("%d", terms.delay_ticks / 60),
@@ -125,7 +126,7 @@ local function lease(player, data, element)
   if id then
     local contract = contracts.get(player.force_index, id)
     local lease_record = storage.concessions[id]
-    player.print({ "gb-planets.leased", { "?", { "gb-planets.name-" .. tags.planet }, tags.planet },
+    player.print({ "gb-planets.leased", planets.caption(tags.planet),
       lease_record.units, "[item=" .. lease_record.item .. "]", string.format("%.0f", contract.charge),
       string.format("%.0f", contract.deposit) })
   else

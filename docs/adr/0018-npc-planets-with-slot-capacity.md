@@ -44,4 +44,5 @@ On a force merge the source's reservations carry over with its contracts.
 - Trade-offs accepted: forces do not compete for NPC capacity; after a merge the destination may
   hold more slots than a specialty has until the source's reservations end.
 - Follow-up: transit (#84), concessions (#85), foundries and assemblers (#86), Space Age planets
-  (#87), research (#88).
+  (#87, done: every planet other than the home one joins the catalog, its specialties derived from
+  its map generation and planet-only recipes — see [planets.md](../planets.md)), research (#88).
