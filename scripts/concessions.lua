@@ -23,8 +23,9 @@ function concessions.terms(planet_name, resource, slots)
 end
 
 --- Leases one slot of `resource` on `planet_name` for a force, delivered to a hub of its force.
---- Returns the contract id, or nil and a reason (unknown-specialty, no-capacity, not-tradeable,
---- no-import-chest, insufficient-funds).
+--- Either the lease is made whole (contract accepted, slot reserved) or nothing changes. Returns the
+--- contract id, or nil and a reason (unknown-specialty, no-capacity, not-tradeable, no-import-chest,
+--- too-many-contracts, insufficient-funds).
 function concessions.lease(force_index, hub_unit_number, planet_name, resource)
   local free = planets.free(force_index, planet_name, "resource", resource)
   if not free then return nil, "unknown-specialty" end
@@ -32,23 +33,41 @@ function concessions.lease(force_index, hub_unit_number, planet_name, resource)
   local spec = concessions.terms(planet_name, resource, 1)
   if not spec then return nil, "not-tradeable" end
   if not cargo.has_import(hub_unit_number) then return nil, "no-import-chest" end
+  if #contracts.listed(force_index) >= contracts.MAX_LISTED then return nil, "too-many-contracts" end
   if storage.forces[force_index].balance < spec.deposit then return nil, "insufficient-funds" end
   local id = contracts.offer(force_index, spec)
-  planets.reserve(force_index, planet_name, "resource", resource, 1, game.tick + spec.duration_ticks + 1, id)
+  if not id then return nil, "not-tradeable" end
+  local until_tick = game.tick + spec.duration_ticks + 1
+  if not planets.reserve(force_index, planet_name, "resource", resource, 1, until_tick, id) then
+    contracts.decline(force_index, id)
+    return nil, "no-capacity"
+  end
+  local accepted, reason = contracts.accept(force_index, id)
+  if not accepted then
+    contracts.decline(force_index, id)
+    planets.release(force_index, id)
+    return nil, reason
+  end
   leases()[id] = { force_index = force_index, hub = hub_unit_number, planet = planet_name, resource = resource,
     slots = 1 }
-  contracts.accept(force_index, id)
   return id
 end
 
--- Serves one period of a lease: ships its units from the planet. Returns whether it shipped.
+-- Whether a period of a lease can ship: its hub exists and has an import chest.
+local function can_serve(_, contract)
+  local lease = leases()[contract.id]
+  return lease ~= nil and hubs.get(lease.hub) ~= nil and cargo.has_import(lease.hub)
+end
+
+-- Serves one period of a lease: ships its units from the planet, at the price per unit the charge
+-- pays. Returns whether it shipped.
 local function serve(force_index, contract)
   local lease = leases()[contract.id]
-  if not (lease and hubs.get(lease.hub)) then return false end
-  local goods = { { kind = "item", name = lease.resource, count = offers.concession_units(lease.slots) } }
-  return (planets.ship(force_index, lease.hub, lease.planet, goods, contract.id))
+  local units = offers.concession_units(lease.slots)
+  local goods = { { kind = "item", name = lease.resource, count = units } }
+  return (planets.ship(force_index, lease.hub, lease.planet, goods, contract.id, contract.charge / units))
 end
-contracts.register_service("concession", serve)
+contracts.register_service("concession", can_serve, serve)
 
 --- on_nth_tick(SWEEP_TICKS): leases whose contract ended release their slots and are forgotten.
 function concessions.on_sweep_tick()

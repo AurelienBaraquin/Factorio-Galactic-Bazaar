@@ -26,9 +26,12 @@ counterparty over time, and requires goods back.
 Option 2. A contract spec may carry `charge` (credits, positive, with `installment_ticks`); its
 `requires` may then be empty. While active, every installment period the engine asks for the charge
 (`contracts.installment` returns it as negative credits). The adapter takes it through the force's
-account only after the service of that kind (registered by the feature, `register_service`) has
-delivered the period; a period not delivered is not charged. A force whose balance cannot cover a
-charge defaults: the contract fails, its guarantee is kept, reputation −1. At the end of its term
+account only after the service of that kind (registered by the feature, `register_service`, with a
+side-effect-free `can_serve`) has delivered the period; a period that cannot be delivered is skipped
+before the balance is checked, and one not delivered is not charged. Periods follow their schedule
+from acceptance, the last one at the deadline, whatever tick settlement runs at; the contract is
+fulfilled only once its last period was charged. A force whose balance cannot cover a charge
+defaults: the contract fails, its guarantee is kept, reputation −1. At the end of its term
 it is fulfilled: the guarantee comes back, reputation unchanged (paying rent is no feat). Abandoning
 it defaults it.
 

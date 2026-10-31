@@ -105,8 +105,24 @@ describe("contract lifecycle", function()
     contracts.accept(contract, 0)
     assert.is_nil(contracts.installment(contract, 99))
     assert.are.equal(-40, contracts.installment(contract, 100))
+    assert.is_nil(contracts.settle(contract, 3601))
+    while contracts.installment(contract, 3601) do end
     assert.is_nil(contracts.settle(contract, 3600))
     assert.are.same({ state = contracts.FULFILLED, credits = 300, reputation = 0 }, contracts.settle(contract, 3601))
+  end)
+
+  it("charges every period up to the deadline when settlement runs late", function()
+    local terms = { requires = {}, charge = 40, installment_ticks = 600, duration_ticks = 3600 }
+    local contract = contracts.new(spec(terms), 7)
+    contracts.accept(contract, 7)
+    local charges, outcome = 0, nil
+    for tick = 60, 7200, 60 do
+      outcome = contracts.settle(contract, tick)
+      if outcome then break end
+      if contracts.installment(contract, tick) then charges = charges + 1 end
+    end
+    assert.are.equal(6, charges)
+    assert.are.equal(contracts.FULFILLED, outcome.state)
   end)
 
   it("defaults a service on an unpaid charge or an abandon, and validates the charge", function()

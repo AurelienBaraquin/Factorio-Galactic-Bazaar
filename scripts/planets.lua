@@ -78,13 +78,19 @@ end
 
 --- Ships goods from a planet to a hub of a force for contract `contract_id`, through freight: they
 --- land after the planet's transit delay, each good less a share lost on the way, drawn from the
---- force's state. Returns what `freight.ship` returns, or false and "unknown-planet".
-function planets.ship(force_index, hub_unit_number, planet_name, goods, contract_id)
+--- force's state. `paid` (optional) is the price the force paid per unit shipped, so that what
+--- cannot land is sold back. Returns what `freight.ship` returns, or false and "unknown-planet".
+function planets.ship(force_index, hub_unit_number, planet_name, goods, contract_id, paid)
   local planet = core.find(storage.planets, planet_name)
   if not planet then return false, "unknown-planet" end
-  local shares = {}
-  for index = 1, #goods do shares[index] = transit.loss_share(planet.distance, draw(force_index)) end
-  return freight.ship(force_index, hub_unit_number, goods, contract_id, { distance = planet.distance, shares = shares })
+  local shares, unit_costs = {}, {}
+  for index = 1, #goods do
+    shares[index] = transit.loss_share(planet.distance, draw(force_index))
+    -- The force paid for the units shipped, so each arriving unit cost it a little more.
+    unit_costs[index] = paid and paid / (1 - shares[index]) or 0
+  end
+  return freight.ship(force_index, hub_unit_number, goods, contract_id,
+    { distance = planet.distance, shares = shares, unit_costs = unit_costs })
 end
 
 --- Frees early the slots a force reserved for contract `contract_id`.

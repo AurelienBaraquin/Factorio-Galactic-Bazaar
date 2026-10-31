@@ -133,7 +133,8 @@ coming.
 
 Open the Planets window from the market window of a hub with an import chest, and press **Lease**
 next to an ore. For 30 minutes the planet ships you 150 units of it every 5 minutes, by transit, to
-that hub's import chests. Each shipment is charged at the ore's base value — between what the market
-pays and what it asks — and only when it is shipped. One period's charge is held as a guarantee and
+that hub's import chests. Each shipment is charged at the ore's base value — usually between what the
+market pays and what it asks — and only when it is shipped; if your hub or its import chest is gone,
+that period is skipped, free. Ore in flight when the hub is removed is sold back for you. One period's charge is held as a guarantee and
 comes back at the end. If you cannot pay a charge, or abandon the lease in the Contracts window, the
 guarantee is lost and your reputation drops by 1. Each planet has only a few slots per ore.

@@ -162,7 +162,8 @@ function contracts.settle(contract, tick)
   end
   if contract.state ~= contracts.ACTIVE then return nil end
   if contract.charge then
-    if tick <= contract.due_tick then return nil end
+    -- Fulfilled once its term ended and its last period (scheduled up to the deadline) was charged.
+    if tick <= contract.due_tick or contract.next_installment <= contract.due_tick then return nil end
     contract.state, contract.settled_tick = contracts.FULFILLED, tick
     return { state = contracts.FULFILLED, credits = contracts.guarantee(contract), reputation = 0 }
   end
@@ -198,11 +199,15 @@ function contracts.installment(contract, tick)
   if contract.state ~= contracts.ACTIVE or not contract.next_installment or tick < contract.next_installment then
     return nil
   end
-  contract.next_installment = tick + contract.installment_ticks
   if contract.charge then
-    if tick > contract.due_tick then return nil end
+    -- Periods follow their schedule, not the tick they are settled at, so that every period up to
+    -- the deadline is charged however late settlement runs.
+    local scheduled = contract.next_installment
+    if scheduled > contract.due_tick then return nil end
+    contract.next_installment = scheduled + contract.installment_ticks
     return -contract.charge
   end
+  contract.next_installment = tick + contract.installment_ticks
   local earned = contract.reward * delivered_share(contract) - contract.paid
   if earned <= 0 then return nil end
   contract.paid = contract.paid + earned

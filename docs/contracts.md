@@ -29,9 +29,9 @@ trades are not contracts ([market.md](market.md)).
 | offered | `contracts.decline(force, id)` | declined | — | — |
 | active | `contracts.deliver(force, id, key, count)`, until the deadline | active | — | — |
 | active | every `installment_ticks`, at the next settlement | active | + reward × share of required units delivered − `paid` (`contract-installment`) | — |
-| active (service) | every `installment_ticks` until its term ends: the service of its kind delivers the period, then the charge is taken; a period not delivered is not charged | active | − charge (`contract-charge`) | — |
+| active (service) | every `installment_ticks` on its schedule from acceptance, up to the deadline: a period the service of its kind cannot deliver is skipped; otherwise the service delivers it, then the charge is taken; a period not delivered is not charged | active | − charge (`contract-charge`) | — |
 | active (service) | a charge the balance cannot cover, or `contracts.abandon` | failed | nothing back: the guarantee is kept | −1 |
-| active (service) | its term ended (`due_tick` passed) | fulfilled | + deposit + penalty (`contract-fulfilled`) | — |
+| active (service) | its term ended (`due_tick` passed) and its last period charged | fulfilled | + deposit + penalty (`contract-fulfilled`) | — |
 | active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward − `paid` + deposit + penalty (`contract-fulfilled`) | +1 |
 | active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept, installments paid stay paid (`contract-failed`, amount 0) | −1 |
 | offered | offer window passed | expired | — | — |

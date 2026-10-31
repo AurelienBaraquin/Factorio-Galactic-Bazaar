@@ -129,20 +129,22 @@ function contracts.void(force_index, id)
 end
 
 -- What serves a period of each kind of contract that charges the force, registered at load:
--- `serve(force_index, contract)` returns whether the service was delivered this period.
+-- `can_serve(force_index, contract)` tells, without side effects, whether the period can be
+-- delivered; `serve(force_index, contract)` delivers it and returns whether it did.
 local services = {}
 
 --- Registers, at load (file scope), the service of contracts of `kind` that charge the force.
-function contracts.register_service(kind, serve)
-  services[kind] = serve
+function contracts.register_service(kind, can_serve, serve)
+  services[kind] = { can_serve = can_serve, serve = serve }
 end
 
--- Takes a period's charge: a force that cannot pay defaults; otherwise the service is delivered
--- first, and the charge taken only if it was.
+-- Takes a period's charge. A period that cannot be delivered is skipped, uncharged; otherwise a
+-- force that cannot pay defaults, and one that can is charged only if the service delivered.
 local function charge(force_index, state, id, contract, amount, tick)
+  local service = services[contract.kind]
+  if not (service and service.can_serve(force_index, contract)) then return end
   if state.balance < amount then return apply(state, id, core.default(contract, tick)) end
-  local serve = services[contract.kind]
-  if serve and serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
+  if service.serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
 end
 
 --- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, and pays or charges

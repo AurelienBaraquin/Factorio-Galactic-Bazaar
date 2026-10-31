@@ -122,6 +122,8 @@ describe("mining concessions", function()
     local id = concessions.lease(force_index(), hub.unit_number, "carbo", "coal")
     local contract = contracts.get(force_index(), id)
     local before, reputation = state().balance, state().reputation
+    -- Every period up to the deadline was charged.
+    contract.next_installment = contract.due_tick + 1
     contracts.on_settle_tick({ tick = contract.due_tick + 1 })
     assert.is_true(math.abs(before + contract.deposit - state().balance) < 1e-6)
     assert.are.equal(reputation, state().reputation)
@@ -138,8 +140,50 @@ describe("mining concessions", function()
     assert.are.same({ nil, "insufficient-funds" },
       { concessions.lease(force_index(), hub.unit_number, "carbo", "coal") })
     state().balance = 1e6
+    for _ = 1, contracts.MAX_LISTED - #contracts.listed(force_index()) do
+      concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
+      concessions.lease(force_index(), hub.unit_number, "carbo", "stone")
+    end
+    assert.are.same({ nil, "too-many-contracts" },
+      { concessions.lease(force_index(), hub.unit_number, "uranos-deep", "uranium-ore") })
+    state().contracts.open = {}
     local bare = place("gb-hub", -30, 0)
     assert.are.same({ nil, "no-import-chest" }, { concessions.lease(force_index(), bare.unit_number, "carbo", "coal") })
+  end)
+
+  test("ore paid for is sold back if its hub is removed before it lands", function()
+    local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
+    run_period(id)
+    local after_charge = state().balance
+    local unit_number = hub.unit_number
+    hub.destroy()
+    after_ticks(1, function()
+      assert.is_true(state().balance > after_charge)
+      assert.are.equal(0, freight.queued(unit_number))
+    end)
+  end)
+
+  test("a lease whose specialty is gone is voided on configuration change", function()
+    local id = concessions.lease(force_index(), hub.unit_number, "carbo", "coal")
+    local before = state().balance
+    local deposit = contracts.get(force_index(), id).deposit
+    local reservation = state().reservations[1]
+    concessions.init({ [force_index()] = { reservation } })
+    assert.is_nil(contracts.get(force_index(), id))
+    assert.is_true(math.abs(before + deposit - state().balance) < 1e-6)
+    assert.is_nil(storage.concessions[id])
+  end)
+
+  test("leases follow a merged force", function()
+    local source = game.create_force("gb-test-concessions")
+    storage.forces[source.index].balance = 1e6
+    local id = concessions.lease(source.index, hub.unit_number, "carbo", "coal")
+    game.merge_forces(source, "player")
+    after_ticks(1, function()
+      assert.are.equal(force_index(), storage.concessions[id].force_index)
+      assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
+      assert.are.equal(3, planets.free(force_index(), "carbo", "resource", "coal"))
+    end)
   end)
 
   test("the planets window leases a slot at its hub", function()
