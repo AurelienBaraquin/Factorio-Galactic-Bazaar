@@ -11,8 +11,8 @@ local item_detail = {}
 --- The market figures of a key with base value `base_value` and displacement `displacement`:
 --- prices (`buy`, `sell`, `mid`), the gap of the mid price from the base value (`gap`, a ratio, +0.1
 --- for 10 % above), the displacement in units and in depths, the spread, the units left before each
---- bound and the price bounds, the NPC drift per step and the mid price after one half-life
---- without trades.
+--- bound and the price bounds, the NPC drift per step (in units, and the largest rise and fall of
+--- the mid price it causes) and the mid price after one half-life without trades.
 function item_detail.market(base_value, displacement, params, npc_params)
   local depth = market.depth(base_value, params)
   local mid = market.mid_price(base_value, displacement, params)
@@ -36,7 +36,8 @@ function item_detail.market(base_value, displacement, params, npc_params)
     floor = base_value * math.exp(-params.max_depths),
     step_ticks = npc_params.step_ticks,
     drift_units = npc_params.volatility * depth,
-    drift_ratio = math.exp(npc_params.volatility) - 1,
+    drift_up = math.exp(npc_params.volatility) - 1,
+    drift_down = 1 - math.exp(-npc_params.volatility),
     half_life_ticks = params.half_life_ticks,
     reverted_mid = market.mid_price(base_value, market.decay(displacement, params.half_life_ticks, params), params),
   }

@@ -227,7 +227,7 @@ local function build(_, container, view)
   actions.add({ type = "button", caption = { "gb-gui.sell" }, style = "red_button", tags = { gb_action = "sell" } })
   elements.preview = detail.add({ type = "label" })
   elements.preview.style.single_line = false
-  elements.preview.style.maximal_width = 400
+  elements.preview.style.maximal_width = item_detail_gui.TEXT_WIDTH
   item_detail_gui.build(detail, elements)
 
   view.filter, view.page, view.matches = "", 1, catalog.search(tradeable_keys(), "")

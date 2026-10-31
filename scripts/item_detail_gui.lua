@@ -18,8 +18,8 @@ local item_detail_gui = {}
 item_detail_gui.MAX_INPUTS = 10
 -- Price history points shown (one per NPC step).
 local HISTORY_WIDTH = 30
--- Width of the text of the panel, in pixels: long lines wrap.
-local TEXT_WIDTH = 400
+-- Width of the text of the panel, in pixels: long lines wrap. The Market tab's preview line uses it too.
+item_detail_gui.TEXT_WIDTH = 400
 -- The market figures, in display order.
 local FIGURES = { "buy", "sell", "mid", "base", "gap", "liquidity", "spread", "drift", "reversion", "seen" }
 
@@ -78,14 +78,17 @@ end
 local function add_label(parent, caption, style)
   local label = parent.add({ type = "label", caption = caption, style = style })
   label.style.single_line = false
-  label.style.maximal_width = TEXT_WIDTH
+  label.style.maximal_width = item_detail_gui.TEXT_WIDTH
   return label
 end
 
 --- Adds the detail's elements to `detail` (the Market tab's detail frame) and their references to
 --- `elements.info`.
-function item_detail_gui.build(detail, elements)
+function item_detail_gui.build(parent, elements)
   local info = {}
+  -- Hidden while the selected key has no market (it lost its value since it was listed).
+  local detail = parent.add({ type = "flow", direction = "vertical" })
+  info.body = detail
   local impact = detail.add({ type = "table", column_count = 2 })
   for _, side in ipairs({ "buy", "sell" }) do
     info["impact_" .. side .. "_label"] = impact.add({ type = "label", style = "bold_label",
@@ -167,7 +170,8 @@ local function refresh_figures(info, detail)
     liquidity = { "gb-detail.liquidity-value", catalog.format_units(figures.max_buy),
       catalog.format_units(figures.max_sell) },
     spread = { "gb-detail.spread-value", percent(figures.spread), catalog.format_credits(figures.spread_credits) },
-    drift = { "gb-detail.drift-value", catalog.format_units(figures.drift_units), percent(figures.drift_ratio), step },
+    drift = { "gb-detail.drift-value", catalog.format_units(figures.drift_units), percent(figures.drift_up),
+      percent(figures.drift_down), step },
     reversion = { "gb-detail.reversion-value", catalog.format_duration(figures.half_life_ticks),
       catalog.format_credits(figures.reverted_mid) },
   }
@@ -213,7 +217,7 @@ local function refresh_history(info, elements, detail)
     elements.history.caption = { "gb-gui.history", telecom_core.sparkline(detail.history, HISTORY_WIDTH) }
     local steps = math.min(#detail.history, HISTORY_WIDTH)
     info.history_scale.caption = { "gb-detail.history-scale", catalog.format_credits(summary.low),
-      catalog.format_credits(summary.high), catalog.format_credits(summary.last), percent(summary.change, true),
+      catalog.format_credits(summary.high), catalog.format_credits(detail.figures.mid), percent(summary.change, true),
       amount((steps - 1) * npc_market.DEFAULTS.step_ticks / 3600) }
   elseif detail.level >= telecom_core.HISTORY_LEVEL then
     info.history_note.caption = { "gb-detail.history-empty" }
@@ -290,7 +294,7 @@ local function refresh_breakdown(info, detail)
     catalog.format_credits(breakdown.normal_value) })
   local fallback = breakdown.tier == valuation.FALLBACK and breakdown.kind ~= "fixed"
   set_line(info.tier, fallback and { "gb-detail.fallback-note" } or nil)
-  local multiplied = breakdown.multiplier ~= 1
+  local multiplied = breakdown.multiplier ~= 1 and breakdown.kind ~= "fixed"
   set_line(info.multiplier, multiplied and { "gb-detail.multiplier", amount(breakdown.multiplier) } or nil)
   set_line(info.ladder, breakdown.ratio ~= 1 and { "gb-detail.quality-ratio", amount(breakdown.ratio),
     catalog.format_credits(breakdown.normal_value) } or ladder_caption(detail.ladder, breakdown.normal_value))
@@ -303,8 +307,12 @@ end
 --- marks of what is shown are kept in `elements.info`.
 function item_detail_gui.refresh(player, elements, kind, name, quantity)
   local detail = read_market(player.force, kind, name, nil, quantity)
-  if not detail then return end
   local info = elements.info
+  info.body.visible = detail ~= nil
+  if not detail then
+    info.key = nil
+    return
+  end
   -- Marks of the breakdown, cheaper than the breakdown: it is known once a source or a fixed value is.
   local key, value = pricing.key(kind, name), detail.figures.base_value
   local override = storage.value_overrides and storage.value_overrides[key]

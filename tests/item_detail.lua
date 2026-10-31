@@ -111,8 +111,27 @@ describe("item detail", function()
     bazaar_gui.refresh(player)
     local unlocked = { view().elements.history.visible, info().history_scale.visible, info().history_note.visible,
       info().history_scale.caption[1] }
+    -- "Now" is the current mid price, not the last history point.
+    local now = { info().history_scale.caption[4],
+      catalog.format_credits(item_detail_gui.read(force(), "item", GEAR).figures.mid) }
     assert.are.same({ false, true, "gb-detail.history-locked" }, locked)
     assert.are.same({ true, true, false, "gb-detail.history-scale" }, unlocked)
+    assert.are.equal(now[2], now[1])
+  end)
+
+  test("hides its figures, rather than leaving them stale, for an item without a market", function()
+    show("item/" .. GEAR)
+    local shown = info().body.visible
+    -- The pistol has no base value (no reachable recipe), like an item that lost its value.
+    view().selected = "item/pistol"
+    bazaar_gui.refresh(player)
+    assert.is_true(shown)
+    assert.is_false(info().body.visible)
+    assert.is_nil(info().key)
+    view().selected = "item/" .. GEAR
+    bazaar_gui.refresh(player)
+    assert.is_true(info().body.visible)
+    assert.are.equal(catalog.format_credits(pricing.base_value("item", GEAR)), info().figures.base.caption)
   end)
 
   test("breaks a crafted item's value down into its recipe, ingredients and crafting time", function()

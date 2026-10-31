@@ -65,8 +65,8 @@ its base value.
 Each call raises an error when `kind`/`name` is not a tradeable item or fluid (unknown, hidden, a
 parameter or a cursor-only tool), when `credits`/`factor` is missing or out of range, or when it
 is made during `on_load`; nothing changes then. A call made before this mod's own `on_init` (a mod
-without a dependency on it may run first) works and is kept. Each change recomputes every base value: 25 to 38 ms in vanilla, 52 to 63 ms with Space
-Age (2.1.24, sources included; the higher figures within the full test run), so call it from `on_init` or `on_configuration_changed`, not every tick. An override
+without a dependency on it may run first) works and is kept. Each change recomputes every base value: 22 to 24 ms in vanilla, 56 to 77 ms with Space
+Age (2.1.24, averages of 10 in one run, [value sources](#value-sources) included), so call it from `on_init` or `on_configuration_changed`, not every tick. An override
 of a key that stops being tradeable (its mod removed) is kept but ignored, and logged.
 
 ```lua
@@ -92,9 +92,12 @@ multiplier ([data-model.md](data-model.md#storagevalue_sources)). Values fixed b
 none; a key scaled by a factor keeps the source of the first pass, which the factor multiplies.
 `pricing.init` keeps the sources of the keys that have a value, with the tier that priced them, in
 `storage.value_sources`; the Market tab's item detail shows them ([terminal.md](terminal.md#item-detail)).
-Recording them adds about 1 to 3 ms to a vanilla valuation (6 to 8 ms) and 2 to 6 ms with Space Age
-(14.5 to 15.5 ms), measured on 2.1.24 against the valuation without them in the same run; it runs
-only when base values are rebuilt.
+Measured on 2.1.24 against the valuation without them, in the same run (averages of 10, two
+rounds): a rebuild is 22 to 24 ms in vanilla, of which 14 to 15 ms reading the prototypes and building
+the graph and 7 to 9 ms valuing it (6 to 7.5 ms without sources); with Space Age 56 to 77 ms, of
+which 36 to 42 ms for the graph and 15 to 19 ms valuing it (13 to 19 ms without). Recording the
+sources thus adds at most about 3 ms in vanilla and 2 ms with Space Age, within the run-to-run
+noise; it runs only when base values are rebuilt.
 
 ## Electricity
 
