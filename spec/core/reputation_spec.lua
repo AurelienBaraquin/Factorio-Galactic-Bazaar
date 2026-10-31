@@ -1,0 +1,28 @@
+local reputation = require("scripts.core.reputation")
+
+describe("reputation", function()
+  it("moves within its bounds", function()
+    assert.are.equal(3, reputation.add(2, 1))
+    assert.are.equal(reputation.MAX, reputation.add(reputation.MAX, 1))
+    assert.are.equal(reputation.MIN, reputation.add(reputation.MIN, -1))
+  end)
+
+  it("halves freight fees at the top, and raises them below zero", function()
+    assert.are.equal(1, reputation.fee_factor(0))
+    assert.are.near(0.5, reputation.fee_factor(reputation.MAX), 1e-12)
+    assert.are.near(1.5, reputation.fee_factor(reputation.MIN), 1e-12)
+    assert.are.near(0.5, reputation.fee_factor(1000), 1e-12)
+  end)
+
+  it("sizes contracts with the score, never below the minimum", function()
+    assert.are.equal(1, reputation.contract_scale(0))
+    assert.are.near(3, reputation.contract_scale(reputation.MAX), 1e-12)
+    assert.are.equal(reputation.MIN_SIZE, reputation.contract_scale(reputation.MIN))
+  end)
+
+  it("carries only a debt over on merge", function()
+    assert.are.equal(4, reputation.merge(4, 15))
+    assert.are.equal(1, reputation.merge(4, -3))
+    assert.are.equal(reputation.MIN, reputation.merge(-15, -15))
+  end)
+end)

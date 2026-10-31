@@ -12,6 +12,7 @@ local hubs = require("scripts.hubs")
 local manifold = require("scripts.manifold")
 local market = require("scripts.market")
 local pricing = require("scripts.pricing")
+local reputation = require("scripts.core.reputation")
 
 local freight = {}
 
@@ -152,6 +153,13 @@ function freight.tier_for(hub_unit_number, name, units, kind)
   return (plan(hub_unit_number, units, stack_size))
 end
 
+-- The freight fee a force pays on a purchase costing `cost` by `tier`: the tier's rate, scaled by
+-- the force's reputation (ADR-0016).
+local function fee_for(force_index, cost, tier)
+  local state = storage.forces[force_index]
+  return core.fee(cost, tier) * reputation.fee_factor(state and state.reputation or 0)
+end
+
 --- What buying `units` × `name` (`kind` "item", default, or "fluid") through a hub would cost right
 --- now: the market cost and the freight fee of the tier that order would ship by (the capsule's
 --- without a hub), or nil and a reason.
@@ -160,7 +168,7 @@ function freight.preview(force_index, name, units, kind, hub_unit_number)
   if not cost then return nil, reason end
   local tier = hub_unit_number and freight.tier_for(hub_unit_number, name, units, kind)
     or core.TIERS[core.DEFAULT_TIER]
-  return cost, core.fee(cost, tier)
+  return cost, fee_for(force_index, cost, tier)
 end
 
 --- Buys `units` × `name` for a force and queues them at a hub. Pays the market cost and the freight
@@ -181,7 +189,7 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   if expected_tier and tier.name ~= expected_tier then return false, "tier-changed" end
   local cost, reason = market.preview(force_index, kind, name, "buy", units)
   if not cost then return false, reason end
-  local fee = core.fee(cost, tier)
+  local fee = fee_for(force_index, cost, tier)
   if max_cost and cost + fee > max_cost then return false, "over-budget" end
   local state = storage.forces[force_index]
   if state.balance < cost + fee then return false, "insufficient-funds" end

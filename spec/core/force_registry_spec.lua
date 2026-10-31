@@ -64,13 +64,13 @@ describe("force_registry.merge", function()
     assert.are.same({ [1] = new_state() }, forces)
   end)
 
-  it("carries the source's open contracts and reputation into the destination", function()
+  it("carries the source's open contracts and reputation debt into the destination", function()
     local forces = { [1] = new_state(), [2] = new_state() }
     forces[2].contracts.open[9] = { id = 9 }
-    forces[1].reputation, forces[2].reputation = 1, 2
+    forces[1].reputation, forces[2].reputation = 1, -2
     force_registry.merge(forces, 2, 1)
     assert.are.same({ id = 9 }, forces[1].contracts.open[9])
-    assert.are.equal(3, forces[1].reputation)
+    assert.are.equal(-1, forces[1].reputation)
   end)
 end)
 
@@ -80,5 +80,11 @@ describe("force_registry.ensure on a state saved before contracts", function()
     force_registry.ensure(forces, 1)
     assert.are.same({ open = {}, history = {} }, forces[1].contracts)
     assert.are.equal(0, forces[1].reputation)
+  end)
+
+  it("brings a reputation saved without bounds within them", function()
+    local forces = { [1] = { balance = 5, journal = {}, markets = {}, reputation = 35 } }
+    force_registry.ensure(forces, 1)
+    assert.are.equal(20, forces[1].reputation)
   end)
 end)

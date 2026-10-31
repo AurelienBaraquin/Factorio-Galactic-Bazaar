@@ -37,6 +37,14 @@ describe("contract_offers.offer", function()
     assert.is_nil(contract_offers.offer(gear, { ["item/iron-plate"] = 2, ["item/iron-gear-wheel"] = 3 }, 0.5))
   end)
 
+  it("scales the batch with the force's reputation", function()
+    local rich = { ["item/iron-plate"] = 1, ["item/iron-gear-wheel"] = 10 }
+    local plain = contract_offers.offer(gear, rich, 0.5)
+    local larger = contract_offers.offer(gear, rich, 0.5, 3)
+    assert.are.equal(3 * plain.requires[1].count, larger.requires[1].count)
+    assert.are.near(3 * plain.reward, larger.reward, 1e-9)
+  end)
+
   it("refuses a recipe with a good that has no value", function()
     assert.is_nil(contract_offers.offer(gear, { ["item/iron-gear-wheel"] = 2 }, 0.5))
   end)

@@ -42,12 +42,13 @@ local function shown_items()
 end
 
 describe("market window", function()
-  local saved_balance, hub
+  local saved_balance, saved_reputation, hub
   before_each(function()
     player = game.get_player(1)
     surface = player.surface
     created = {}
     saved_balance = force_state().balance
+    saved_reputation = force_state().reputation
     force_state().balance = 1e6
     force_state().markets["item/iron-gear-wheel"] = nil
     player.get_main_inventory().clear()
@@ -63,6 +64,7 @@ describe("market window", function()
       if entity.valid then entity.destroy() end
     end
     if saved_balance then force_state().balance = saved_balance end
+    if saved_reputation then force_state().reputation = saved_reputation end
     force_state().markets["item/iron-gear-wheel"] = nil
     player.get_main_inventory().clear()
   end)
@@ -125,7 +127,16 @@ describe("market window", function()
     force_state().markets["fluid/crude-oil"] = nil
   end)
 
+  test("shows the force's reputation and its effects", function()
+    force_state().reputation = 20
+    market_gui.open(player, hub)
+    local reputation = data().elements.reputation
+    assert.are.same({ "gb-gui.reputation", 20 }, { reputation.caption[1], tonumber(reputation.caption[2]) })
+    assert.are.same({ 50, 300 }, { tonumber(reputation.tooltip[2]), tonumber(reputation.tooltip[3]) })
+  end)
+
   test("previews exactly what the purchase then costs", function()
+    force_state().reputation = 7
     place("gb-import-chest", 5, 0)
     market_gui.open(player, hub)
     type_text("search", "iron gear")

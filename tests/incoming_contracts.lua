@@ -134,6 +134,20 @@ describe("incoming contracts", function()
     assert.is_true(math.abs(1000 - (100 + 10 * sell) - state().balance) < 1e-9)
   end)
 
+  test("offers grow with the force's reputation", function()
+    -- The same draw state gives the same recipe and counterparty at both scores.
+    local rng = storage.incoming_contracts.rng
+    local saved_rng = rng[force().index]
+    state().reputation = 0
+    local plain = contracts.get(force().index, incoming.make_offer(force()))
+    rng[force().index] = saved_rng
+    state().reputation = 10
+    local larger = contracts.get(force().index, incoming.make_offer(force()))
+    assert.are.equal(plain.requires[1].name, larger.requires[1].name)
+    assert.is_true(larger.requires[1].count > plain.requires[1].count)
+    assert.is_true(larger.reward > plain.reward)
+  end)
+
   test("no more offers while MAX_CONTRACTS incoming contracts are open", function()
     force().technologies[incoming.TECHNOLOGY].researched = true
     for _ = 1, incoming.MAX_CONTRACTS do

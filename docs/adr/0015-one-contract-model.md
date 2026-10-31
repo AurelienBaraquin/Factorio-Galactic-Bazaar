@@ -37,7 +37,7 @@ one. The pure engine returns outcomes; the runtime (`scripts/contracts.lua`) app
 the force's account (ADR-0001) and settles open contracts every second. Contract ids are unique
 across all forces, so a reference to a contract (a shipment, a machine) survives a force merge, in
 which the merged force's open contracts carry on in the destination's book and the reputations add
-up. Moving the goods belongs to the feature that offers the contract.
+up (superseded by [ADR-0016](0016-bounded-reputation-with-effects.md): only a debt follows). Moving the goods belongs to the feature that offers the contract.
 
 ## Consequences
 
