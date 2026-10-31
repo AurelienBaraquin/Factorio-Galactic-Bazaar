@@ -138,6 +138,47 @@ describe("contract lifecycle", function()
     assert.is_nil(contracts.new(spec({ requires = {} }), 0))
   end)
 
+  it("validates a loan's advance: positive, bounded, and only with a charge", function()
+    local loan = { requires = {}, charge = 100, installment_ticks = 100, reward = 0, deposit = 0, penalty = 0 }
+    loan.advance = 1000
+    assert.are.equal(1000, contracts.new(spec(loan), 0).advance)
+    for _, bad in ipairs({ 0, -5, 0 / 0, 1e13 }) do
+      loan.advance = bad
+      assert.is_nil(contracts.new(spec(loan), 0))
+    end
+    assert.is_nil(contracts.new(spec({ advance = 1000 }), 0))
+  end)
+
+  it("counts a loan's installments still to repay, and repays them at once instead of abandoning", function()
+    local terms = { requires = {}, charge = 110, installment_ticks = 100, duration_ticks = 1000, advance = 1000,
+      reward = 0, deposit = 0, penalty = 0 }
+    local loan = contracts.new(spec(terms), 0)
+    assert.are.equal(0, contracts.payoff(loan))
+    contracts.accept(loan, 0)
+    assert.are.equal(1100, contracts.payoff(loan))
+    contracts.installment(loan, 100)
+    contracts.installment(loan, 200)
+    assert.are.equal(880, contracts.payoff(loan))
+    assert.is_nil(contracts.abandon(loan, 250))
+    assert.are.equal(contracts.ACTIVE, loan.state)
+    assert.are.same({ state = contracts.FULFILLED, credits = -880, reputation = 0 }, contracts.repay(loan, 250))
+    assert.is_nil(contracts.repay(loan, 251))
+    assert.is_nil(contracts.repay(active(), 0))
+  end)
+
+  it("defaults a loan with the unpaid installment and every one left as arrears", function()
+    local terms = { requires = {}, charge = 110, installment_ticks = 100, duration_ticks = 1000, advance = 1000,
+      reward = 0, deposit = 0, penalty = 0 }
+    local loan = contracts.new(spec(terms), 0)
+    contracts.accept(loan, 0)
+    contracts.installment(loan, 100)
+    assert.are.same({ state = contracts.FAILED, credits = 0, reputation = -1, arrears = 110 + 990 },
+      contracts.default(loan, 100, 110))
+    local service = contracts.new(spec({ requires = {}, charge = 40, installment_ticks = 100 }), 0)
+    contracts.accept(service, 0)
+    assert.is_nil(contracts.default(service, 100, 40).arrears)
+  end)
+
   it("voids an active contract with its whole guarantee back and no reputation, and nothing else", function()
     local contract = active()
     assert.are.same({ state = contracts.VOIDED, credits = 300, reputation = 0 }, contracts.void(contract, 10))

@@ -1,13 +1,17 @@
--- The contracts window (#76, #78): a force's offers and active contracts from counterparties
--- (incoming contracts and machine rentals), opened from the market window of a hub within reach.
--- Offers can be accepted (an incoming contract's ingredients are shipped to that hub) or declined;
--- active contracts show their progress and deadline and can be abandoned. Rows are built once and
--- updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency).
--- Interface state lives in storage.contracts_gui.
+-- The contracts window (#76, #78, #96): a force's offers and active contracts from counterparties
+-- (incoming contracts, machine rentals, leases and loans), opened from the market window of a hub
+-- within reach. Offers can be accepted (an incoming contract's ingredients are shipped to that hub) or
+-- declined; active contracts show their progress and deadline and can be abandoned, loans repaid. Its
+-- credit line shows the force's debt and borrows a principal tier. Rows are built once and updated in
+-- place, so a refresh never destroys a button a player is clicking (multiplayer latency). Interface
+-- state lives in storage.contracts_gui.
+local catalog = require("scripts.core.catalog")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local loans = require("scripts.loans")
+local loans_core = require("scripts.core.loans")
 local planets = require("scripts.planets")
 local rental = require("scripts.rental")
 
@@ -45,10 +49,40 @@ local function minutes(ticks)
   return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
+-- The credit line: the force's debt against its cap, arrears if any, and a button per principal tier
+-- with its terms, enabled when the force may borrow it.
+local function refresh_credit(player, elements)
+  local state = storage.forces[player.force_index]
+  local debt, cap = loans.debt(player.force_index)
+  elements.debt.caption = state.arrears > 0
+    and { "gb-loans.debt-arrears", catalog.format_credits(debt), catalog.format_credits(cap),
+      catalog.format_credits(state.arrears) }
+    or { "gb-loans.debt", catalog.format_credits(debt), catalog.format_credits(cap) }
+  for tier, offer in ipairs(loans.offers(player.force_index)) do
+    local button = elements.borrow[tier]
+    button.enabled = offer.refusal == nil
+    button.tooltip = { "", { "gb-loans.borrow-terms", string.format("%.4g", offer.rate * 100),
+      loans_core.TERM_TICKS / 3600, catalog.format_credits(offer.charge), loans_core.periods(),
+      loans_core.PERIOD_TICKS / 3600, catalog.format_credits(offer.charge * loans_core.periods()) },
+      offer.refusal and { "", "\n", { "gb-loans.refused-" .. offer.refusal } } or "" }
+  end
+end
+
+-- What a row shows of a loan, in place of goods and terms.
+local function refresh_loan_row(row, contract)
+  row.who.caption = { "gb-loans.lender" }
+  row.provides.caption = { "gb-loans.borrowed", catalog.format_credits(contract.advance) }
+  row.requires.caption = { "gb-loans.left", catalog.format_credits(core.payoff(contract)) }
+  row.terms.caption = { "gb-loans.installment", catalog.format_credits(contract.charge) }
+  row.primary.caption = { "gb-loans.repay" }
+  row.primary.tooltip = { "gb-loans.repay-tooltip", catalog.format_credits(core.payoff(contract)) }
+end
+
 local function refresh(player, data)
   local elements = data.elements
   local list = contracts.listed(player.force_index)
   elements.reputation.caption = { "gb-contracts.reputation", storage.forces[player.force_index].reputation }
+  refresh_credit(player, elements)
   elements.empty.visible = #list == 0
   for i, row in ipairs(elements.rows) do
     local contract = list[i]
@@ -69,8 +103,10 @@ local function refresh(player, data)
         or { "gb-contracts.due-in", minutes(contract.due_tick - game.tick) }
       row.primary.caption = offered and { "gb-contracts.accept" } or { "gb-contracts.abandon" }
       row.primary.tags = { gb_action = offered and "contract-accept" or "contract-abandon", id = contract.id }
+      row.primary.tooltip = ""
       row.secondary.visible = offered
       row.secondary.tags = { gb_action = "contract-decline", id = contract.id }
+      if contract.kind == "loan" and not offered then refresh_loan_row(row, contract) end
     end
   end
 end
@@ -83,6 +119,13 @@ local function build(player)
   local head = body.add({ type = "flow", direction = "horizontal" })
   elements.reputation = head.add({ type = "label", style = "bold_label" })
   head.add({ type = "button", caption = { "gb-contracts.close" }, tags = { gb_action = "contract-close" } })
+  local credit = body.add({ type = "flow", direction = "horizontal" })
+  elements.debt = credit.add({ type = "label" })
+  elements.borrow = {}
+  for tier, principal in ipairs(loans_core.TIERS) do
+    elements.borrow[tier] = credit.add({ type = "button", caption = { "gb-loans.borrow",
+      catalog.format_credits(principal) }, tags = { gb_action = "loan-borrow", tier = tier } })
+  end
   elements.empty = body.add({ type = "label", caption = { "gb-contracts.none" } })
   local list = body.add({ type = "table", column_count = 7 })
   elements.rows = {}
@@ -142,7 +185,16 @@ actions["contract-decline"] = function(player, _, tags)
 end
 
 actions["contract-abandon"] = function(player, _, tags)
-  contracts.abandon(player.force_index, tags.id)
+  local outcome, reason = contracts.abandon(player.force_index, tags.id)
+  if not outcome and reason then player.print({ "gb-loans.refused-" .. reason }) end
+end
+
+actions["loan-borrow"] = function(player, _, tags)
+  local id, reason = loans.borrow(player.force_index, tags.tier)
+  if not id then return player.print({ "gb-loans.refused-" .. reason }) end
+  local contract = contracts.get(player.force_index, id)
+  player.print({ "gb-loans.borrowed-message", catalog.format_credits(contract.advance),
+    catalog.format_credits(contract.charge), loans_core.periods() })
 end
 
 --- on_gui_click: runs the action of one of this window's buttons.

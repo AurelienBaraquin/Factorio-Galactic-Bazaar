@@ -3,7 +3,7 @@ local force_registry = require("scripts.core.force_registry")
 local function new_state()
   return {
     balance = 0, overdraft_low = 0, journal = {}, markets = {}, reputation = 0, contracts = { open = {}, history = {} },
-    reservations = {},
+    reservations = {}, arrears = 0,
   }
 end
 
@@ -78,10 +78,12 @@ describe("force_registry.merge", function()
     forces[2].contracts.open[9] = { id = 9 }
     forces[2].reservations[1] = { planet = "a", contract = 9 }
     forces[1].reputation, forces[2].reputation = 1, -2
+    forces[1].arrears, forces[2].arrears = 5, 300
     force_registry.merge(forces, 2, 1)
     assert.are.same({ id = 9 }, forces[1].contracts.open[9])
     assert.are.same({ { planet = "a", contract = 9 } }, forces[1].reservations)
     assert.are.equal(-1, forces[1].reputation)
+    assert.are.equal(305, forces[1].arrears)
   end)
 end)
 

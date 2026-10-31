@@ -78,6 +78,10 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).
 - **Planets**: on init and configuration change, `planets.init` limits the NPC planet catalog to the
   loaded game; every `planets_gui.REFRESH_TICKS`, open planets windows refresh ([planets.md](planets.md)).
+- **Loans**: the contracts window's credit line borrows a tier (`loans.borrow`: a loan contract
+  offered and accepted at once, its principal paid); its installments run in the contract
+  settlement with no service; every `loans.COLLECT_TICKS`, arrears a defaulted loan left are taken
+  from each force's balance ([contracts.md](contracts.md)).
 - **Concessions and outsourcing**: their periods run in the contract settlement (the service
   registered for each kind checks it can ship, ships the ore or the products, then the charge is
   taken); every `concessions.SWEEP_TICKS`, ended leases release their slot ([planets.md](planets.md)).
