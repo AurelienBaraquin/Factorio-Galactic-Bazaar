@@ -1,8 +1,9 @@
--- The market window, opened by clicking a trading hub within reach: balance, a searchable and paged
+-- The market window, opened by clicking a trading hub within reach: balance and overdraft left, a searchable and paged
 -- list of tradeable items with their prices, and a panel to buy into the hub's import chests or sell
 -- from the player's inventory. Interface state is per player in storage.players; economy state
 -- stays per force. Every action is re-validated, since GUI events are player input.
 local cargo = require("scripts.cargo")
+local account = require("scripts.core.account")
 local catalog = require("scripts.core.catalog")
 local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
@@ -63,6 +64,8 @@ local function refresh_status(player, data)
   local elements = data.elements
   local state = storage.forces[player.force_index]
   elements.balance.caption = { "gb-gui.balance", catalog.format_credits(state.balance) }
+  elements.overdraft.caption = { "gb-gui.overdraft", catalog.format_credits(account.overdraft_left(state)),
+    catalog.format_credits(account.overdraft_limit(state)) }
   elements.reputation.caption = { "gb-gui.reputation", state.reputation }
   elements.reputation.tooltip = { "gb-gui.reputation-effects",
     string.format("%.4g", reputation.fee_factor(state.reputation) * 100),
@@ -204,6 +207,8 @@ local function build(player)
   local status = body.add({ type = "flow", direction = "horizontal" })
   local elements = { window = window }
   elements.balance = status.add({ type = "label", style = "bold_label" })
+  elements.overdraft = status.add({ type = "label", tooltip = { "gb-gui.overdraft-terms",
+    string.format("%.4g", account.INTEREST_RATE * 100), account.INTEREST_TICKS / 3600 } })
   elements.reputation = status.add({ type = "label" })
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })

@@ -92,3 +92,16 @@ describe("force_registry.ensure on a state saved before contracts", function()
     assert.are.equal(20, forces[1].reputation)
   end)
 end)
+
+describe("force_registry.charge_interest", function()
+  it("charges every force in debt in force index order, and no other", function()
+    local forces = {}
+    for _, index in ipairs({ 5, 1, 3 }) do force_registry.ensure(forces, index) end
+    forces[5].balance, forces[1].balance, forces[3].balance = -100, -300, 50
+    local charged = force_registry.charge_interest(forces, 3600)
+    assert.are.same({ 1, 5 }, charged)
+    assert.is_true(forces[1].balance < -300 and forces[5].balance < -100)
+    assert.are.equal(50, forces[3].balance)
+    assert.are.same({}, forces[3].journal)
+  end)
+end)

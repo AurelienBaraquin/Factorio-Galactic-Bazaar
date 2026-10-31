@@ -11,7 +11,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `balance` | number | credits held by the force; never negative |
+| `balance` | number | credits held by the force; negative when it spends on overdraft, down to `-account.overdraft_limit(state)` by spending, and below that only through interest ([ADR-0020](adr/0020-overdraft-and-debit-interest.md)) |
 | `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into the journal's entry of the same kind and key started less than `merge_ticks` before, which then holds the totals, its last tick and the balance after it, and moves to the end, so the journal stays in tick order |
 | `feed` | table or nil | `[key] = {tick, buy, sell, history}`: the prices this force last saw for each key read through `telecom.quote`, quoted again when older than its telecommunications period; `history` is the market entry's own table (live, not a copy); created on first read, cleared whenever base values are rebuilt |
 | `contracts` | table | `{open = {[id] = contract}, history = {contract...}}`: the force's contract book, ids unique across all forces (`storage.contract_next_id`) ([contracts.md](contracts.md), ADR-0015) |
@@ -20,7 +20,14 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
-refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing.
+refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing. A debit is refused
+only when it would take the balance below `-account.overdraft_limit(state)` (10 000 credits); a
+credit is always accepted. Code that checks funds before acting compares costs to
+`account.available(state)` (balance plus limit), never to the balance alone. Every
+`account.INTEREST_TICKS` (one minute), `force_registry.charge_interest` charges each force with a
+negative balance `INTEREST_RATE` (0.5 %) of its debt, in force index order, journaled as
+`overdraft-interest` (merged over 10 minutes); interest may take the balance below the limit. The
+limit and the interest are derived from the balance: the overdraft adds no field to the state.
 
 Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.lua`):
 

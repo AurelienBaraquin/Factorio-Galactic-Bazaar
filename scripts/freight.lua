@@ -193,12 +193,12 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   local fee = fee_for(force_index, cost, tier)
   if max_cost and cost + fee > max_cost then return false, "over-budget" end
   local state = storage.forces[force_index]
-  if state.balance < cost + fee then return false, "insufficient-funds" end
+  if account.available(state) < cost + fee then return false, "insufficient-funds" end
   local bought, paid = market.buy(force_index, kind, name, units, nil, merge_ticks)
   if not bought then return false, paid end
-  -- The balance covered cost and fee in this tick; the cap only absorbs float rounding, so the debit
-  -- cannot be refused.
-  fee = math.min(fee, state.balance)
+  -- The available funds covered cost and fee in this tick; the cap only absorbs float rounding, so
+  -- the debit cannot be refused.
+  fee = math.min(fee, account.available(state))
   account.apply(state, -fee, {
     tick = game.tick, kind = "freight", key = pricing.key(kind, name), quantity = units, merge_ticks = merge_ticks,
   })

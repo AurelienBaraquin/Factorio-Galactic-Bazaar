@@ -1,7 +1,11 @@
--- Keeps storage.forces in step with the game's forces (ADR-0001): one economy state per force.
+-- Keeps storage.forces in step with the game's forces (ADR-0001): one economy state per force, and
+-- charges overdraft interest to those in debt every INTEREST_TICKS (ADR-0020).
+local account = require("scripts.core.account")
 local force_registry = require("scripts.core.force_registry")
 
 local forces = {}
+
+forces.INTEREST_TICKS = account.INTEREST_TICKS
 
 local function existing_force_indices()
   local indices = {}
@@ -23,6 +27,11 @@ end
 
 function forces.on_forces_merging(event)
   force_registry.merge(storage.forces, event.source.index, event.destination.index)
+end
+
+--- on_nth_tick(INTEREST_TICKS): every force with a negative balance pays a period of interest.
+function forces.on_interest_tick(event)
+  force_registry.charge_interest(storage.forces, event.tick)
 end
 
 return forces

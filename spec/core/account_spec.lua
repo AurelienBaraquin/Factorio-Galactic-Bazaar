@@ -16,13 +16,26 @@ describe("account.apply", function()
     assert.are.same({ tick = 2, kind = "buy", amount = -30, balance = 70 }, state.journal[2])
   end)
 
-  it("refuses to go below zero and leaves the state untouched", function()
+  it("debits into the overdraft, down to the limit", function()
     local state = new_account(10)
-    local ok, reason = account.apply(state, -10.5, { tick = 1 })
+    local limit = account.overdraft_limit(state)
+    assert.is_true(account.apply(state, -(10 + limit), { tick = 1 }))
+    assert.are.equal(-limit, state.balance)
+  end)
+
+  it("refuses to go below the overdraft limit and leaves the state untouched", function()
+    local state = new_account(10)
+    local ok, reason = account.apply(state, -(10.5 + account.overdraft_limit(state)), { tick = 1 })
     assert.is_false(ok)
     assert.are.equal("insufficient-funds", reason)
     assert.are.equal(10, state.balance)
     assert.are.same({}, state.journal)
+  end)
+
+  it("accepts a credit on a balance already beyond the limit", function()
+    local state = new_account(-account.overdraft_limit({}) - 50)
+    assert.is_true(account.apply(state, 20, { tick = 1 }))
+    assert.are.equal(-account.overdraft_limit({}) - 30, state.balance)
   end)
 
   it("refuses NaN and infinite amounts", function()
@@ -97,5 +110,64 @@ describe("account.merge", function()
     account.merge(destination, source)
     assert.are.equal(12, destination.balance)
     assert.are.same({ { tick = 1 }, { tick = 2 }, { tick = 3 }, { tick = 4 } }, destination.journal)
+  end)
+end)
+
+describe("account overdraft", function()
+  it("has a base limit", function()
+    assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(new_account()))
+    assert.is_true(account.BASE_OVERDRAFT_LIMIT > 0)
+  end)
+
+  it("makes the balance plus the limit available", function()
+    local limit = account.BASE_OVERDRAFT_LIMIT
+    assert.are.equal(250 + limit, account.available(new_account(250)))
+    assert.are.equal(limit - 400, account.available(new_account(-400)))
+    assert.are.equal(-30, account.available(new_account(-limit - 30)))
+  end)
+
+  it("tells how much of the overdraft is left", function()
+    local limit = account.BASE_OVERDRAFT_LIMIT
+    assert.are.equal(limit, account.overdraft_left(new_account(250)))
+    assert.are.equal(limit - 400, account.overdraft_left(new_account(-400)))
+    assert.are.equal(0, account.overdraft_left(new_account(-limit - 30)))
+  end)
+end)
+
+describe("account.charge_interest", function()
+  it("charges nothing on a balance at or above zero", function()
+    for _, balance in ipairs({ 0, 120 }) do
+      local state = new_account(balance)
+      assert.are.equal(0, account.charge_interest(state, 3600))
+      assert.are.equal(balance, state.balance)
+      assert.are.same({}, state.journal)
+    end
+  end)
+
+  it("charges the rate on a negative balance and journals it with its own kind", function()
+    local state = new_account(-2000)
+    local charged = account.charge_interest(state, 3600)
+    assert.are.equal(2000 * account.INTEREST_RATE, charged)
+    assert.are.equal(-2000 - charged, state.balance)
+    local entry = state.journal[1]
+    assert.are.same({ "overdraft-interest", -charged, 3600, state.balance },
+      { entry.kind, entry.amount, entry.tick, entry.balance })
+  end)
+
+  it("may push the balance beyond the limit", function()
+    local limit = account.BASE_OVERDRAFT_LIMIT
+    local state = new_account(-limit)
+    account.charge_interest(state, 3600)
+    assert.is_true(state.balance < -limit)
+    account.charge_interest(state, 7200)
+    assert.is_true(state.balance < -limit * (1 + account.INTEREST_RATE))
+  end)
+
+  it("merges recurring interest into one journal entry over a while", function()
+    local state = new_account(-1000)
+    account.charge_interest(state, 3600)
+    account.charge_interest(state, 7200)
+    assert.are.equal(1, #state.journal)
+    assert.is_true(math.abs(state.balance + 1000 - state.journal[1].amount) < 1e-9)
   end)
 end)

@@ -53,4 +53,17 @@ function force_registry.merge(forces, source_index, destination_index)
   forces[source_index] = nil
 end
 
+--- Charges one period of overdraft interest to every force whose balance is negative, in force
+--- index order (ADR-0020). Returns the indices of the forces charged.
+function force_registry.charge_interest(forces, tick)
+  local indices = {}
+  for force_index in pairs(forces) do indices[#indices + 1] = force_index end
+  table.sort(indices)
+  local charged = {}
+  for _, force_index in ipairs(indices) do
+    if account.charge_interest(forces[force_index], tick) > 0 then charged[#charged + 1] = force_index end
+  end
+  return charged
+end
+
 return force_registry

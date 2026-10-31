@@ -4,6 +4,7 @@
 -- order combinators in the period. Combinators are spread over SLOTS passes by unit number, so
 -- that no tick reads all of them. Each works through the nearest powered hub of its force in range
 -- (ADR-0005). State lives in storage.circuit_orders.
+local account = require("scripts.core.account")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local orders = require("scripts.core.orders")
@@ -127,7 +128,7 @@ local function place_orders(module, tick)
   if refused or budget <= 0 or #requests == 0 then return end
   local spent = spending(force_index, tick)
   for _, request in ipairs(requests) do
-    local allowance = orders.allowance(budget, spent.credits, state.balance)
+    local allowance = orders.allowance(budget, spent.credits, account.available(state))
     if allowance <= 0 then return end
     local ok, paid, fee = freight.order(force_index, hub.unit_number, request.name, request.units,
       circuit_orders.JOURNAL_MERGE_TICKS, allowance, request.kind)

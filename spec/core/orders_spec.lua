@@ -35,11 +35,12 @@ describe("orders.requests", function()
 end)
 
 describe("orders.allowance", function()
-  it("is the budget left for the force this period, within the balance", function()
+  it("is the budget left for the force this period, within its available funds", function()
     assert.are.equal(500, orders.allowance(500, 0, 10000))
     assert.are.equal(200, orders.allowance(500, 300, 10000))
     assert.are.equal(0, orders.allowance(500, 600, 10000))
     assert.are.equal(100, orders.allowance(500, 0, 100))
+    assert.are.equal(0, orders.allowance(500, 0, -20))
   end)
 
   it("is zero without a positive budget, so a zero or negative budget pauses buying", function()

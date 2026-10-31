@@ -1,5 +1,6 @@
 -- In-game tests of the contract engine's runtime side (scripts/contracts.lua, ADR-0015): offers,
 -- deposits, settlement through the force's account, reputation, force merge and persistence.
+local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 
@@ -57,12 +58,13 @@ describe("contracts", function()
     assert.are.equal(20, state().reputation)
   end)
 
-  test("refuse an acceptance the force cannot guarantee, changing nothing", function()
-    state().balance = 250
+  test("refuse an acceptance the force cannot guarantee, overdraft included, changing nothing", function()
+    local balance = 250 - account.overdraft_limit(state())
+    state().balance = balance
     local id = contracts.offer(force_index(), spec())
     assert.are.same({ false, "insufficient-funds" }, { contracts.accept(force_index(), id) })
     assert.are.equal(core.OFFERED, contracts.get(force_index(), id).state)
-    assert.are.equal(250, state().balance)
+    assert.are.equal(balance, state().balance)
   end)
 
   test("fail a late contract: the guarantee is kept even if the force spent everything else", function()

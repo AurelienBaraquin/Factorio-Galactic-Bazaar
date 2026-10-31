@@ -12,6 +12,14 @@ which also shows the trend column and a price history line for the selected item
 receive is always the live price, shown in the window's preview. With many price combinators,
 the last ones get new prices a little later: about 0.1 s per combinator.
 
+## Credits and overdraft
+
+Your force may spend below zero: purchases, contract guarantees, lease deposits and charges, power
+imports and orders all go through as long as they keep the balance above minus the **overdraft
+limit** (10 000 credits). The market window shows the overdraft you have left next to the balance.
+While the balance is negative, it pays **0.5 % interest every minute**, even if that takes it past
+the limit; past the limit, nothing more can be bought until sales bring the balance back.
+
 ## Price signal combinators
 
 Researched with **Market signals** (after Galactic Bazaar and Circuit network). Place one within
@@ -31,7 +39,8 @@ Circuit signals are whole numbers, so:
 
 - **Prices are in milli-credits**: a price of 1.32 credits reads **1320**; water at 0.001 credit
   reads 1. A price that would round to 0 is not emitted.
-- **The balance is in whole credits**: 12 345.4 credits reads 12 345.
+- **The balance is in whole credits**: 12 345.4 credits reads 12 345; it is negative while your
+  force is on overdraft (see below).
 - Values past 2 147 483 647 (or below −2 147 483 648) are capped there.
 - Prices are for **normal quality**; electricity has no signal.
 
@@ -64,7 +73,8 @@ nothing.
   hub's import chests and fluids in its import manifolds, with
   the freight fee, like a purchase from the market window.
 - **Budget**: it buys **nothing** without a positive **Budget** signal on its input. The value is the
-  most your force spends through all its order combinators in 10 s (never more than your balance).
+  most your force spends through all its order combinators in 10 s (never more than your available
+  funds: your balance plus what is left of your overdraft).
   Set it to 0 to pause buying. An order that does not fit in what is left is skipped.
 - **Never wire a price combinator to it**: an input carrying the **Credits** signal is refused,
   since its item signals are prices, not orders.

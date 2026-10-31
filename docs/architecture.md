@@ -69,6 +69,10 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Catapults**: every `catapult.PASS_TICKS`, the next catapult shoots if ready ([terminal.md](terminal.md)).
 - **Contracts**: every `contracts.SETTLE_TICKS`, each force's open contracts whose time has come
   are settled through its account ([contracts.md](contracts.md)).
+- **Overdraft interest**: every `forces.INTEREST_TICKS` (one minute), `forces.on_interest_tick`
+  charges interest to every force whose balance is negative; purchases, guarantees and charges are
+  checked against the available funds, balance plus overdraft limit
+  ([data-model.md](data-model.md), [ADR-0020](adr/0020-overdraft-and-debit-interest.md)).
 - **Incoming contracts**: every `incoming.OFFER_TICKS`, forces that researched contracts get an
   offer; every `incoming.COLLECT_TICKS`, contract chests hand over what active contracts need; every
   `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).

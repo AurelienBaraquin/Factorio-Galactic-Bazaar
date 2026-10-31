@@ -2,7 +2,7 @@
 -- units of `joules_per_unit`.
 local power_settlement = {}
 
--- Margin kept below the balance, so that float rounding in the cost never makes a purchase exceed it.
+-- Margin kept below the funds, so that float rounding in the cost never makes a purchase exceed them.
 power_settlement.FUNDS_MARGIN = 1e-9
 
 --- Units to sell out of `joules` absorbed by the export substations, when the market takes at most
@@ -22,11 +22,13 @@ function power_settlement.wanted_units(missing, buyable, joules_per_unit)
   return math.min(joules / joules_per_unit, buyable), joules
 end
 
---- Units affordable out of `units` costing `cost` with `balance` credits. The cost is convex in the
---- units and zero at zero, so scaling the units by balance / cost keeps the cost within the balance.
-function power_settlement.affordable(units, cost, balance)
-  if cost <= balance then return units end
-  return math.max(0, units * balance / cost * (1 - power_settlement.FUNDS_MARGIN))
+--- Units affordable out of `units` costing `cost` with `funds` credits available (none when the funds
+--- are not positive). The cost is convex in the units and zero at zero, so scaling the units by
+--- funds / cost keeps the cost within the funds.
+function power_settlement.affordable(units, cost, funds)
+  if cost <= funds then return units end
+  if funds <= 0 then return 0 end
+  return units * funds / cost * (1 - power_settlement.FUNDS_MARGIN)
 end
 
 --- The joules each import substation receives out of `units` bought, in proportion to what it lacks.

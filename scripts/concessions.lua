@@ -5,6 +5,7 @@
 -- the hub the lease was taken at, by transit (#84), and the charge is taken only for a period
 -- shipped. The slots stay reserved for the term and are
 -- released when the contract ends. Leases live in storage.concessions.
+local account = require("scripts.core.account")
 local cargo = require("scripts.cargo")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
@@ -40,7 +41,7 @@ end
 local function make_lease(force_index, hub_unit_number, planet_name, specialty, spec, item, units)
   if not cargo.has_import(hub_unit_number) then return nil, "no-import-chest" end
   if #contracts.listed(force_index) >= contracts.MAX_LISTED then return nil, "too-many-contracts" end
-  if storage.forces[force_index].balance < spec.deposit then return nil, "insufficient-funds" end
+  if account.available(storage.forces[force_index]) < spec.deposit then return nil, "insufficient-funds" end
   local id = contracts.offer(force_index, spec)
   if not id then return nil, "not-tradeable" end
   local until_tick = game.tick + spec.duration_ticks + 1

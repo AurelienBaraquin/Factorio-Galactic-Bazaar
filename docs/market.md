@@ -28,7 +28,8 @@ parameters, and `market.rebase_all(old_values, old_levels)` uses the quality lev
 rebuild.
 
 A trade is atomic: when it is refused (`not-tradeable`, `invalid-quantity`,
-`insufficient-liquidity`, `insufficient-funds`) neither the account nor the market changes. Moving
+`insufficient-liquidity`, `insufficient-funds`: the purchase would take the balance below the
+overdraft limit, [data-model.md](data-model.md)) neither the account nor the market changes. Moving
 the goods is the caller's job (the terminal). Read only the keys you display: a full catch-up
 costs up to 0.05 ms per key.
 

@@ -1,4 +1,6 @@
 -- In-game tests of the market window (scripts/market_gui.lua), driven through the test save's player.
+local account = require("scripts.core.account")
+local catalog = require("scripts.core.catalog")
 local freight = require("scripts.freight")
 local market_gui = require("scripts.market_gui")
 
@@ -78,6 +80,18 @@ describe("market window", function()
     assert.are.same({ "gb-gui.delivery", { "gb-gui.tier-capsule" } }, { delivery[1], delivery[2] })
     assert.are.same({ 0, 20 }, { tonumber(delivery[3]), tonumber(delivery[4]) })
     assert.are.equal(15, #shown_items())
+  end)
+
+  test("shows the overdraft left and its limit", function()
+    force_state().balance = -400
+    market_gui.open(player, hub)
+    local limit = account.overdraft_limit(force_state())
+    assert.are.same({ "gb-gui.overdraft", catalog.format_credits(limit - 400), catalog.format_credits(limit) },
+      data().elements.overdraft.caption)
+    force_state().balance = 1e6
+    market_gui.close(player.index)
+    market_gui.open(player, hub)
+    assert.are.equal(catalog.format_credits(limit), data().elements.overdraft.caption[2])
   end)
 
   test("gives every row the same column widths, whatever the item name", function()

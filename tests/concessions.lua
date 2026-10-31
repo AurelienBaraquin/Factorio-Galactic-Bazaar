@@ -1,5 +1,6 @@
 -- In-game tests of mining concessions (scripts/concessions.lua, #85): leasing a planet's slot, the
 -- charge per period shipped, defaults, the end of the term and the lease button of the planets window.
+local account = require("scripts.core.account")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
@@ -145,7 +146,7 @@ describe("mining concessions", function()
 
   test("a force that cannot pay defaults, and the slot is released", function()
     local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore")
-    state().balance = 0
+    state().balance = -account.overdraft_limit(state())
     local reputation = state().reputation
     run_period(id)
     assert.is_nil(contracts.get(force_index(), id))
@@ -173,7 +174,7 @@ describe("mining concessions", function()
       { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore") })
     assert.are.same({ nil, "unknown-specialty" },
       { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "coal") })
-    state().balance = 0
+    state().balance = -account.overdraft_limit(state())
     assert.are.same({ nil, "insufficient-funds" },
       { concessions.lease(force_index(), hub.unit_number, "carbo", "coal") })
     state().balance = 1e6
