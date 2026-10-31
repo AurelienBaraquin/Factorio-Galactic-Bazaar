@@ -26,7 +26,7 @@ trades are not contracts ([market.md](market.md)).
 | From | Event | To | Money (through the force's account) | Reputation |
 |---|---|---|---|---|
 | — | `contracts.offer(force, spec)` | offered | — | — |
-| offered | `contracts.accept(force, id)` (refused without the guarantee) | active | − deposit − penalty (`contract-guarantee`, when not 0); + advance (`contract-advance`) | — |
+| offered | `contracts.accept(force, id)` (refused without the guarantee, or while the force is insolvent: `insolvent`) | active | − deposit − penalty (`contract-guarantee`, when not 0); + advance (`contract-advance`) | — |
 | offered | `contracts.decline(force, id)` | declined | — | — |
 | active | `contracts.deliver(force, id, key, count)`, until the deadline | active | — | — |
 | active | every `installment_ticks`, at the next settlement | active | + reward × share of required units delivered − `paid` (`contract-installment`) | — |
@@ -40,6 +40,7 @@ trades are not contracts ([market.md](market.md)).
 | active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept, installments paid stay paid (`contract-failed`, amount 0) | −1 |
 | offered | offer window passed | expired | — | — |
 | active | `contracts.void(force, id)`: its goods no longer exist (a mod was removed); never a loan, whose debt would vanish | voided | + deposit + penalty (`contract-voided`) | — |
+| offered / active | the force goes bankrupt (see Insolvency and bankruptcy) | declined / failed | nothing back: the guarantee is kept; a loan leaves no arrears | reputation set to −20 |
 
 A required amount within 10⁻⁶ of complete counts as delivered (fluid amounts are fractional).
 Settlement runs every `contracts.SETTLE_TICKS` (60), contract ids in order. A settled contract
@@ -56,6 +57,7 @@ moved by contract outcomes and kept within [`MIN`, `MAX`] = [−20, 20].
 | Contract size | incoming offers aim at `TARGET_VALUE` × `contract_scale` = max(`MIN_SIZE` (0.5), 1 + `SIZE_STEP` (0.1) × score): ×3 at 20, ×0.5 from −5 down; the reward follows the batch |
 | Force merge | the destination keeps its score less the source's debt (`reputation.merge`) |
 | Loans | interest rate and debt cap (see Loans) |
+| Bankruptcy | the score falls to −20 (see Insolvency and bankruptcy) |
 
 The market window shows the score, with its effects in the tooltip ([terminal.md](terminal.md)).
 
@@ -143,18 +145,37 @@ and arrears still collected; the credit line still shows the debt.
 | Terms | the principal (`advance`) is paid at acceptance; `TERM_TICKS` (60 min), `PERIOD_TICKS` (5 min): 12 installments of principal × (1 + rate) / 12; no deposit, penalty or reward |
 | Rate | over the term, fixed at borrowing: `BASE_RATE` (10 %) − `RATE_STEP` (0.25 %) × reputation, 5 % at 20, 15 % at −20 |
 | Debt cap | `DEBT_CAP` (50 000) × the reputation's contract scale: 25 000 from −5 down, 150 000 at 20; the debt is the principal active loans still have to repay, principal × whole installments left / 12, plus arrears (`loans.outstanding`); a loan that would take it above the cap is refused (`debt-cap`) |
-| Refusals | `not-researched` before `gb-credit`; `debt-cap` (the debt counts loans only, not the overdraft); `overdrawn` when the available funds are below zero (the balance beyond the overdraft limit: `contracts.can_accept` refuses even a zero guarantee); `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
+| Refusals | `not-researched` before `gb-credit`; `insolvent` while the force is insolvent; `credit-ban` during the credit ban after a bankruptcy; `debt-cap` (the debt counts loans only, not the overdraft); `overdrawn` when the available funds are below zero (the balance beyond the overdraft limit: `contracts.can_accept` refuses even a zero guarantee); `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
 | Repay | the row's **Repay** button (`contracts.abandon`) pays every installment left at once, interest included (`contract-repaid`), taken before the loan is settled; refused, changing nothing, when the available funds cannot cover it |
 | Installments | one the available funds can pay is paid, even into the overdraft (which then pays its debit interest) |
 | Default | an installment the available funds cannot cover fails the loan (−1 reputation); that installment and every one left become the force's `arrears`, taken every `loans.COLLECT_TICKS` (60) from the available funds, down to the overdraft limit (`loan-arrears`, journaled in one entry per minute): unpaid loan debt becomes overdraft debt, which pays debit interest; arrears beyond the overdraft stay owed until income covers them |
 | Force merge | open loans carry over with the contract book; arrears add up |
+
+## Insolvency and bankruptcy
+
+A force that can no longer pay its debts gets a grace period, then goes bankrupt (#97,
+[ADR-0022](adr/0022-insolvency-and-bankruptcy.md)). Code: `scripts/core/insolvency.lua` (rules,
+pure), `scripts/insolvency.lua` (the check handler and the force's messages); the market window
+shows the state ([terminal.md](terminal.md)).
+
+| | |
+|---|---|
+| Check | every `CHECK_TICKS` (60), after the arrears collection, every force in index order (`insolvency.check_all`), from its lowest balance since the previous check (`solvency_low`, kept by every account transaction) |
+| Insolvent | the lowest balance of the period was beyond the overdraft limit (`account.available` below 0), or the arrears exceed the available funds; `insolvent_since` records the check; the force is told the balance to reach and the time it has |
+| Blocked | `contracts.can_accept` refuses every contract (`insolvent`: incoming contracts, rentals, leases, bookings, loans); no loan is granted. Selling, exports, power exports and contract deliveries go on |
+| Recovery | at a check where the period's lowest balance left at least `RECOVERY_SHARE` (5 %) of the overdraft limit available and no arrears are owed (`recovery_balance`: −9 500 credits at the base limit); the force is told |
+| Bankruptcy | at the first check `GRACE_TICKS` (10 min) or more after insolvency began: offers declined and active contracts failed (guarantees kept, a loan's installments left written off), a negative balance brought back to 0 (`bankruptcy-write-off`), arrears cleared, a positive balance kept, reputation set to −20, `bankruptcies` + 1 and credit refused until `credit_ban_until`; the force is told what ended and for how long |
+| Credit ban | `BAN_TICKS` (60 min) × 2^(bankruptcies − 1), at most 8 hours: the overdraft limit is 0 (no overdraft, no interest) and loans are refused (`credit-ban`); contracts that need no credit can be taken. The force is told when it ends |
+| What a bankruptcy leaves | leases release their planet slots at the next concessions sweep and rented machines are released at the next rental service, both because their contract is no longer active; goods already paid (capsules in flight, planet shipments in transit, an incoming contract's ingredients) still land |
+| Force merge | the destination keeps the earliest `insolvent_since`, the latest `credit_ban_until` and the most `bankruptcies` (merging into a fresh force restarts nothing); the lowest balances add up |
 
 ## Storage
 
 `storage.forces[i].contracts = {open = {[id] = contract}, history = {contract...}}`,
 `storage.forces[i].reputation` (a score, 0 to start, within [−20, 20]), `storage.forces[i].arrears`
 (credits a defaulted loan left owed), `storage.forces[i].overdraft_level` (the overdraft research
-level) and `storage.contract_next_id`, the next id —
+level), the insolvency fields `insolvent_since`, `credit_ban_until`, `bankruptcies` and
+`solvency_low`, and `storage.contract_next_id`, the next id —
 see [data-model.md](data-model.md); `storage.incoming_contracts` holds the contract chests and each
 force's random state, `storage.rentals` the rental assemblers, `storage.contracts_gui` the open
 contracts windows.

@@ -8,6 +8,7 @@ local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.loans")
 local finance = require("scripts.finance")
+local insolvency = require("scripts.core.insolvency")
 
 local loans = {}
 
@@ -23,11 +24,14 @@ function loans.debt(force_index)
 end
 
 -- Why a force may borrow nothing now, whatever the tier, or nil: it has not researched credit, the
--- contracts window is full, or its balance is beyond its overdraft limit (no available funds:
--- acceptance refuses even a zero guarantee, contracts.can_accept).
+-- contracts window is full, the force is insolvent or refused credit after a bankruptcy (ADR-0022), or
+-- its balance is beyond its overdraft limit (no available funds: acceptance refuses even a zero
+-- guarantee, contracts.can_accept).
 local function refusal_for_all(force_index, state)
   if not finance.researched(game.forces[force_index], finance.CREDIT_TECHNOLOGY) then return "not-researched" end
   if #contracts.listed(force_index) >= contracts.MAX_LISTED then return "too-many-contracts" end
+  if insolvency.insolvent(state) then return "insolvent" end
+  if insolvency.credit_banned(state) then return "credit-ban" end
   if account.available(state) < 0 then return "overdrawn" end
   return nil
 end
@@ -50,8 +54,8 @@ end
 
 --- Borrows the principal of tier `tier` (an index of core.TIERS) for a force: the loan contract is
 --- offered and accepted at once, its principal paid to the force, or nothing changes. Returns the
---- contract id, or nil and a reason (invalid-amount, not-researched, too-many-contracts, overdrawn,
---- in-arrears, debt-cap; insufficient-funds should acceptance still refuse).
+--- contract id, or nil and a reason (invalid-amount, not-researched, too-many-contracts, insolvent,
+--- credit-ban, overdrawn, in-arrears, debt-cap; insufficient-funds should acceptance still refuse).
 function loans.borrow(force_index, tier)
   local state = storage.forces[force_index]
   local principal = core.TIERS[tier]

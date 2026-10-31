@@ -14,18 +14,23 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | `balance` | number | credits held by the force; negative when it spends on overdraft, down to `-account.overdraft_limit(state)` by spending, and below that only through interest ([ADR-0020](adr/0020-overdraft-and-debit-interest.md)) |
 | `overdraft_low` | number | the lowest balance since the last interest charge, which interest is charged on; set to the balance at each charge, added up on merge, given to older saves by `account.init` ([ADR-0020](adr/0020-overdraft-and-debit-interest.md)) |
 | `overdraft_level` | number or nil | the force's overdraft research level, 0 to `#account.OVERDRAFT_LEVEL_LIMITS`: the highest `gb-overdraft-n` researched, which sets its limit with the force's reputation (nil, as in saves made before the levels until their configuration change, reads as 0); written by `scripts/finance.lua` on research events, force resets, init, configuration change and before each interest charge; on merge the destination keeps its own, which its research sets ([contracts.md](contracts.md#research)) |
+| `solvency_low` | number | the lowest balance since the last insolvency check, which decides insolvency and recovery; set to the balance at each check (every 60 ticks), added up on merge, given to older saves by `account.init` ([ADR-0022](adr/0022-insolvency-and-bankruptcy.md)) |
 | `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into the journal's entry of the same kind and key started less than `merge_ticks` before, which then holds the totals, its last tick and the balance after it, and moves to the end, so the journal stays in tick order |
 | `feed` | table or nil | `[key] = {tick, buy, sell, history}`: the prices this force last saw for each key read through `telecom.quote`, quoted again when older than its telecommunications period; `history` is the market entry's own table (live, not a copy); created on first read, cleared whenever base values are rebuilt |
 | `contracts` | table | `{open = {[id] = contract}, history = {contract...}}`: the force's contract book, ids unique across all forces (`storage.contract_next_id`) ([contracts.md](contracts.md), ADR-0015) |
 | `reservations` | list | `{planet, kind, name, slots, until_tick, contract}...`: the force's reservations of NPC planet slots and the contract each backs, ended ones dropped when a reservation is made, those of specialties gone from the catalog dropped on configuration change; carried over on merge ([planets.md](planets.md), ADR-0018) |
 | `arrears` | number | credits a defaulted loan left owed, 0 to start (added on configuration change for saves made before loans): its unpaid installment and every one left; taken from the available funds every 60 ticks, down to the overdraft limit (what is left stays owed); while above 0 no loan is granted; added up on merge ([contracts.md](contracts.md), ADR-0021) |
+| `insolvent_since` | tick or nil | the check at which the force became insolvent (balance beyond the overdraft limit during a period, or arrears above the available funds); nil once it recovers or goes bankrupt, `GRACE_TICKS` (10 min) after it; on merge the earliest of the two ([contracts.md](contracts.md), ADR-0022) |
+| `credit_ban_until` | tick or nil | after a bankruptcy, the tick credit returns: until then the overdraft limit is 0 and loans are refused; cleared by the check at or after it; on merge the latest of the two (ADR-0022) |
+| `bankruptcies` | number | bankruptcies so far, 0 to start (added on configuration change for older saves); each doubles the next credit ban, up to 8 hours; on merge the larger of the two (ADR-0022) |
 | `reputation` | number | the force's reputation score, from −20 to 20 (brought within them on configuration change for saves before 0.1.17): +1 per fulfilled contract, −1 per failed one; on merge only the source's debt follows ([contracts.md](contracts.md), ADR-0016) |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
 refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing. A debit is refused
 only when it would take the balance below `-account.overdraft_limit(state)` (10 000 credits; 25 000
-or 100 000 at overdraft research levels 1 and 2, their extra halved from reputation −5 down); a
+or 100 000 at overdraft research levels 1 and 2, their extra halved from reputation −5 down; 0
+during a credit ban after a bankruptcy, ADR-0022); a
 credit is always accepted. Code that checks funds before acting compares costs to
 `account.available(state)` (balance plus limit), never to the balance alone. Every
 `account.INTEREST_TICKS` (one minute), `force_registry.charge_interest` charges, in force index
@@ -43,7 +48,8 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
   created, states of vanished forces dropped);
 - when forces merge (`on_forces_merging`), the source state is folded into the destination and
   removed: balances and arrears add up, journals are joined in tick order and trimmed, the
-  destination keeps its own markets. A new field must
+  destination keeps its own markets and the stricter insolvency of the two (earliest insolvency,
+  latest credit ban, most bankruptcies). A new field must
   define how two values combine, in `force_registry.merge`;
 - `force_registry.ensure` fills in any field a state lacks, so a save from an older version is
   upgraded on `on_configuration_changed` without a separate migration;

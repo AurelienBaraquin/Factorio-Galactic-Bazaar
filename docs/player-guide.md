@@ -21,7 +21,8 @@ limit**: 10 000 credits, raised to 25 000 by the **Overdraft 1** research and to
 adds to 10 000). The market window shows the overdraft you have left next to the balance.
 Each minute your balance went below zero, it pays **0.5 % interest** on the lowest it reached in
 that minute (counted up to the limit, so at most 50 credits a minute at 10 000), even if that takes
-it past the limit; past the limit, nothing more can be bought until sales bring the balance back.
+it past the limit; past the limit, nothing more can be bought until sales bring the balance back,
+and your force is **insolvent** (see below).
 
 ## Price signal combinators
 
@@ -142,6 +143,26 @@ you already have are repaid whether or not you have it.
   not fit is taken from your income as it comes. No new loan until they are paid.
 - No loan either while your balance is beyond the overdraft limit.
 - Loans take rows of the Contracts window (8 at most, with your other contracts).
+
+## Insolvency and bankruptcy
+
+Your force is **insolvent** when its balance goes past the overdraft limit (interest can push it
+there), or when it owes arrears it cannot pay. You are told so in the chat, and the market window
+shows **Insolvent: bankruptcy in m:ss**.
+
+- You have **10 minutes** to recover: bring your balance back until 5 % of your overdraft limit is
+  left (**−9 500 credits** at the base limit; the message says the figure) and keep it there for a
+  whole second, with no arrears left. A sale just
+  before the check does not count if the balance was still too low earlier in that second.
+- Meanwhile no contract is accepted and no loan is granted. You can still sell, from the window,
+  export chests, export manifolds and power substations, and deliver to your contracts.
+- Still insolvent after 10 minutes, your force goes **bankrupt**: every open contract ends (offers
+  declined, active contracts failed, their guarantees kept), your debt is written off (a negative
+  balance goes back to 0, arrears and the installments left on your loans are cancelled), your
+  reputation falls to −20, and you get **no credit for 60 minutes**: no loan, and an overdraft limit
+  of 0. Each new bankruptcy doubles that time, up to 8 hours. The market window shows **Bankrupt: no
+  credit for m:ss**; you are told when credit returns.
+- What was already paid still arrives: capsules in flight, shipments from planets in transit.
 
 ## Machine rental
 

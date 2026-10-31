@@ -78,5 +78,6 @@ changes.
   interest; arrears beyond the overdraft earn no further interest and wait for income, or for
   bankruptcy (#97) to decide otherwise; fixed tiers and one term; forces created
   for the purpose (a console or another mod) each get a reputation-0 cap and rate before a merge.
-- Follow-up: overdraft (#95): done, ADR-0020; bankruptcy (#97) will decide what happens to arrears
-  a force cannot pay.
+- Follow-up: overdraft (#95): done, ADR-0020; bankruptcy (#97): done,
+  [ADR-0022](0022-insolvency-and-bankruptcy.md): arrears the available funds cannot cover make the
+  force insolvent, and a bankruptcy writes them off.

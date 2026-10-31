@@ -70,7 +70,7 @@ end
 --- Leases one slot of `resource` on `planet_name` for a force, delivered to a hub of its force.
 --- Either the lease is made whole (contract accepted, slot reserved) or nothing changes. Returns the
 --- contract id, or nil and a reason (not-researched, unknown-specialty, no-capacity, not-tradeable,
---- no-import-chest, too-many-contracts, insufficient-funds).
+--- no-import-chest, too-many-contracts, insufficient-funds, insolvent).
 function concessions.lease(force_index, hub_unit_number, planet_name, resource)
   if not concessions.researched(game.forces[force_index], concessions.CONCESSION_TECHNOLOGY) then
     return nil, "not-researched"
