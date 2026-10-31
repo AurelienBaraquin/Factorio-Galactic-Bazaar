@@ -133,8 +133,8 @@ attempt) says whether the last visit kept goods without selling any; it only fee
 
 ## `storage.freight`
 
-`{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract}...}}}}`
-— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), nil for purchases; `unit_cost` is 0 for goods the force did not pay for, and for a concession's ore the charge per arriving unit, so that it is sold back like a purchase) ([terminal.md](terminal.md), ADR-0006). Written by
+`{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract, planet, loss}...}}}}`
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), nil for purchases; `unit_cost` is 0 for goods the force did not pay for, and for a concession's ore the charge per arriving unit, so that it is sold back like a purchase; `planet` and `loss`, on goods shipped from an NPC planet since 0.1.33, are the planet's name and the share of the good lost in transit, shown by the Logistics tab, absent from older capsules and from others) ([terminal.md](terminal.md), ADR-0006). Written by
 `scripts/freight.lua`. Invariants: `capsules` is in ordering order (tiers land on their own schedules: every landed shipment is unloaded, none holds back another); `launches[tier]` is that tier's next free launch tick (`next_launch`, from before 0.1.10, is the capsule's) and holds at most
 `max_capsules` entries per tier; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
@@ -232,16 +232,22 @@ dropped on `on_configuration_changed`. Offers draw from `storage.incoming_contra
 ## `storage.entity_status`
 
 `{units = {unit_number...}, kinds = {kind name...}, index = {[unit_number] = position}, cursor,
-counts = {[hub unit_number] = modules}, pending = {[hub unit_number] = modules}, facts = {[field] =
+counts = {[hub unit_number] = modules}, pending = {[hub unit_number] = modules}, members =
+{[hub unit_number] = {[unit_number] = true}}, joining = {[hub unit_number] = {[unit_number] = true}},
+facts = {[field] =
 {[hub unit_number or force_index] = value}}, shown = {[unit_number] = {diode, label, alert} | false},
 alerts = {[unit_number] = {alert, force_index, sprite, text}}}` — every building of the mod in
 refresh order, the next one to refresh, each hub's modules of its force counted over the last cycle
-and the current one, the costly reads of the current cycle (`tiers`, `fueled`, `needs`, `periods`),
+and the current one, the modules attached to each hub (of its force) found by the last cycle (`members`) and the
+current one (`joining`: by the passes, construction and listing), which the Logistics tab reads,
+each entry re-checked on read, the costly reads of the current cycle (`tiers`, `fueled`, `needs`, `periods`),
 the status written on each building (`false`: the game's own) and the alerts drawn on them (`sprite`
 and `text` are render object ids) ([terminal.md](terminal.md#building-status)). Written by
 `scripts/entity_status.lua` on its passes, build events and `on_object_destroyed`. Display state
 only. Invariants: `units` and `kinds` are parallel arrays and `index[units[i]] == i` (removal swaps
-the last entry in); `facts` and `pending` are emptied when a cycle ends. Every handler creates it
+the last entry in); `facts` and `pending` are emptied when a cycle ends, and `joining` becomes `members`; a listing (init,
+configuration change) fills `joining` from the registries; a save from 0.1.32 or older, until its
+configuration change, starts both empty. Every handler creates it
 when a save lacks it; `on_configuration_changed` lists every building again, empties `shown` (every
 status is written again) and drops the alerts of buildings no longer listed.
 
@@ -253,10 +259,14 @@ while no hub of the force is within reach), the tab shown, each tab's state once
 (`views[name]`, owned by the tab: its `elements` and, for the Market tab, `{filter, matches, page,
 selected, tier, tier_hub}`, `tier_hub` the hub the preview's tier was computed for, and in
 `elements.info` the item detail's elements with the marks of what it shows, `{key, value, known,
-buy, level}`, so that a refresh rewrites only what changed, [terminal.md](terminal.md#item-detail)) and references to the window's own elements (`{window, pane, tabs = {[name] =
+buy, level}`, so that a refresh rewrites only what changed, [terminal.md](terminal.md#item-detail); for the
+Logistics tab, `{hub, focus, hubs_page, shipments_page, modules_page, drawn, visible, modules}`: the
+hub selected, the module the camera shows, each list's page, what each row last showed, how many
+rows of each list are shown, and the selected hub's modules as last listed with their entities,
+[terminal.md](terminal.md#logistics-tab)) and references to the window's own elements (`{window, pane, tabs = {[name] =
 {tab, content, index}}}`). Interface state only: no economy value lives here (ADR-0001). Written by
 `scripts/bazaar_gui.lua` and the tabs (`scripts/overview_gui.lua`, `scripts/market_gui.lua` with
-`scripts/item_detail_gui.lua`,
+`scripts/item_detail_gui.lua`, `scripts/logistics_gui.lua`,
 `scripts/contracts_gui.lua`, `scripts/planets_gui.lua`); an entry exists only while the window is
 open, is removed when the player leaves, changes force or is removed, and every window is closed
 on `on_configuration_changed`, which also removes the tables of the separate windows saves made

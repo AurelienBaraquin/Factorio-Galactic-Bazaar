@@ -92,7 +92,9 @@ good draws from the force's own state in `storage.planet_rng`, advanced at every
 computes the same loss and the moment a force ships changes nothing. Counts must be positive whole
 numbers (`invalid-quantity`). `planets.transit_terms(planet)` gives the delay and the max loss — the
 terms a service announces; the loss actually drawn is known only once shipped. Transit capsules
-count in the hub's capsule queue bound while in flight, longer than a purchase's.
+count in the hub's capsule queue bound while in flight, longer than a purchase's. Each records the
+planet and the share its good lost (`planet`, `loss`), which the Logistics tab shows
+([terminal.md](terminal.md#logistics-tab)).
 
 | Planet | Extra delay | Max loss |
 |---|---|---|

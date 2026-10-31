@@ -4,7 +4,9 @@ One window with tabs gathers what the player needs to read and act on the econom
 [ADR-0023](adr/0023-central-window.md)). Code: `scripts/bazaar_gui.lua` (window, tab registry,
 hub binding, button, inputs, refresh), `scripts/overview_gui.lua` (Overview tab) with its figures
 computed by `scripts/core/overview.lua` (pure), and the tabs described with their features: Market
-([terminal.md](terminal.md#market-tab), `scripts/market_gui.lua`), Contracts
+([terminal.md](terminal.md#market-tab), `scripts/market_gui.lua`), Logistics
+([terminal.md](terminal.md#logistics-tab), `scripts/logistics_gui.lua`, rows from the pure
+`scripts/core/logistics.lua`), Contracts
 ([contracts.md](contracts.md), `scripts/contracts_gui.lua`), Planets
 ([planets.md](planets.md#planets-tab), `scripts/planets_gui.lua`). The player-facing description is
 in [player-guide.md](player-guide.md#the-galactic-bazaar-window).
@@ -43,6 +45,7 @@ reason, or as `tier-changed` if a tier opened up since.
 |---|---|---|---|
 | Overview | 10 | always | the figures below, one line each, with a tooltip explaining it |
 | Market | 20 | always | prices, search, buy and sell ([terminal.md](terminal.md#market-tab)) |
+| Logistics | 25 | always | the force's hubs, and for the one selected its shipments queued and in flight and its modules with their status ([terminal.md](terminal.md#logistics-tab)) |
 | Contracts | 30 | always | offers, active contracts, the credit line ([contracts.md](contracts.md)) |
 | Planets | 40 | `gb-planetary-concessions` researched (disabled before, tooltip naming the research; shown again as the Overview if the research is reversed) | planets, slots, leases and bookings ([planets.md](planets.md#planets-tab)) |
 
@@ -103,7 +106,14 @@ to 0.21 ms, Planets 0.09 to 0.25 ms; the Overview of a window with no hub in rea
 refresh (reach raised above the cap), 0.10 to 0.14 ms, so the search adds about 0.02 to 0.05 ms
 (one run showed a single 1 ms outlier, a garbage collection, which the budget does not cover).
 Budget: 0.7 ms per window refresh, that is 0.7 ms per slot tick for each player
-whose index falls in that slot, nothing on other ticks and nothing for closed windows.
+whose index falls in that slot, nothing on other ticks and nothing for closed windows. The
+Logistics tab is measured by `tests/logistics_gui.lua` with 20 hubs, a full capsule queue and about
+1000 modules on the map, after a warm-up (`log` line read by hand, not asserted; ten runs of the
+file alone): 0.33 to 0.49 ms per refresh, and 0.51 to 0.74 ms for a refresh that lists the selected
+hub's modules again (once every 5 s while the tab is shown, or when another hub is selected). Runs
+on a busier machine or within the full suite, whose heap is larger, showed averages up to 0.81 ms
+and 2.4 ms for those, which the budget does not cover; the module listing is the part to watch
+([terminal.md](terminal.md#logistics-tab)).
 
 ## State
 

@@ -65,7 +65,10 @@ player (`tests/market_gui.lua`), the Market tab's item detail: its figures befor
 research, tabs built when first shown, the hub it binds, trading only within reach and never from
 remote view, events of a save from before the window and its leftover windows, the Overview
 figures, the removal of older saves' windows and each tab's refresh cost, with no hub in reach too (`tests/bazaar_gui.lua`;
-`test_helpers.select_tab` picks a tab as a click would), and that state survives a save and reload
+`test_helpers.select_tab` picks a tab as a click would), the Logistics tab: hubs, purchases,
+incoming contract ingredients and planet shipments with their state, origin and cost, a long queue
+paged, modules and their status, the camera, selection refused for another force's hub or
+building, a save from before the tab, its refresh cost and a reload (`tests/logistics_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
 re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
 between tests, so a test never assigns a force's balance directly: it calls
@@ -80,6 +83,11 @@ active, so they are inert in a normal game. CLI configuration: the `factorio-tes
 portal, which requires `FACTORIO_USERNAME` and `FACTORIO_TOKEN` (token shown on
 https://factorio.com/profile) in the environment, never in the repository. CI reads them from
 the repository secrets of the same names; without them the `game` job is skipped with a notice.
+
+Refresh costs (`tests/bazaar_gui.lua`, `tests/logistics_gui.lua`, `tests/entity_status.lua` and the
+module tests that measure a pass) are logged, not asserted: `LuaProfiler` values cannot be read from
+Lua, so a budget is checked by reading the `[galactic-bazaar] … tab refresh` and similar lines in
+`factorio-test-data-dir/factorio-current.log` after a run.
 
 Space Age is not owned by the owner, so the `--mods space-age` run is the only coverage of Space
 Age code paths: every such path needs a test here.

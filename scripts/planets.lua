@@ -217,7 +217,7 @@ function planets.ship(force_index, hub_unit_number, planet_name, goods, contract
     unit_costs[index] = paid and paid / (1 - shares[index]) or 0
   end
   return freight.ship(force_index, hub_unit_number, goods, contract_id,
-    { distance = planet.distance, shares = shares, unit_costs = unit_costs })
+    { planet = planet_name, distance = planet.distance, shares = shares, unit_costs = unit_costs })
 end
 
 --- Frees early the slots a force reserved for contract `contract_id`.

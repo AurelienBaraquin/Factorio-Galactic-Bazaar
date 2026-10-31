@@ -2,9 +2,11 @@
 -- fee, then lands in the hub's import chests (items) or import manifolds (fluids) capsule by
 -- capsule. Queues live in storage.freight.hubs[hub_unit_number] = {launches = {[tier] = next free
 -- launch tick}, next_launch (the capsule's, before 0.1.10), capsules =
--- {{force_index, kind, name, count, unit_cost, arrival}, ...}}, in landing order; the force that paid
--- and the market price it paid per unit are kept per capsule (ADR-0001), so cargo that can never land
--- is settled. `kind` is "item" or "fluid" (nil in capsules queued before fluids, meaning "item").
+-- {{force_index, kind, name, count, unit_cost, arrival, tier, contract, planet, loss}, ...}}, in
+-- ordering order; the force that paid and the market price it paid per unit are kept per capsule
+-- (ADR-0001), so cargo that can never land is settled. `kind` is "item" or "fluid" (nil in capsules
+-- queued before fluids, meaning "item"); `planet` and `loss` (the share lost in transit) only on goods
+-- shipped from an NPC planet since 0.1.33.
 local account = require("scripts.core.account")
 local cargo = require("scripts.cargo")
 local core = require("scripts.core.freight")
@@ -38,11 +40,11 @@ function freight.register_tier_provider(provider)
   tier_providers[#tier_providers + 1] = provider
 end
 
--- Whether shipments of `tier_name` can land at a hub now. Only a provider with `delivers` can hold
--- its tier's shipments, and only when it has a building at that hub that cannot deliver (a teleporter
--- without power); they land when any provider of the tier delivers, or when none holds them (a
--- shuttle's fuel was paid with the order; the orbital capsule always lands).
-local function delivers(hub_unit_number, tier_name)
+--- Whether shipments of `tier_name` can land at a hub now. Only a provider with `delivers` can hold
+--- its tier's shipments, and only when it has a building at that hub that cannot deliver (a teleporter
+--- without power); they land when any provider of the tier delivers, or when none holds them (a
+--- shuttle's fuel was paid with the order; the orbital capsule always lands).
+function freight.delivers(hub_unit_number, tier_name)
   local held = false
   for _, provider in ipairs(tier_providers) do
     if provider.tier == tier_name and provider.delivers then
@@ -220,8 +222,9 @@ end
 
 --- Ships goods a contract's counterparty provides (ADR-0015) to a hub, free for the force, by
 --- orbital capsule (the counterparty's own transport): `goods` = {{kind, name, count}...}. With
---- `origin` = {distance, shares, unit_costs}, the goods come from an NPC planet (#84): they land later
---- and each good loses `shares[index]` of its units on the way (scripts/core/transit.lua); a good the
+--- `origin` = {planet, distance, shares, unit_costs}, the goods come from an NPC planet (#84): they
+--- land later and each good loses `shares[index]` of its units on the way (scripts/core/transit.lua),
+--- which its capsules record with the planet's name (`planet`, `loss`) for the Logistics tab; a good the
 --- force paid for (a concession, #85) carries `unit_costs[index]`, the price paid per arriving unit,
 --- and is sold back like a purchase if it can never land. Either every good is queued or none is.
 --- Returns true, the landing tick of the last capsule (or, when every unit was lost, the tick it
@@ -257,6 +260,7 @@ function freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
       capsule.force_index, capsule.kind, capsule.name = force_index, entry.kind, entry.name
       capsule.unit_cost = unit_cost
       capsule.tier, capsule.contract = tier.name, contract_id
+      if origin then capsule.planet, capsule.loss = origin.planet, origin.shares[index] end
       planned[#planned + 1] = capsule
     end
     queued, launch = queued + #capsules, after
@@ -294,7 +298,7 @@ local function unload(hub_unit_number, queue, tick)
   while capsules[index] do
     local capsule = capsules[index]
     local remaining = capsule.count
-    local landed = capsule.arrival <= tick and delivers(hub_unit_number, capsule.tier or core.DEFAULT_TIER)
+    local landed = capsule.arrival <= tick and freight.delivers(hub_unit_number, capsule.tier or core.DEFAULT_TIER)
     if landed then
       remaining = remaining - CARGO[capsule.kind or "item"].deliver(hub_unit_number, capsule.name, remaining)
       capsule.count = remaining
