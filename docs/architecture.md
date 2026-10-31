@@ -110,7 +110,9 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   queue is sold back ([terminal.md](terminal.md)).
 - **Galactic Bazaar window** ([window.md](window.md), [ADR-0023](adr/0023-central-window.md)): the
   tab modules (`overview_gui`, `market_gui`, `contracts_gui`, `planets_gui`) register with
-  `scripts/bazaar_gui.lua` when `control.lua` requires them; the `gb-toggle-bazaar` input and the mod
+  `scripts/bazaar_gui.lua` when `control.lua` requires them (the Market tab builds the selected
+  item's detail with `scripts/item_detail_gui.lua`, its figures computed by
+  `scripts/core/item_detail.lua`); the `gb-toggle-bazaar` input and the mod
   button open or close it, the `gb-open-hub` input opens it on the Market tab bound to the clicked
   hub; every GUI input event (`bazaar_gui.GUI_EVENTS`: click, text, confirmed, element, checkbox,
   selection, value) dispatches on the `gb_action` tag of this mod's elements to the window or the

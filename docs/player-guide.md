@@ -17,7 +17,15 @@ Its tabs:
   solvent, insolvent (and what to do) or barred from credit after a bankruptcy (and the debt left);
   and how many offers, contracts, leases and loans you have open, with the next deadline. Hover a
   line to see what it means.
-- **Market**: prices, buying and selling (below).
+- **Market**: prices, buying and selling (below). Select an item to see, beside the list, what
+  buying or selling the quantity you type would cost or bring, the average price and the next price
+  after such an order, and why its prices are what they are: its base value and how far the market
+  is from it (the shortage or surplus other trades left), how much the market can still take each
+  way, the spread, how the other traders move it each minute and how fast it returns to balance
+  (hover a line for its rule); its price history once **Galactic telecommunications 2** is
+  researched; and why it is worth its base value: the recipe (or mining, pumping...) that makes it
+  cheapest, each ingredient and its value, the time it takes, a value set by another mod, and what
+  each higher quality is worth.
 - **Contracts**: offers, contracts under way and your loans.
 - **Planets**: once **Planetary concessions** is researched, the NPC planets and their slots.
 
@@ -46,7 +54,7 @@ refresh about every 5 seconds (longer with more than 240 buildings of the mod).
 
 The prices listed in the Market tab and emitted by price combinators are read at most once per
 period: 30 s without research, 10 s with **Galactic telecommunications 1**, 2 s with **level 2**,
-which also shows the trend column and a price history line for the selected item. What you pay or
+which also shows the trend column and the price history of the selected item. What you pay or
 receive is always the live price, shown in the window's preview. With many price combinators,
 the last ones get new prices a little later: about 0.1 s per combinator.
 

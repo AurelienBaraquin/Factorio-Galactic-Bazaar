@@ -85,8 +85,9 @@ of event checks `event.name` (a click in a text field also raises `on_gui_click`
 search and quantity act only on `on_gui_text_changed` and `on_gui_confirmed`). An action that trades or commits the force calls `bazaar_gui.hub(player, window)` and refuses
 with `bazaar_gui.no_hub_message(player)` without a hub. `bazaar_gui.open(player, name, hub)` opens the window on a tab (and binds a
 hub within reach), `bazaar_gui.view(player_index, name)` returns a built tab's view and
-`bazaar_gui.refresh(player)` refreshes the shown tab now. A panel of an existing tab (the item
-detail of #110) is built and refreshed by that tab and keeps its state in that tab's view.
+`bazaar_gui.refresh(player)` refreshes the shown tab now. A panel of an existing tab is built and
+refreshed by that tab and keeps its state in that tab's view, like the Market tab's item detail
+(`scripts/item_detail_gui.lua`, [terminal.md](terminal.md#item-detail)).
 
 ## Refresh and budget
 
@@ -96,7 +97,8 @@ at most the windows of the players whose index falls in its slot. Before the tab
 re-binds the hub if needed and enables or disables the tabs (written only when that changes).
 Measured on 2.1.24 by `tests/bazaar_gui.lua` (average of 10 refreshes of one window; ranges over
 several runs, vanilla with 208 items and Space Age with 296, alone and within the full test run,
-where the Market tab is slowest): Overview 0.08 to 0.19 ms, Market 0.32 to 0.66 ms, Contracts 0.10
+where the Market tab is slowest): Overview 0.08 to 0.19 ms, Market 0.32 to 0.66 ms (0.45 to 0.62 ms
+with a selected item and its detail, [terminal.md](terminal.md#market-tab)), Contracts 0.10
 to 0.21 ms, Planets 0.09 to 0.25 ms; the Overview of a window with no hub in reach, searching the whole 64-tile radius on each
 refresh (reach raised above the cap), 0.10 to 0.14 ms, so the search adds about 0.02 to 0.05 ms
 (one run showed a single 1 ms outlier, a garbage collection, which the budget does not cover).

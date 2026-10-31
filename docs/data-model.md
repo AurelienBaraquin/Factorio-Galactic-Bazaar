@@ -93,6 +93,24 @@ after its checks: keys are tradeable when set, exactly one of `value` (10⁻⁴ 
 (10⁻⁶ to 10⁶). Malformed entries are dropped at the next rebuild. Kept when a key stops being
 tradeable (ignored until it comes back).
 
+## `storage.value_sources`
+
+`storage.value_sources[key] = {recipe, cost, share, amount, inputs = {{key, amount, value}...}, tier}`
+— for every key of `storage.base_values` whose value an offer of the production graph set, that
+offer, before the multiplier ([pricing.md](pricing.md#value-sources)): the recipe name (or
+`mine/`, `pump/`, `launch/`, `burn/` source), its cost in credits, its number of outputs, the
+expected amount of the key per run, each input with its amount and the value it had, and the tier
+that priced the key. Shared by all forces, read by the Market tab's item detail through
+`pricing.value_source(key)`.
+
+Invariants:
+
+- rebuilt with `storage.base_values`, by `scripts/pricing.lua` only, never edited elsewhere; bounded
+  by the number of keys with a value (216 in vanilla, 318 with Space Age, 2.1.24);
+- no entry for a value fixed by an override; a key scaled by a factor has its first-pass source;
+- a save whose base values were last built before 0.1.34 has none until its configuration change:
+  readers accept a missing table (the item detail then says the breakdown is not available yet).
+
 ## `storage.hubs`
 
 `storage.hubs[unit_number] = {entity = LuaEntity}` — every trading hub that exists
@@ -233,9 +251,12 @@ status is written again) and drops the alerts of buildings no longer listed.
 player who has it open ([window.md](window.md)): the unit number of the hub it trades through (nil
 while no hub of the force is within reach), the tab shown, each tab's state once it has been shown
 (`views[name]`, owned by the tab: its `elements` and, for the Market tab, `{filter, matches, page,
-selected, tier, tier_hub}`, `tier_hub` the hub the preview's tier was computed for) and references to the window's own elements (`{window, pane, tabs = {[name] =
+selected, tier, tier_hub}`, `tier_hub` the hub the preview's tier was computed for, and in
+`elements.info` the item detail's elements with the marks of what it shows, `{key, value, known,
+buy, level}`, so that a refresh rewrites only what changed, [terminal.md](terminal.md#item-detail)) and references to the window's own elements (`{window, pane, tabs = {[name] =
 {tab, content, index}}}`). Interface state only: no economy value lives here (ADR-0001). Written by
-`scripts/bazaar_gui.lua` and the tabs (`scripts/overview_gui.lua`, `scripts/market_gui.lua`,
+`scripts/bazaar_gui.lua` and the tabs (`scripts/overview_gui.lua`, `scripts/market_gui.lua` with
+`scripts/item_detail_gui.lua`,
 `scripts/contracts_gui.lua`, `scripts/planets_gui.lua`); an entry exists only while the window is
 open, is removed when the player leaves, changes force or is removed, and every window is closed
 on `on_configuration_changed`, which also removes the tables of the separate windows saves made

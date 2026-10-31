@@ -20,6 +20,9 @@
 --
 -- Fixed values (overrides by other mods) are never replaced: they act as sources from their tier on,
 -- and every product made from them follows.
+--
+-- The offer that set each value is remembered with the input values it used, so the Market tab can
+-- show why a key is worth what it is (#110).
 local valuation = {}
 
 -- No key is worth less than this: a recipe with no inputs and no cost must not create free goods.
@@ -40,13 +43,14 @@ end
 -- Freezes each recipe's key order so floating-point sums never depend on table iteration.
 local function prepare(recipe)
   return {
-    cost = recipe.cost, inputs = recipe.inputs, input_keys = sorted_keys(recipe.inputs),
+    name = recipe.name, cost = recipe.cost, inputs = recipe.inputs, input_keys = sorted_keys(recipe.inputs),
     outputs = recipe.outputs, output_keys = sorted_keys(recipe.outputs),
   }
 end
 
 local function new_state(fixed)
-  return { values = {}, ancestors = {}, consumers = {}, queue = {}, queued = {}, fixed = fixed or {}, tiers = {} }
+  return { values = {}, ancestors = {}, consumers = {}, queue = {}, queued = {}, fixed = fixed or {}, tiers = {},
+    offers = {} }
 end
 
 local function push(state, key)
@@ -68,6 +72,7 @@ local function offer(state, recipe, allowed)
     for ancestor in pairs(state.ancestors[key]) do ancestors[ancestor] = true end
   end
   local share = total / #recipe.output_keys
+  local used
   for _, key in ipairs(recipe.output_keys) do
     if not ancestors[key] and not state.fixed[key] and (not allowed or allowed[key]) then
       local candidate = math.max(share / recipe.outputs[key], valuation.MIN_VALUE)
@@ -75,6 +80,12 @@ local function offer(state, recipe, allowed)
       if not current or candidate < current then
         state.values[key] = candidate
         state.ancestors[key] = ancestors
+        -- The input values of this offer, in input_keys order, shared by the outputs it prices.
+        if not used then
+          used = {}
+          for i, input in ipairs(recipe.input_keys) do used[i] = state.values[input] end
+        end
+        state.offers[key] = { recipe = recipe, values = used }
         push(state, key)
       end
     end
@@ -131,8 +142,25 @@ local function record_tiers(state, tier)
   for key in pairs(state.values) do state.tiers[key] = state.tiers[key] or tier end
 end
 
---- Returns {values = {[key] = credits}, tiers = {[key] = tier that priced it}, unpriced = sorted keys
---- with no value}. `keys` lists every key that should have a value (all items and fluids); keys
+-- The source of every value an offer set: {recipe, cost, share = number of outputs, amount = expected
+-- amount of the key per craft, inputs = {{key, amount, value}...}}, so that
+-- value = max((cost + sum of amount * value) / share / amount, MIN_VALUE).
+local function sources_of(state)
+  local sources = {}
+  for key, offered in pairs(state.offers) do
+    local recipe, inputs = offered.recipe, {}
+    for i, input in ipairs(recipe.input_keys) do
+      inputs[i] = { key = input, amount = recipe.inputs[input], value = offered.values[i] }
+    end
+    sources[key] = { recipe = recipe.name, cost = recipe.cost, share = #recipe.output_keys,
+      amount = recipe.outputs[key], inputs = inputs }
+  end
+  return sources
+end
+
+--- Returns {values = {[key] = credits}, tiers = {[key] = tier that priced it}, sources = {[key] = the
+--- offer that set the value, see sources_of; none for fixed values}, unpriced = sorted keys with no
+--- value}. `keys` lists every key that should have a value (all items and fluids); keys
 --- only seen in recipes are added. `fixed` (optional) maps keys to {value, tier}: a value recipes
 --- may not change, which becomes a source from its tier (`valuation.MAIN`, default, `FALLBACK` or
 --- `NATURAL`) on, so that it never undercuts a chain of an earlier tier it would not have entered.
@@ -173,7 +201,7 @@ function valuation.compute(graph, keys, fixed)
   for _, key in ipairs(all_keys) do
     if not state.values[key] then unpriced[#unpriced + 1] = key end
   end
-  return { values = state.values, tiers = state.tiers, unpriced = unpriced }
+  return { values = state.values, tiers = state.tiers, sources = sources_of(state), unpriced = unpriced }
 end
 
 return valuation

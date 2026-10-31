@@ -92,3 +92,12 @@ describe("catalog.parse_quantity", function()
     end
   end)
 end)
+
+describe("catalog.format_units", function()
+  it("rounds to whole units below a thousand, then shortens like credits", function()
+    assert.are.same({ "0", "450", "-450", "999", "1.00k", "12.3k", "4.50M" }, {
+      catalog.format_units(0.2), catalog.format_units(449.6), catalog.format_units(-449.6),
+      catalog.format_units(999.4), catalog.format_units(999.6), catalog.format_units(12345),
+      catalog.format_units(4.5e6) })
+  end)
+end)
