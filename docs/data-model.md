@@ -15,6 +15,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | `journal` | array | last `account.JOURNAL_SIZE` (100) transactions, oldest first: the caller's fields (`tick`, `kind`, …) plus `amount` and the resulting `balance`; a recurring transaction (`merge_ticks`, `first_tick`) is merged into the journal's entry of the same kind and key started less than `merge_ticks` before, which then holds the totals, its last tick and the balance after it, and moves to the end, so the journal stays in tick order |
 | `feed` | table or nil | `[key] = {tick, buy, sell, history}`: the prices this force last saw for each key read through `telecom.quote`, quoted again when older than its telecommunications period; `history` is the market entry's own table (live, not a copy); created on first read, cleared whenever base values are rebuilt |
 | `contracts` | table | `{open = {[id] = contract}, history = {contract...}}`: the force's contract book, ids unique across all forces (`storage.contract_next_id`) ([contracts.md](contracts.md), ADR-0015) |
+| `reservations` | list | `{planet, kind, name, slots, until_tick, contract}...`: the force's reservations of NPC planet slots and the contract each backs, ended ones dropped when a reservation is made, those of specialties gone from the catalog dropped on configuration change; carried over on merge ([planets.md](planets.md), ADR-0018) |
 | `reputation` | number | the force's reputation score, from −20 to 20 (brought within them on configuration change for saves before 0.1.17): +1 per fulfilled contract, −1 per failed one; on merge only the source's debt follows ([contracts.md](contracts.md), ADR-0016) |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
@@ -187,6 +188,19 @@ dropped on `on_configuration_changed`. Offers draw from `storage.incoming_contra
 it open: the hub it was opened from and references to its GUI elements (8 fixed rows). Interface
 state only. Written by `scripts/contracts_gui.lua`; removed when the window closes, the player
 leaves, changes force or is removed, and every window is closed on `on_configuration_changed`.
+
+## `storage.planets`
+
+`{{name, distance, specialties = {{kind, name, slots}...}}...}` — the NPC planet catalog limited
+to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
+`scripts/planets.lua` on `on_init` and `on_configuration_changed` only.
+
+## `storage.planets_gui`
+
+`storage.planets_gui[player_index] = {elements}` — the planets window of a player who has it open,
+with its rows (`{planet, kind, name, total, slots}`, `slots` the label element). Interface state
+only. Written by `scripts/planets_gui.lua`; removed when the window closes, the player leaves,
+changes force or is removed, and every window is closed on `on_configuration_changed`.
 
 ## `storage.players`
 

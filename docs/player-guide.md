@@ -120,3 +120,9 @@ one is offered for rent in the **Contracts** window (hover the counterparty to s
   counterparty, and the contract falls short.
 - On time, you get the rest of the rent and the guarantee back, and +1 reputation. Short of the
   promise at the end, or if you remove the machine, the guarantee is lost (rent already paid stays).
+
+## NPC planets
+
+The **Planets** button of the market window lists the planets of the galaxy: what each extracts or
+crafts, how far it is, and how many of its slots are free for your force. Each force has its own
+slots. Services that use them (mining concessions, foundries and assemblers) are coming.
