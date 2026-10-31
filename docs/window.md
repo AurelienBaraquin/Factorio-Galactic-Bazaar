@@ -104,18 +104,25 @@ checks every label has a category.
 
 ## Explanations
 
-Every figure, column header and button of the window has a tooltip stating the rule behind it, with
-its live figures where they are cheap (#111): the Overview's lines (the fee, contract size and loan
+The window's figures, column headers and buttons listed here have a tooltip stating the rule behind
+them, with live figures where they are cheap (#111): the Overview's lines (the fee, contract size and loan
 formulas take their factors from `scripts/core/reputation.lua` and `scripts/core/loans.lua`), the
-Market tab's balance, hub, delivery tier (the Logistics tab's tier tooltip), columns and their cells
+Market tab's balance, hub, delivery tier (the Logistics tab's tier tooltip), search (how words
+match, `catalog.search`), page (items a page), columns and their cells
 (spread and price freshness from `scripts/core/market.lua` and `scripts/core/telecom.lua`, trend
 from the NPC history), quantity, Buy, Sell and preview, and the item detail's figures
 ([terminal.md](terminal.md#item-detail)); each Contracts row's cells by kind and state (goods
 provided and required, reward or charge and guarantee, offer end or deadline, Accept, Decline,
 Abandon, a loan's principal, payoff and installments), its reputation and loan debt (the cap's range
 from the reputation factors); the Planets tab's columns and cells (distance and transit from
-`scripts/core/transit.lua`); the Logistics tab's shipment columns and each hub's power and status;
-the Statement tab's columns, categories and kinds of transaction.
+`scripts/core/transit.lua`); the Logistics tab's shipment columns, each hub's power (what stops
+without it and what keeps working) and status, and each attached building's name and status (what
+the colours mean and how often statuses refresh); the Statement tab's columns, categories and kinds
+of transaction. Without a tooltip: section headings, the pager buttons, the item detail's
+breakdown lines (each line spells out its own computation) and the status texts themselves, which
+are sentences saying what the building does or waits for; the status a building shows on hover in
+the world is the game's `custom_status`, which takes no tooltip, so those texts carry their own
+explanation.
 
 Tooltips that never change are set once, when the tab is built. Those that follow the force's state
 are written only when what they show changed: the Market tab's reputation and delivery tooltips
@@ -125,7 +132,8 @@ the view's `shown`); a loan's Repay tooltip, which gives the payoff, the Borrow 
 Logistics tab's tier keep being written on each refresh as before. Every locale key a literal in the
 code names must exist in English and French with no key repeated (`spec/locale_spec.lua`); a key
 built at run time (`"gb-overview." .. line .. "-tooltip"`) is not checked there, so new ones are
-spelled out. A new tab gives every figure it shows such a tooltip.
+spelled out; the spec also checks that each key uses the same parameters (`__1__`...) in both
+languages. A new tab gives every figure it shows such a tooltip.
 
 ## Adding a tab or a panel
 

@@ -6,7 +6,7 @@ local lfs = require("lfs")
 
 local LANGUAGES = { "en", "fr" }
 
--- {[section] = {[key] = true}} of a .cfg file, and the "section.key" entries found twice.
+-- {[section] = {[key] = text}} of a .cfg file, and the "section.key" entries found twice.
 local function parse(path)
   local sections, duplicates, section = {}, {}, ""
   for line in io.lines(path) do
@@ -15,15 +15,28 @@ local function parse(path)
       section = header
       sections[section] = sections[section] or {}
     else
-      local key = line:match("^([^#;=][^=]*)=")
+      local key, text = line:match("^([^#;=][^=]*)=(.*)$")
       if key then
         sections[section] = sections[section] or {}
         if sections[section][key] then duplicates[#duplicates + 1] = section .. "." .. key end
-        sections[section][key] = true
+        sections[section][key] = text
       end
     end
   end
   return sections, duplicates
+end
+
+-- The parameters a text uses ("__1__", "__2__"...), sorted and without repeats, as one string.
+local function placeholders(text)
+  local found, list = {}, {}
+  for number in text:gmatch("__(%d+)__") do
+    if not found[number] then
+      found[number] = true
+      list[#list + 1] = tonumber(number)
+    end
+  end
+  table.sort(list)
+  return table.concat(list, ",")
 end
 
 local function read_locale(language)
@@ -33,9 +46,9 @@ local function read_locale(language)
       local sections, found = parse("locale/" .. language .. "/" .. file)
       for name, keys in pairs(sections) do
         merged[name] = merged[name] or {}
-        for key in pairs(keys) do
+        for key, text in pairs(keys) do
           if merged[name][key] then found[#found + 1] = name .. "." .. key end
-          merged[name][key] = true
+          merged[name][key] = text
         end
       end
       for _, entry in ipairs(found) do duplicates[#duplicates + 1] = entry end
@@ -98,6 +111,20 @@ describe("locale files", function()
     assert.are.same(entries(locales.en), entries(locales.fr))
   end)
 
+  it("use the same parameters (__1__, __2__...) in English and French for each key", function()
+    local differ = {}
+    for section, keys in pairs(locales.en) do
+      for key, text in pairs(keys) do
+        local french = locales.fr[section] and locales.fr[section][key]
+        if french and placeholders(text) ~= placeholders(french) then
+          differ[#differ + 1] = section .. "." .. key
+        end
+      end
+    end
+    table.sort(differ)
+    assert.are.same({}, differ)
+  end)
+
   it("define every key the code names", function()
     local missing = {}
     for _, use in ipairs(literal_keys(locales.en)) do
@@ -121,8 +148,8 @@ describe("locale files", function()
         if prototype.type == "tips-and-tricks-item" then
           items = items + 1
           for _, language in ipairs(LANGUAGES) do
-            assert.is_true(locales[language]["tips-and-tricks-item-name"][prototype.name], prototype.name)
-            assert.is_true(locales[language]["tips-and-tricks-item-description"][prototype.name], prototype.name)
+            assert.is_truthy(locales[language]["tips-and-tricks-item-name"][prototype.name], prototype.name)
+            assert.is_truthy(locales[language]["tips-and-tricks-item-description"][prototype.name], prototype.name)
           end
         end
       end

@@ -45,7 +45,8 @@ Specs live in `spec/`, mirror the module path and end in `_spec.lua`
 Factorio does).
 
 One spec checks files rather than logic: `spec/locale_spec.lua` reads `locale/en` and `locale/fr`
-and fails when a key is repeated (Factorio refuses to load the mod), when the two languages do not
+and fails when a key is repeated (Factorio refuses to load the mod), when a key uses other parameters
+(`__1__`...) in French than in English, when the two languages do not
 define the same keys, when a `"section.key"` literal of `control.lua`, `data.lua`, `settings.lua`,
 `scripts/` or `prototypes/` names a key English lacks, or when a Tips and tricks entry of
 `prototypes/tips_and_tricks.lua` (loaded with and without Space Age and quality) has no name or

@@ -55,7 +55,7 @@ that you always see the freight fee before paying.
 
 ## In-game help
 
-Hover any figure, column header or button of the window: its tooltip says what it is and the rule
+Hover a figure, column header or button of the window: its tooltip says what it is and the rule
 behind it, with your own figures where they matter (your fee factor, the delivery tier's terms, a
 planet's transit, a contract's guarantee...). The game's **Tips and tricks** window has a
 **Galactic Bazaar** section, suggested once Galactic Bazaar is researched: one entry for the

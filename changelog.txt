@@ -2,9 +2,9 @@
 Version: 0.1.35
 Date: 2026-10-31
   Features:
-    - Tooltips explain every figure, column and button of the Market, Contracts, Planets and Logistics tabs: the
-      rule behind each price, fee, charge, guarantee, deadline, slot and transit term, with your own figures
-      where they matter.
+    - Tooltips explain the figures, columns and buttons of the Market, Contracts, Planets and Logistics tabs:
+      the rule behind each price, fee, charge, guarantee, deadline, slot, transit term, hub power and building
+      status, with your own figures where they matter.
     - The Overview's freight fee, contract size and loan lines state their formulas.
     - A Galactic Bazaar section in Tips and tricks: one entry per system of the mod, each suggested once its
       research is done; the quality and Space Age entries only appear when the game has them.

@@ -245,10 +245,11 @@ local function build(_, container, view)
   view.tooltips = {}
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
-  controls.add({ type = "label", caption = { "gb-gui.search" } })
-  elements.search = controls.add({ type = "textfield", tags = { gb_action = "search" } })
+  local search_tooltip = { "gb-gui.search-tooltip" }
+  controls.add({ type = "label", caption = { "gb-gui.search" }, tooltip = search_tooltip })
+  elements.search = controls.add({ type = "textfield", tooltip = search_tooltip, tags = { gb_action = "search" } })
   controls.add({ type = "button", caption = "<", tags = { gb_action = "previous-page" } })
-  elements.page = controls.add({ type = "label" })
+  elements.page = controls.add({ type = "label", tooltip = { "gb-gui.page-tooltip", catalog.PAGE_SIZE } })
   controls.add({ type = "button", caption = ">", tags = { gb_action = "next-page" } })
 
   -- The list, and the selected item's detail beside it.
@@ -262,7 +263,7 @@ local function build(_, container, view)
   elements.detail_icon = heading.add({ type = "sprite" })
   elements.detail_name = heading.add({ type = "label", style = "bold_label" })
   local actions = detail.add({ type = "flow", direction = "horizontal" })
-  local quantity_tooltip = { "gb-gui.quantity-tooltip", catalog.format_units(catalog.MAX_QUANTITY) }
+  local quantity_tooltip = { "gb-gui.quantity-tooltip", string.format("%d", catalog.MAX_QUANTITY) }
   actions.add({ type = "label", caption = { "gb-gui.quantity" }, tooltip = quantity_tooltip })
   elements.quantity = actions.add({ type = "textfield", text = "1", numeric = true, tooltip = quantity_tooltip,
     tags = { gb_action = "quantity" } })

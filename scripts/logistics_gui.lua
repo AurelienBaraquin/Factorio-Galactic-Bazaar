@@ -428,8 +428,8 @@ local function build_modules(detail, elements)
   for i = 1, core.MODULE_ROWS do
     elements.module_rows[i] = {
       locate = list.add({ type = "sprite-button", style = "tool_button", tooltip = { "gb-logistics.locate-tooltip" } }),
-      name = list.add({ type = "label" }),
-      status = list.add({ type = "label" }),
+      name = list.add({ type = "label", tooltip = { "gb-logistics.module-tooltip" } }),
+      status = list.add({ type = "label", tooltip = { "gb-logistics.status-tooltip" } }),
     }
   end
 end

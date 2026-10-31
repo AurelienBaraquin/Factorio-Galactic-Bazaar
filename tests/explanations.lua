@@ -146,6 +146,8 @@ describe("built-in explanations", function()
       "gb-gui.column-trend-tooltip" }, { key(row.icon), key(row.buy), key(row.sell), key(row.trend) })
     assert.are.same({ "gb-gui.buy-tooltip", "gb-gui.sell-tooltip" },
       { key(find(window(), "buy")), key(find(window(), "sell")) })
+    assert.are.same({ "gb-gui.search-tooltip", "gb-gui.page-tooltip", "1000000000" },
+      { key(elements.search), key(elements.page), elements.quantity.tooltip[2] })
   end)
 
   test("rewrites the Market tab's reputation and delivery tooltips only when they change", function()
@@ -207,6 +209,8 @@ describe("built-in explanations", function()
     local elements = bazaar_gui.view(player.index, "logistics").elements
     assert.are.same({ "gb-logistics.power-tooltip", "gb-logistics.status-tooltip", "gb-logistics.power-tooltip" },
       { key(elements.hub_rows[1].power), key(elements.hub_rows[1].status), key(elements.power) })
+    assert.are.same({ "gb-logistics.module-tooltip", "gb-logistics.status-tooltip" },
+      { key(elements.module_rows[1].name), key(elements.module_rows[1].status) })
   end)
 
 
