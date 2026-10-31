@@ -60,11 +60,17 @@ Out of scope (until 1.0):
 4. Contracts and reputation.
 5. Outsourced production (fabless).
 6. Finance: credit, interest, bankruptcy.
+7. Readability: every mechanism visible and explained in game — a central window, the account
+   statement, freight in flight, building status, alerts and explanations — before balancing.
+8. Risks, balancing and publication.
 
 ## Success criteria
 
 - Milestone M1 is playable: in a new game, vanilla or Space Age, the player buys and sells items
   through the terminal at dynamic prices, with no measurable UPS impact on a medium-sized base.
+- Milestone M7 is readable: a player can see, in game, where every credit comes from and goes to,
+  what is in flight and when it lands, the state of every building of the mod, and why each price,
+  fee, rate and limit is what it is, without reading the documentation.
 
 ## Constraints
 
