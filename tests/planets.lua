@@ -1,5 +1,6 @@
 -- In-game tests of NPC planets (scripts/planets.lua, scripts/planets_gui.lua, #83): the catalog of
 -- the loaded game, reservations per force, the planets window and persistence.
+local freight = require("scripts.freight")
 local market_gui = require("scripts.market_gui")
 local planets = require("scripts.planets")
 local planets_gui = require("scripts.planets_gui")
@@ -82,6 +83,43 @@ describe("NPC planets", function()
     assert.are.equal(1, #state().reservations)
     planets.release(force_index(), 41)
     assert.are.equal(4, planets.free(force_index(), "carbo", "resource", "coal"))
+  end)
+
+  test("goods from a planet land after its transit delay, less a bounded loss", function()
+    local surface = game.surfaces[1]
+    local hub = surface.create_entity({ name = "gb-hub", position = { 0, 330 }, force = "player", raise_built = true })
+    local chest = surface.create_entity({
+      name = "gb-import-chest", position = { 3, 330 }, force = "player", raise_built = true,
+    })
+    local terms = planets.transit_terms("uranos-deep")
+    local ok, arrival, arriving = planets.ship(force_index(), hub.unit_number, "uranos-deep",
+      { { kind = "item", name = "uranium-ore", count = 1000 }, { kind = "item", name = "stone", count = 1000 } }, 77)
+    local capsules = freight.capsules(hub.unit_number)
+    local first, last = capsules[1].arrival, capsules[#capsules].arrival
+    freight.on_unload_tick({ tick = first - 1 })
+    local early = chest.get_item_count("uranium-ore")
+    local _, _, again = planets.ship(force_index(), hub.unit_number, "uranos-deep",
+      { { kind = "item", name = "uranium-ore", count = 1000 } }, 78)
+    local lost_ok, lost_arrival, lost = planets.ship(force_index(), hub.unit_number, "uranos-deep",
+      { { kind = "item", name = "stone", count = 1 } }, 79)
+    local refused = { planets.ship(force_index(), hub.unit_number, "uranos-deep",
+      { { kind = "item", name = "stone", count = 2.5 } }, 80) }
+    storage.freight.hubs[hub.unit_number] = nil
+    hub.destroy()
+    chest.destroy()
+    assert.is_true(ok)
+    for _, goods in ipairs(arriving) do
+      assert.is_true(goods.count < 1000 and goods.count >= 1000 * (1 - terms.max_loss))
+    end
+    assert.are_not.equal(arriving[1].count, again[1].count)
+    assert.are.equal(game.tick + freight.TIERS.capsule.delay_ticks + terms.delay_ticks, first)
+    assert.are.equal(last, arrival)
+    assert.are.equal(0, early)
+    assert.is_true(lost_ok)
+    assert.are.same({}, lost)
+    assert.is_true(lost_arrival > game.tick + terms.delay_ticks)
+    assert.are.same({ false, "invalid-quantity" }, refused)
+    assert.are.same({ false, "unknown-planet" }, { planets.ship(force_index(), 1, "nowhere", {}, 1) })
   end)
 
   test("keeps reservations across a save and reload", function()

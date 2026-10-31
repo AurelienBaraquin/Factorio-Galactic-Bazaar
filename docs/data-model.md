@@ -94,7 +94,7 @@ re-attached on `on_configuration_changed`.
 ## `storage.freight`
 
 `{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract}...}}}}`
-— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the incoming contract whose ingredients it carries, with `unit_cost` 0, nil for purchases) ([terminal.md](terminal.md), ADR-0006). Written by
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), with `unit_cost` 0, nil for purchases) ([terminal.md](terminal.md), ADR-0006). Written by
 `scripts/freight.lua`. Invariants: `capsules` is in ordering order (tiers land on their own schedules: every landed shipment is unloaded, none holds back another); `launches[tier]` is that tier's next free launch tick (`next_launch`, from before 0.1.10, is the capsule's) and holds at most
 `max_capsules` entries per tier; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
@@ -194,6 +194,12 @@ leaves, changes force or is removed, and every window is closed on `on_configura
 `{{name, distance, specialties = {{kind, name, slots}...}}...}` — the NPC planet catalog limited
 to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
 `scripts/planets.lua` on `on_init` and `on_configuration_changed` only.
+
+## `storage.planet_rng`
+
+`storage.planet_rng[force_index]` — each force's random state for transit losses
+([planets.md](planets.md)), advanced at every draw, starting from its index. Written by
+`scripts/planets.lua`; the merged force's entry is dropped on `on_forces_merged`.
 
 ## `storage.planets_gui`
 

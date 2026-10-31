@@ -3,8 +3,8 @@
 Places outside the map where a force will extract resources and have goods crafted (M5,
 [ADR-0018](adr/0018-npc-planets-with-slot-capacity.md)). The pure model is
 `scripts/core/planets.lua`; the runtime side is `scripts/planets.lua`, the window
-`scripts/planets_gui.lua`. Services that use planets (transit, concessions, foundries) come with
-#84–#86.
+`scripts/planets_gui.lua`, transit `scripts/core/transit.lua`. Services that use planets
+(concessions, foundries) come with #85–#86.
 
 ## Catalog
 
@@ -37,10 +37,30 @@ back them to withdraw their contracts. Capacity is per force: one force's reserv
 another's slots. On a force merge, the source's reservations carry over (they back its contracts),
 so the destination may hold more slots than a specialty has until they end.
 
+## Transit
+
+Goods a service ships from a planet to a hub (`planets.ship(force, hub, planet, goods, contract_id)`,
+#84) go through freight (`freight.ship` with an origin, `scripts/freight.lua`): orbital capsules
+with the capsule's schedule and queue bound, landing `transit.TICKS_PER_DISTANCE` (3 600 ticks, one
+minute) per distance unit later. Each good loses a share on the way, drawn in (0, max loss) where max
+loss = `LOSS_PER_DISTANCE` (2 %) × distance, at most `MAX_LOSS` (25 %); what arrives is rounded down
+to whole units, and a good entirely lost is not shipped (a shipment of one unit is always lost). Each
+good draws from the force's own state in `storage.planet_rng`, advanced at every draw, so every peer
+computes the same loss and the moment a force ships changes nothing. Counts must be positive whole
+numbers (`invalid-quantity`). `planets.transit_terms(planet)` gives the delay and the max loss — the
+terms a service announces; the loss actually drawn is known only once shipped. Transit capsules
+count in the hub's capsule queue bound while in flight, longer than a purchase's.
+
+| Planet | Extra delay | Max loss |
+|---|---|---|
+| `ferrum-prime` | 1 min | 2 % |
+| `carbo`, `fabrica-nova` | 2 min | 4 % |
+| `uranos-deep` | 4 min | 8 % |
+
 ## Window
 
 A **Planets** button in the market window opens a read-only window: each planet's specialties, its
-distance and the slots free for the player's force out of the total, refreshed every second
+distance, its transit terms (extra delay in seconds, max loss) and the slots free for the player's force out of the total, refreshed every second
 (`planets_gui.REFRESH_TICKS`). Like the game's windows it becomes the player's opened window,
 replacing the market window. It closes with its button, E or Esc, when the player leaves, changes
 force or is removed, and on configuration change. A planet or category without a locale key shows

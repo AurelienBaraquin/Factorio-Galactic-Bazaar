@@ -1,8 +1,11 @@
 -- NPC planets (#83, ADR-0018): the runtime side of scripts/core/planets.lua. The catalog, limited to
 -- the resources and crafting categories of the loaded game, is shared by all forces
 -- (storage.planets, rebuilt on configuration change); each force's reservations live in its state
--- (storage.forces[i].reservations).
+-- (storage.forces[i].reservations). Goods shipped from a planet travel by transit (#84).
 local core = require("scripts.core.planets")
+local freight = require("scripts.freight")
+local random = require("scripts.core.random")
+local transit = require("scripts.core.transit")
 
 local planets = {}
 
@@ -11,11 +14,27 @@ local function exists(kind, name)
   return prototypes.recipe_category[name] ~= nil
 end
 
+-- The force's next draw for transit losses, from its own state in storage: deterministic on every
+-- peer, and independent of when the force ships.
+local function draw(force_index)
+  local states = storage.planet_rng
+  local state, value = random.next(states[force_index] or random.seed(force_index * 104729 + 3))
+  states[force_index] = state
+  return value
+end
+
+--- on_forces_merged: the merged force's draw state goes, so that a force created later under its
+--- index starts afresh.
+function planets.on_forces_merged(event)
+  storage.planet_rng[event.source_index] = nil
+end
+
 --- on_init and on_configuration_changed: builds the catalog for the loaded game and drops the
 --- reservations of specialties no longer in it. Returns the dropped reservations of each force
 --- ({[force_index] = {reservation...}}), for the services that back them to withdraw.
 function planets.init()
   storage.planets = core.available_catalog(core.CATALOG, exists)
+  storage.planet_rng = storage.planet_rng or {}
   local dropped = {}
   for force_index, state in pairs(storage.forces) do
     if state.reservations then dropped[force_index] = core.drop_unknown(storage.planets, state.reservations) end
@@ -49,6 +68,23 @@ function planets.reserve(force_index, planet_name, kind, name, slots, until_tick
   if not reservations then return nil, "no-force" end
   return core.reserve(storage.planets, reservations, planet_name, kind, name, slots, game.tick, until_tick,
     contract_id)
+end
+
+--- The transit terms from a planet: {delay_ticks, max_loss}, or nil when it is not in the catalog.
+function planets.transit_terms(planet_name)
+  local planet = core.find(storage.planets, planet_name)
+  return planet and transit.terms(planet.distance)
+end
+
+--- Ships goods from a planet to a hub of a force for contract `contract_id`, through freight: they
+--- land after the planet's transit delay, each good less a share lost on the way, drawn from the
+--- force's state. Returns what `freight.ship` returns, or false and "unknown-planet".
+function planets.ship(force_index, hub_unit_number, planet_name, goods, contract_id)
+  local planet = core.find(storage.planets, planet_name)
+  if not planet then return false, "unknown-planet" end
+  local shares = {}
+  for index = 1, #goods do shares[index] = transit.loss_share(planet.distance, draw(force_index)) end
+  return freight.ship(force_index, hub_unit_number, goods, contract_id, { distance = planet.distance, shares = shares })
 end
 
 --- Frees early the slots a force reserved for contract `contract_id`.

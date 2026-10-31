@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.20
+Date: 2026-10-31
+  Features:
+    - Transit from NPC planets: goods from farther planets land later and may lose a bounded share on the way; the Planets window shows each planet's terms.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.19
 Date: 2026-10-31
   Features:
