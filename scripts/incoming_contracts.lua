@@ -249,6 +249,33 @@ local function active_ids(force_index)
   return ids
 end
 
+--- The items a force's active incoming contracts still need, in the order contract chests hand them
+--- over (oldest contract first, then each contract's goods in order): {{name, count}...}, one entry
+--- per item, summed over the contracts. Normal quality only, as contract chests hand over only that.
+function incoming.needs(force_index)
+  local list, by_name = {}, {}
+  local ids = active_ids(force_index)
+  if #ids == 0 then return list end
+  local open = storage.forces[force_index].contracts.open
+  for _, id in ipairs(ids) do
+    local contract = open[id]
+    local remaining = core.remaining(contract)
+    for _, goods in ipairs(contract.requires) do
+      local key = core.key(goods)
+      local name = key:match("^item/([^@]+)$")
+      local owed = remaining[key]
+      if name and owed > 0 then
+        if not by_name[name] then
+          by_name[name] = { name = name, count = 0 }
+          list[#list + 1] = by_name[name]
+        end
+        by_name[name].count = by_name[name].count + owed
+      end
+    end
+  end
+  return list
+end
+
 -- Hands over what a contract chest holds of the goods its force's active incoming contracts (`ids`
 -- by force index, filled on demand) still need, oldest contract first; a good leaves the chest only
 -- for what a contract took.

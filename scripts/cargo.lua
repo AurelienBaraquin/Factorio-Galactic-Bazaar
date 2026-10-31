@@ -207,10 +207,14 @@ function cargo.sale_freshness(inventory, name, limit, quality_name)
   return units > 0 and fresh / units or 1
 end
 
+-- Sells what an export chest holds; `held` records whether it kept goods without selling any (below
+-- its floor, or not plain), for its status (scripts/entity_status.lua).
 local function export_from(module)
   if not (module.entity.valid and cargo.powered_hub(module)) then return end
-  cargo.sell_stacks(module.entity.get_inventory(defines.inventory.chest), module.entity.force.index,
+  local inventory = module.entity.get_inventory(defines.inventory.chest)
+  local sold = cargo.sell_stacks(inventory, module.entity.force.index,
     module.min_price_ratio, nil, nil, nil, cargo.JOURNAL_MERGE_TICKS)
+  module.held = sold == 0 and not inventory.is_empty()
 end
 
 --- on_nth_tick(EXPORT_INTERVAL): sells the content of the next EXPORT_BATCH export chests.

@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.30
+Date: 2026-10-31
+  Features:
+    - Every building of the mod shows a status light and text: whether it has a trading hub and power, and what
+      it is doing (hub modules and shipments, sales held below the price floor, shipments on the way, power
+      settled, prices emitted, an order combinator's last reading and budget left, fuel and delivery tier, a
+      catapult's charge, what a contract chest still needs, a rental offer).
+    - A stopped building shows an icon to its force: no hub in range, hub without power, or no power of its own;
+      hold Alt to read why.
+  Changes:
+    - Existing saves: the building statuses start on configuration change; each force's last power settlement is
+      recorded from then on.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.29
 Date: 2026-10-31
   Features:

@@ -5,6 +5,7 @@ local catapult = require("scripts.catapult")
 local forces = require("scripts.forces")
 local finance = require("scripts.finance")
 local docking_bay = require("scripts.docking_bay")
+local entity_status = require("scripts.entity_status")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
@@ -47,6 +48,7 @@ local function init()
   concessions.init(dropped)
   contracts_gui.init()
   planets_gui.init()
+  entity_status.init()
 end
 
 remote.add_interface("galactic-bazaar", value_overrides.REMOTE)
@@ -118,6 +120,7 @@ local function on_built(event)
     or catapult.on_built(entity) or incoming.on_built(entity) or rental.on_built(entity)) then
     cargo.on_built(entity)
   end
+  entity_status.on_built(entity)
 end
 
 for _, event in ipairs(BUILT_EVENTS) do
@@ -126,6 +129,7 @@ end
 
 script.on_event(defines.events.on_object_destroyed, function(event)
   if event.type ~= defines.target_type.entity then return end
+  entity_status.forget(event.useful_id)
   if hubs.forget(event.useful_id) then
     cargo.on_hub_removed(event.useful_id)
     power.on_hub_removed(event.useful_id)
@@ -174,6 +178,7 @@ every(contracts_gui.REFRESH_TICKS, contracts_gui.on_refresh_tick)
 every(planets_gui.REFRESH_TICKS, planets_gui.on_refresh_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
+every(entity_status.PASS_TICKS, entity_status.on_pass_tick)
 for ticks, handlers in pairs(periodic) do
   script.on_nth_tick(ticks, function(event)
     for _, handler in ipairs(handlers) do handler(event) end
@@ -212,7 +217,8 @@ if script.active_mods["factorio-test"] then
       "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
-      "tests/telecom", "tests/technologies", "tests/market_gui", "tests/notifications" },
+      "tests/telecom", "tests/technologies", "tests/market_gui", "tests/notifications",
+      "tests/entity_status" },
     { load_luassert = true }
   )
 end

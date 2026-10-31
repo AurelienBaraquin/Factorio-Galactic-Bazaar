@@ -1,0 +1,369 @@
+-- Status of every building of the mod (#106): each gets a custom status (diode and text, shown by the
+-- game where it shows an entity's status) from scripts/core/entity_status.lua, and a rendered alert
+-- (icon, with a short text in alt mode) while something stops it: no hub of its force in range, its
+-- hub without power, or no power of its own. The buildings are kept in one list, in step with build
+-- and destroy events; every PASS_TICKS the next ones are refreshed, at most MAX_VISITS per pass, so
+-- that each is refreshed about once every CYCLE_TICKS and no tick does more. A building is also
+-- refreshed when it is built. A status is written only when it changed. Each hub's modules of its
+-- force are counted as they are refreshed, and the count shown from the next cycle on. The costly
+-- reads (a hub's delivery tier and bays' fuel, a force's contract needs and price period) are made
+-- once per hub or force and cycle, and a pass stops after MAX_COSTLY_READS of them.
+--
+-- State lives in storage.entity_status: the list (`units` and `kinds`, parallel arrays, and `index`
+-- {[unit_number] = position}), the `cursor`, the hubs' module counts (`counts`, last cycle's;
+-- `pending`, this cycle's), the status each building shows (`shown`: {[unit_number] = descriptor},
+-- false for the game's own status), the cycle's costly reads (`facts`: {[field] = {[hub or force
+-- index] = value}}) and the alerts drawn (`alerts`: {[unit_number] = {alert, force_index, sprite,
+-- text}}, render object ids). Every handler creates it when a save predates it.
+local catapult = require("scripts.catapult")
+local contracts = require("scripts.contracts")
+local contracts_core = require("scripts.core.contracts")
+local core = require("scripts.core.entity_status")
+local docking_bay = require("scripts.docking_bay")
+local freight = require("scripts.freight")
+local hubs = require("scripts.hubs")
+local incoming = require("scripts.incoming_contracts")
+local power = require("scripts.power")
+local telecom = require("scripts.telecom")
+local teleporter = require("scripts.teleporter")
+
+local entity_status = {}
+
+entity_status.PASS_TICKS = 10
+entity_status.CYCLE_TICKS = 300
+entity_status.PASSES = entity_status.CYCLE_TICKS / entity_status.PASS_TICKS
+entity_status.MAX_VISITS = 12
+entity_status.MAX_COSTLY_READS = 2
+entity_status.ALERT_SPRITES = {
+  [core.NO_HUB] = "utility/warning_icon",
+  [core.HUB_UNPOWERED] = "utility/electricity_icon",
+  [core.UNPOWERED] = "utility/electricity_icon",
+}
+
+local ALERT_COLOR = { 1, 0.45, 0.35 }
+local MJ = 1e6
+
+-- A costly read made once per hub or force and cycle: kept in the cycle's facts, and counted in the
+-- `work` of the pass ({facts, costly}).
+local function cached(work, field, key, read)
+  local values = work.facts[field]
+  if not values then
+    values = {}
+    work.facts[field] = values
+  end
+  local value = values[key]
+  if value == nil then
+    value = read(key)
+    values[key] = value
+    work.costly = work.costly + 1
+  end
+  return value
+end
+
+local function tier_of(hub_unit_number) return freight.tier(hub_unit_number).name end
+local function fueled(hub_unit_number)
+  return docking_bay.fuel(hub_unit_number, docking_bay.FUEL_MJ_PER_SHIPMENT) >= docking_bay.FUEL_MJ_PER_SHIPMENT
+end
+
+-- "none" (no hub of the module's force), "unpowered" or "powered": the hub a module is attached to.
+local function hub_state(module)
+  local hub = module.hub and hubs.get(module.hub)
+  if not (hub and hub.force_index == module.entity.force_index) then return "none" end
+  return hubs.has_power(hub) and "powered" or "unpowered"
+end
+
+-- Each kind of building: where its modules live and how its status is read. `describe(module, hub,
+-- tick, work)` returns a descriptor (nil: the game's own status); `hub` is the module's hub state
+-- (nil for a hub); `work` carries the cycle's costly reads (see `cached`).
+local KINDS = {
+  {
+    name = "hub",
+    modules = function() return storage.hubs end,
+    describe = function(module, _, _, work)
+      local unit_number = module.entity.unit_number
+      return core.hub({
+        powered = hubs.has_power(module.entity), modules = storage.entity_status.counts[unit_number] or 0,
+        queued = freight.queued(unit_number), tier = cached(work, "tiers", unit_number, tier_of),
+      })
+    end,
+  },
+  {
+    name = "cargo",
+    modules = function() return storage.cargo.modules end,
+    describe = function(module, hub)
+      if module.kind == "export" then
+        local empty = module.entity.get_inventory(defines.inventory.chest).is_empty()
+        return core.module(hub, true, core.export_chest({ empty = empty, held = module.held }))
+      end
+      return core.module(hub, false, core.import_chest({ queued = module.hub and freight.queued(module.hub) or 0 }))
+    end,
+  },
+  {
+    name = "manifold",
+    modules = function() return storage.manifold.modules end,
+    describe = function(module, hub)
+      local fluid = module.entity.get_fluid(1)
+      local name = fluid and fluid.amount > 0 and fluid.name or nil
+      if module.kind == "export" then
+        return core.module(hub, true, core.fluid_export({ fluid = name, held = module.held }))
+      end
+      return core.module(hub, false, core.fluid_import({ fluid = name }))
+    end,
+  },
+  {
+    name = "power",
+    modules = function() return storage.power.modules end,
+    describe = function(module, hub)
+      local settled = power.settlements()[module.entity.force_index]
+      local last = settled and {
+        units = settled[module.kind], held = settled.export_held, short = settled.import_short,
+      }
+      return core.module(hub, true, core.power({ direction = module.kind, last = last }))
+    end,
+  },
+  {
+    name = "price",
+    modules = function() return storage.price_signals.modules end,
+    describe = function(module, hub, _, work)
+      local force_index = module.entity.force_index
+      local snapshot = storage.price_signals.snapshots[force_index]
+      return core.module(hub, true, core.price_combinator({
+        side = module.side, ready = snapshot ~= nil, count = snapshot and #snapshot[module.side],
+        period_seconds = cached(work, "periods", force_index, function()
+          return telecom.period(module.entity.force) / 60
+        end),
+      }))
+    end,
+  },
+  {
+    name = "order",
+    modules = function() return storage.circuit_orders.modules end,
+    describe = function(module, hub)
+      return core.module(hub, true, core.order_combinator({ last = module.last }))
+    end,
+  },
+  {
+    name = "docking-bay",
+    modules = function() return storage.docking_bays.modules end,
+    describe = function(module, hub, _, work)
+      local attached = hub ~= "none"
+      return core.module(hub, false, core.docking_bay({
+        fuel_mj = docking_bay.bay_fuel(module), shipment_mj = docking_bay.FUEL_MJ_PER_SHIPMENT,
+        fueled = attached and cached(work, "fueled", module.hub, fueled),
+        tier = attached and cached(work, "tiers", module.hub, tier_of) or "capsule",
+      }))
+    end,
+  },
+  {
+    name = "teleporter",
+    modules = function() return storage.teleporters.modules end,
+    describe = function(module, hub)
+      local entity = module.entity
+      return core.module(hub, false, core.teleporter({
+        powered = teleporter.is_powered(entity), charge = entity.energy / entity.electric_buffer_size,
+      }))
+    end,
+  },
+  {
+    name = "catapult",
+    modules = function() return storage.catapults.modules end,
+    describe = function(module, hub)
+      local capacitor = module.capacitor
+      local buffer = capacitor and capacitor.valid and capacitor.electric_buffer_size or 0
+      local charge = buffer > 0 and capacitor.energy / buffer or 0
+      return core.module(hub, true, core.catapult({
+        charge = charge, shot_share = buffer > 0 and math.min(1, catapult.SHOT_MJ * MJ / buffer) or 1,
+        empty = module.entity.get_inventory(defines.inventory.chest).is_empty(), held = module.held,
+        shot_seconds = catapult.SHOT_TICKS / 60,
+      }))
+    end,
+  },
+  {
+    name = "contract-chest",
+    modules = function() return storage.incoming_contracts.chests end,
+    describe = function(module, hub, _, work)
+      local needs = cached(work, "needs", module.entity.force_index, incoming.needs)
+      return core.module(hub, false, core.contract_chest({ needs = needs }))
+    end,
+  },
+  {
+    name = "rental",
+    modules = function() return storage.rentals.machines end,
+    describe = function(module, hub)
+      local contract = module.contract and contracts.get(module.entity.force_index, module.contract)
+      local facts = { state = "idle" }
+      if contract and contract.state == contracts_core.OFFERED then
+        facts = { state = "offered", id = contract.id }
+      elseif contract and contract.state == contracts_core.ACTIVE then
+        facts = { state = "rented", id = contract.id }
+      end
+      return core.module(hub, false, core.rental(facts))
+    end,
+  },
+}
+local KIND_BY_NAME = {}
+for _, kind in ipairs(KINDS) do KIND_BY_NAME[kind.name] = kind end
+
+local DIODES = {
+  [core.GREEN] = defines.entity_status_diode.green,
+  [core.YELLOW] = defines.entity_status_diode.yellow,
+  [core.RED] = defines.entity_status_diode.red,
+}
+
+local function destroy_alert(drawn)
+  for _, id in ipairs({ drawn.sprite, drawn.text }) do
+    local object = rendering.get_object_by_id(id)
+    if object then object.destroy() end
+  end
+end
+
+-- Appends a building to the list, once.
+local function add(state, unit_number, kind_name)
+  if state.index[unit_number] then return end
+  local n = #state.units + 1
+  state.units[n], state.kinds[n], state.index[unit_number] = unit_number, kind_name, n
+end
+
+-- Removes a building from the list in O(1) (the last one takes its place), with its status and alert.
+local function remove(state, unit_number)
+  local position = state.index[unit_number]
+  if position then
+    local last = #state.units
+    if position ~= last then
+      local moved = state.units[last]
+      state.units[position], state.kinds[position], state.index[moved] = moved, state.kinds[last], position
+    end
+    state.units[last], state.kinds[last], state.index[unit_number] = nil, nil, nil
+  end
+  state.shown[unit_number] = nil
+  local drawn = state.alerts[unit_number]
+  if drawn then
+    destroy_alert(drawn)
+    state.alerts[unit_number] = nil
+  end
+end
+
+-- Lists every building of every registry (on init and configuration change, or once in a save that
+-- predates the list); alerts of buildings no longer listed go.
+local function list_all(state)
+  state.units, state.kinds, state.index = {}, {}, {}
+  for _, kind in ipairs(KINDS) do
+    for unit_number, module in pairs(kind.modules()) do
+      if module.entity.valid then add(state, unit_number, kind.name) end
+    end
+  end
+  for unit_number, drawn in pairs(state.alerts) do
+    if not state.index[unit_number] then
+      destroy_alert(drawn)
+      state.alerts[unit_number] = nil
+    end
+  end
+end
+
+-- The state, created (and the buildings listed) when the save predates it.
+local function state_of()
+  local state = storage.entity_status
+  if state and state.index then return state end
+  state = state or {}
+  state.alerts, state.counts, state.pending, state.shown = state.alerts or {}, state.counts or {}, {}, {}
+  state.facts = {}
+  state.cursor = 1
+  storage.entity_status = state
+  list_all(state)
+  return state
+end
+
+-- Draws `alert` on the entity (nil: none), replacing what was drawn when it changed or the entity
+-- changed force (an alert is only shown to the entity's force).
+local function set_alert(state, entity, alert)
+  local unit_number = entity.unit_number
+  local drawn = state.alerts[unit_number]
+  if drawn and drawn.alert == alert and drawn.force_index == entity.force_index then return end
+  if drawn then destroy_alert(drawn) end
+  state.alerts[unit_number] = nil
+  if not alert then return end
+  local forces = { entity.force }
+  local sprite = rendering.draw_sprite({
+    sprite = entity_status.ALERT_SPRITES[alert], target = entity, surface = entity.surface, forces = forces,
+    x_scale = 0.5, y_scale = 0.5,
+  })
+  local text = rendering.draw_text({
+    text = { "gb-status.alert-" .. alert }, surface = entity.surface, forces = forces, color = ALERT_COLOR,
+    target = { entity = entity, offset = { 0, entity.prototype.tile_height / 2 - 0.3 } },
+    scale = 0.8, alignment = "center", only_in_alt_mode = true,
+  })
+  state.alerts[unit_number] = { alert = alert, force_index = entity.force_index, sprite = sprite.id, text = text.id }
+end
+
+-- Shows a module's status on its entity, writing it only when it changed. Returns the module's hub
+-- state (nil for a hub or an invalid entity).
+local function refresh(state, kind, module, tick, work)
+  local entity = module.entity
+  if not entity.valid then return nil end
+  local hub = kind.name ~= "hub" and hub_state(module) or nil
+  local descriptor = kind.describe(module, hub, tick, work)
+  local unit_number = entity.unit_number
+  local shown = state.shown[unit_number]
+  if shown == nil or not core.same(descriptor, shown or nil) then
+    entity.custom_status = descriptor and { diode = DIODES[descriptor.diode], label = descriptor.label } or nil
+    state.shown[unit_number] = descriptor or false
+  end
+  set_alert(state, entity, descriptor and descriptor.alert)
+  return hub
+end
+
+--- on_init and on_configuration_changed, after every module's init: creates the state, lists every
+--- building again (registries may have dropped some) and has every status written again.
+function entity_status.init()
+  local state = state_of()
+  state.shown, state.pending, state.facts, state.cursor = {}, {}, {}, 1
+  list_all(state)
+end
+
+--- on_nth_tick(PASS_TICKS): refreshes the next buildings of the list; past its end, a new cycle
+--- starts and the module counts of the cycle that ended are shown.
+function entity_status.on_pass_tick(event)
+  local state = state_of()
+  local work = { facts = state.facts, costly = 0 }
+  for _ = 1, core.visits(#state.units, entity_status.PASSES, entity_status.MAX_VISITS) do
+    if work.costly >= entity_status.MAX_COSTLY_READS then return end
+    if state.cursor > #state.units then
+      state.cursor, state.counts, state.pending, state.facts = 1, state.pending, {}, {}
+      work.facts = state.facts
+    end
+    local index = state.cursor
+    local unit_number = state.units[index]
+    if not unit_number then return end
+    local kind = KIND_BY_NAME[state.kinds[index]]
+    local module = kind.modules()[unit_number]
+    if module then
+      state.cursor = index + 1
+      local hub = refresh(state, kind, module, event.tick, work)
+      if hub and hub ~= "none" then state.pending[module.hub] = (state.pending[module.hub] or 0) + 1 end
+    else
+      remove(state, unit_number)
+    end
+  end
+end
+
+--- A building of the mod was built (and registered by its module): it joins the list and its status
+--- is shown at once.
+function entity_status.on_built(entity)
+  local state = state_of()
+  local unit_number = entity.unit_number
+  for _, kind in ipairs(KINDS) do
+    local module = kind.modules()[unit_number]
+    if module then
+      add(state, unit_number, kind.name)
+      refresh(state, kind, module, game.tick, { facts = {}, costly = 0 })
+      return
+    end
+  end
+end
+
+--- on_object_destroyed: a destroyed building leaves the list, with its alert.
+function entity_status.forget(unit_number)
+  remove(state_of(), unit_number)
+end
+
+return entity_status

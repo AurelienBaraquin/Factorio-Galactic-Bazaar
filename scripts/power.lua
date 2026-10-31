@@ -43,6 +43,7 @@ function power.init()
     if not module.entity.valid then gone[#gone + 1] = unit_number end
   end
   for _, unit_number in ipairs(gone) do storage.power.modules[unit_number] = nil end
+  power.settlements()
   for _, module in pairs(storage.power.modules) do hubs.attach(module, power.HUB_RANGE) end
 end
 
@@ -80,8 +81,10 @@ function power.on_hub_removed(hub_unit_number)
   end
 end
 
---- on_forces_merged: substations now belong to the merged force and may use its hubs.
-function power.on_forces_merged()
+--- on_forces_merged: substations now belong to the merged force and may use its hubs; the merged
+--- force's last settlement goes.
+function power.on_forces_merged(event)
+  power.settlements()[event.source_index] = nil
   for _, module in pairs(storage.power.modules) do hubs.attach(module, power.HUB_RANGE) end
 end
 
@@ -124,39 +127,60 @@ local function trading_groups()
 end
 
 -- Sells what the export substations of a force absorbed, as far as the price floor allows; each
--- keeps the unsold share of its energy.
+-- keeps the unsold share of its energy. Returns the units (MJ) sold, and whether energy stayed unsold.
 local function settle_exports(force_index, entities)
   local joules = 0
   for _, entity in ipairs(entities) do joules = joules + entity.energy end
   local sellable = joules > 0 and market.sellable(force_index, KIND, NAME, power.MIN_PRICE_RATIO) or 0
   local units, kept = settlement.export(joules, sellable, JOULES_PER_UNIT)
-  if units <= 0 or not market.sell(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then return end
+  if units <= 0 or not market.sell(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then
+    return 0, joules > 0
+  end
   for _, entity in ipairs(entities) do entity.energy = entity.energy * kept end
+  return units, kept > 0
 end
 
 -- Buys what refills the import substations of a force, as far as its available funds and the market allow;
--- the energy bought is shared out in proportion to what each lacks.
+-- the energy bought is shared out in proportion to what each lacks. Returns the units (MJ) bought, and
+-- whether energy they lacked was not bought (no funds, no supply).
 local function settle_imports(force_index, entities)
   local missing = {}
   for i, entity in ipairs(entities) do missing[i] = math.max(0, entity.electric_buffer_size - entity.energy) end
   local units, total_missing = settlement.wanted_units(missing, market.buyable(force_index, KIND, NAME),
     JOULES_PER_UNIT)
-  if not units or units <= 0 then return end
+  if not units then return 0, false end
+  if units <= 0 then return 0, true end
   local cost = market.preview(force_index, KIND, NAME, "buy", units)
-  if not cost then return end
+  if not cost then return 0, true end
   units = settlement.affordable(units, cost, account.available(storage.forces[force_index]))
-  if units <= 0 or not market.buy(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then return end
+  if units <= 0 or not market.buy(force_index, KIND, NAME, units, nil, power.JOURNAL_MERGE_TICKS) then
+    return 0, true
+  end
   for i, joules in ipairs(settlement.shares(missing, total_missing, units, JOULES_PER_UNIT)) do
     entities[i].energy = entities[i].energy + joules
   end
+  return units, units * JOULES_PER_UNIT < total_missing * (1 - 1e-6)
 end
 
---- on_nth_tick(SETTLE_TICKS): settles every substation that has a powered hub in range.
+--- Each force's last settlement, for its substations' status: storage.power.last[force_index] =
+--- {tick, export, import (MJ traded), export_held (energy stayed unsold), import_short (energy lacked
+--- was not bought)}; created here when a save predates it.
+function power.settlements()
+  storage.power.last = storage.power.last or {}
+  return storage.power.last
+end
+
+--- on_nth_tick(SETTLE_TICKS): settles every substation that has a powered hub in range, and records
+--- each force's settlement (`power.settlements`).
 function power.on_settle_tick()
+  local last = power.settlements()
   for force_index, group in pairs(trading_groups()) do
     if storage.forces[force_index] then
-      settle_exports(force_index, group.export)
-      settle_imports(force_index, group.import)
+      local exported, held = settle_exports(force_index, group.export)
+      local imported, short = settle_imports(force_index, group.import)
+      last[force_index] = {
+        tick = game.tick, export = exported, import = imported, export_held = held, import_short = short,
+      }
     end
   end
 end
