@@ -5,7 +5,10 @@
 -- goods back to it, before a deadline. On acceptance the force puts up a guarantee — the `deposit`
 -- plus the `penalty` — so a failure always costs what it says. When every required unit is
 -- delivered in time it gets the guarantee back with the `reward`; when the deadline passes first it
--- loses the guarantee. An offer not accepted by `accept_by` expires; one can be declined.
+-- loses the guarantee. An offer not accepted by `accept_by` expires; one can be declined. A contract
+-- with `installment_ticks` pays its reward in installments while active: every period, the share of
+-- the reward its deliveries earned so far (ADR-0017); the rest comes on fulfilment, and installments
+-- already paid stay paid when it fails.
 local reputation = require("scripts.core.reputation")
 
 local contracts = {}
@@ -54,8 +57,8 @@ local function copy_goods(list, distinct)
 end
 
 --- A new offer from `spec` = {kind, counterparty, provides, requires, reward, deposit, penalty,
---- duration_ticks, accept_ticks}, offered at `tick`; nil and a reason when the spec is invalid. The
---- goods lists are copied.
+--- duration_ticks, accept_ticks, installment_ticks (optional)}, offered at `tick`; nil and a reason
+--- when the spec is invalid. The goods lists are copied.
 function contracts.new(spec, tick)
   local provides, reason = copy_goods(spec.provides or {}, false)
   if not provides then return nil, reason end
@@ -68,6 +71,9 @@ function contracts.new(spec, tick)
   end
   if not finite_positive(spec.duration_ticks) then return nil, "duration must be positive and finite" end
   if not finite_positive(spec.accept_ticks) then return nil, "the offer must stand a positive, finite time" end
+  if spec.installment_ticks ~= nil and not finite_positive(spec.installment_ticks) then
+    return nil, "installments must come at a positive, finite period"
+  end
   local delivered = {}
   for _, goods in ipairs(requires) do delivered[key_of(goods)] = 0 end
   return {
@@ -75,6 +81,7 @@ function contracts.new(spec, tick)
     reward = spec.reward, deposit = spec.deposit, penalty = spec.penalty,
     duration_ticks = spec.duration_ticks, offered_tick = tick, accept_by = tick + spec.accept_ticks,
     state = contracts.OFFERED, delivered = delivered,
+    installment_ticks = spec.installment_ticks, paid = 0,
   }
 end
 
@@ -91,6 +98,7 @@ function contracts.accept(contract, tick)
   contract.state = contracts.ACTIVE
   contract.accepted_tick = tick
   contract.due_tick = tick + contract.duration_ticks
+  if contract.installment_ticks then contract.next_installment = tick + contract.installment_ticks end
   return contracts.guarantee(contract)
 end
 
@@ -144,13 +152,39 @@ function contracts.settle(contract, tick)
   if contract.state ~= contracts.ACTIVE then return nil end
   if contracts.complete(contract) then
     contract.state, contract.settled_tick = contracts.FULFILLED, tick
-    return { state = contracts.FULFILLED, credits = contract.reward + contracts.guarantee(contract), reputation = 1 }
+    return {
+      state = contracts.FULFILLED, credits = contract.reward - (contract.paid or 0) + contracts.guarantee(contract),
+      reputation = 1,
+    }
   end
   if tick > contract.due_tick then
     contract.state, contract.settled_tick = contracts.FAILED, tick
     return { state = contracts.FAILED, credits = 0, reputation = -1 }
   end
   return nil
+end
+
+-- Share of a contract's required units delivered, from 0 to 1.
+local function delivered_share(contract)
+  local owed, delivered = 0, 0
+  for _, goods in ipairs(contract.requires) do
+    owed = owed + goods.count
+    delivered = delivered + math.min(goods.count, contract.delivered[key_of(goods)])
+  end
+  return delivered / owed
+end
+
+--- Pays an active contract's installment at `tick` if one is due: the share of the reward its
+--- deliveries earned, less what was already paid. Returns the credits to give the force, or nil.
+function contracts.installment(contract, tick)
+  if contract.state ~= contracts.ACTIVE or not contract.next_installment or tick < contract.next_installment then
+    return nil
+  end
+  contract.next_installment = tick + contract.installment_ticks
+  local earned = contract.reward * delivered_share(contract) - contract.paid
+  if earned <= 0 then return nil end
+  contract.paid = contract.paid + earned
+  return earned
 end
 
 --- Abandons an active contract at `tick`: it is settled at once, failed unless every required unit

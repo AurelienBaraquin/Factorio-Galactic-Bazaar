@@ -105,3 +105,18 @@ them with the **Contracts** button of the market window.
   at 20, and makes offers larger, up to three times at 20. Below zero, fees rise and offers shrink, down to half their size at −5.
 - At most 8 contracts are open at a time, offers and active ones together.
 - An offer not accepted within 5 minutes expires; **Decline** removes it at once.
+
+## Machine rental
+
+Researched with **Capacity rental** (after Contracts and Automation 2). Build **rental assemblers**
+within 10 tiles of a trading hub and power them; you cannot open them. Every 5 minutes, each idle
+one is offered for rent in the **Contracts** window (hover the counterparty to see the kind).
+
+- **Accept**: the guarantee is held and the machine starts on the counterparty's recipe. Its
+  ingredients arrive in it, a few crafts at a time; its products leave it as they come.
+- The rental lasts **30 minutes** and promises 80 % of what the machine makes at full speed: keep it
+  powered and running. Rent is paid **every 5 minutes** for what it made.
+- **Do not put an output inserter next to it**: products it takes out never reach the
+  counterparty, and the contract falls short.
+- On time, you get the rest of the rent and the guarantee back, and +1 reputation. Short of the
+  promise at the end, or if you remove the machine, the guarantee is lost (rent already paid stays).
