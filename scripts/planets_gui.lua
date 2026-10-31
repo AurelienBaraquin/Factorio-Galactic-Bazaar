@@ -36,14 +36,17 @@ local function build(player)
   local elements = { window = window, rows = {} }
   local body = window.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   body.add({ type = "button", caption = { "gb-planets.close" }, tags = { gb_action = "planets-close" } })
-  local list = body.add({ type = "table", column_count = 4 })
-  for _, header in ipairs({ "planet", "distance", "specialty", "free" }) do
+  local list = body.add({ type = "table", column_count = 5 })
+  for _, header in ipairs({ "planet", "distance", "transit", "specialty", "free" }) do
     list.add({ type = "label", style = "bold_label", caption = { "gb-planets.column-" .. header } })
   end
   for _, planet in ipairs(planets.catalog()) do
     for _, specialty in ipairs(planet.specialties) do
       list.add({ type = "label", caption = { "?", { "gb-planets.name-" .. planet.name }, planet.name } })
       list.add({ type = "label", caption = { "gb-planets.distance", planet.distance } })
+      local terms = planets.transit_terms(planet.name)
+      list.add({ type = "label", caption = { "gb-planets.transit", string.format("%d", terms.delay_ticks / 60),
+        string.format("%.4g", terms.max_loss * 100) } })
       list.add({ type = "label", caption = specialty_caption(specialty) })
       elements.rows[#elements.rows + 1] = {
         planet = planet.name, kind = specialty.kind, name = specialty.name, total = specialty.slots,

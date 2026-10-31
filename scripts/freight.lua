@@ -13,6 +13,7 @@ local manifold = require("scripts.manifold")
 local market = require("scripts.market")
 local pricing = require("scripts.pricing")
 local reputation = require("scripts.core.reputation")
+local transit = require("scripts.core.transit")
 
 local freight = {}
 
@@ -213,23 +214,34 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
 end
 
 --- Ships goods a contract's counterparty provides (ADR-0015) to a hub, free for the force, by
---- orbital capsule (the counterparty's own transport): `goods` = {{kind, name, count}...}. Either
---- every good is queued or none is. Returns true and the landing tick of the last capsule, or false
---- and a reason (no-import-chest, no-import-manifold, queue-full, not-tradeable, invalid-quantity).
---- Such capsules are never sold back: the goods were the counterparty's.
-function freight.ship(force_index, hub_unit_number, goods, contract_id)
+--- orbital capsule (the counterparty's own transport): `goods` = {{kind, name, count}...}. With
+--- `origin` = {distance, seed}, the goods come from an NPC planet (#84): they land later and lose a
+--- share on the way (scripts/core/transit.lua), each good drawing its loss from `seed`. Either every
+--- good is queued or none is. Returns true, the landing tick of the last capsule and the goods that
+--- will arrive ({{kind, name, count}...}, a good entirely lost left out); or false and a reason
+--- (no-import-chest, no-import-manifold, queue-full, not-tradeable, invalid-quantity). Such capsules
+--- are never sold back: the goods were the counterparty's.
+function freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
   local tier = core.TIERS[core.DEFAULT_TIER]
   local existing = storage.freight.hubs[hub_unit_number]
   local queued, launch = freight.queued(hub_unit_number, tier.name), next_launch(existing, tier.name)
-  local planned = {}
-  for _, entry in ipairs(goods) do
+  local extra_delay = origin and transit.terms(origin.distance).delay_ticks or 0
+  local planned, arriving = {}, {}
+  for index, entry in ipairs(goods) do
     local cargo_kind = CARGO[entry.kind]
     local stack_size = cargo_kind and cargo_kind.stack_size(entry.name)
     if not stack_size then return false, "not-tradeable" end
     if not cargo_kind.has_receiver(hub_unit_number, entry.name) then return false, cargo_kind.no_receiver end
-    local capsules, after = core.schedule(entry.count, stack_size, tier, queued, launch, game.tick)
-    if not capsules then return false, after end
+    local count = entry.count
+    if origin then count = transit.arriving(count, transit.loss_share(origin.distance, origin.seed + index)) end
+    local capsules, after = {}, launch
+    if count > 0 then
+      capsules, after = core.schedule(count, stack_size, tier, queued, launch, game.tick)
+      if not capsules then return false, after end
+      arriving[#arriving + 1] = { kind = entry.kind, name = entry.name, count = count }
+    end
     for _, capsule in ipairs(capsules) do
+      capsule.arrival = capsule.arrival + extra_delay
       capsule.force_index, capsule.kind, capsule.name, capsule.unit_cost = force_index, entry.kind, entry.name, 0
       capsule.tier, capsule.contract = tier.name, contract_id
       planned[#planned + 1] = capsule
@@ -239,7 +251,7 @@ function freight.ship(force_index, hub_unit_number, goods, contract_id)
   local queue = queue_of(hub_unit_number)
   for _, capsule in ipairs(planned) do queue.capsules[#queue.capsules + 1] = capsule end
   queue.launches[tier.name] = launch
-  return true, planned[#planned] and planned[#planned].arrival
+  return true, planned[#planned] and planned[#planned].arrival, arriving
 end
 
 -- Gives back to the force that paid the market price of cargo that cannot be sold back (the fee is

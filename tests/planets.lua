@@ -1,5 +1,6 @@
 -- In-game tests of NPC planets (scripts/planets.lua, scripts/planets_gui.lua, #83): the catalog of
 -- the loaded game, reservations per force, the planets window and persistence.
+local freight = require("scripts.freight")
 local market_gui = require("scripts.market_gui")
 local planets = require("scripts.planets")
 local planets_gui = require("scripts.planets_gui")
@@ -82,6 +83,32 @@ describe("NPC planets", function()
     assert.are.equal(1, #state().reservations)
     planets.release(force_index(), 41)
     assert.are.equal(4, planets.free(force_index(), "carbo", "resource", "coal"))
+  end)
+
+  test("goods from a planet land after its transit delay, less a bounded loss", function()
+    local surface = game.surfaces[1]
+    local hub = surface.create_entity({ name = "gb-hub", position = { 0, 330 }, force = "player", raise_built = true })
+    local chest = surface.create_entity({
+      name = "gb-import-chest", position = { 3, 330 }, force = "player", raise_built = true,
+    })
+    local terms = planets.transit_terms("uranos-deep")
+    local ok, arrival, arriving = planets.ship(force_index(), hub.unit_number, "uranos-deep",
+      { { kind = "item", name = "uranium-ore", count = 1000 } }, 77)
+    local count = arriving[1].count
+    local capsules = #freight.capsules(hub.unit_number)
+    local first = freight.capsules(hub.unit_number)[1].arrival
+    freight.on_unload_tick({ tick = first - 1 })
+    local early = chest.get_item_count("uranium-ore")
+    storage.freight.hubs[hub.unit_number] = nil
+    hub.destroy()
+    chest.destroy()
+    assert.is_true(ok)
+    assert.is_true(count < 1000 and count >= 1000 * (1 - terms.max_loss))
+    assert.are.equal(game.tick + freight.TIERS.capsule.delay_ticks + terms.delay_ticks
+      + (capsules - 1) * freight.TIERS.capsule.launch_interval_ticks, arrival)
+    assert.are.equal(0, early)
+    assert.are.equal(game.tick + freight.TIERS.capsule.delay_ticks + terms.delay_ticks, first)
+    assert.are.same({ false, "unknown-planet" }, { planets.ship(force_index(), 1, "nowhere", {}, 1) })
   end)
 
   test("keeps reservations across a save and reload", function()

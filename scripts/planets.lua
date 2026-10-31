@@ -1,8 +1,10 @@
 -- NPC planets (#83, ADR-0018): the runtime side of scripts/core/planets.lua. The catalog, limited to
 -- the resources and crafting categories of the loaded game, is shared by all forces
 -- (storage.planets, rebuilt on configuration change); each force's reservations live in its state
--- (storage.forces[i].reservations).
+-- (storage.forces[i].reservations). Goods shipped from a planet travel by transit (#84).
 local core = require("scripts.core.planets")
+local freight = require("scripts.freight")
+local transit = require("scripts.core.transit")
 
 local planets = {}
 
@@ -49,6 +51,22 @@ function planets.reserve(force_index, planet_name, kind, name, slots, until_tick
   if not reservations then return nil, "no-force" end
   return core.reserve(storage.planets, reservations, planet_name, kind, name, slots, game.tick, until_tick,
     contract_id)
+end
+
+--- The transit terms from a planet: {delay_ticks, max_loss}, or nil when it is not in the catalog.
+function planets.transit_terms(planet_name)
+  local planet = core.find(storage.planets, planet_name)
+  return planet and transit.terms(planet.distance)
+end
+
+--- Ships goods from a planet to a hub of a force for contract `contract_id`, through freight: they
+--- land after the planet's transit delay, less a share lost on the way, drawn from the contract and
+--- the tick. Returns what `freight.ship` returns, or false and "unknown-planet".
+function planets.ship(force_index, hub_unit_number, planet_name, goods, contract_id)
+  local planet = core.find(storage.planets, planet_name)
+  if not planet then return false, "unknown-planet" end
+  local origin = { distance = planet.distance, seed = (contract_id or 0) * 7919 + game.tick }
+  return freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
 end
 
 --- Frees early the slots a force reserved for contract `contract_id`.
