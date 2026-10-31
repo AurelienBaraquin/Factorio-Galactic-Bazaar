@@ -1,9 +1,8 @@
 local account = require("scripts.core.account")
 
 local function new_account(balance)
-  local state = {}
+  local state = { balance = balance }
   account.init(state)
-  state.balance = balance or 0
   return state
 end
 
@@ -169,5 +168,48 @@ describe("account.charge_interest", function()
     account.charge_interest(state, 7200)
     assert.are.equal(1, #state.journal)
     assert.is_true(math.abs(state.balance + 1000 - state.journal[1].amount) < 1e-9)
+  end)
+end)
+
+describe("account.charge_interest over a period", function()
+  it("charges the period's lowest balance, so a debt repaid before the minute still pays", function()
+    local state = new_account(100)
+    account.apply(state, -5000, { tick = 10 })
+    account.apply(state, 5000, { tick = 20 })
+    local charged = account.charge_interest(state, 3600)
+    assert.is_true(math.abs(charged - 4900 * account.INTEREST_RATE) < 1e-9)
+    assert.are.equal(0, account.charge_interest(state, 7200))
+  end)
+
+  it("charges at most the limit's interest, so a dormant debt grows linearly and stays finite", function()
+    local limit = account.BASE_OVERDRAFT_LIMIT
+    local state = new_account(-1e6)
+    assert.are.equal(limit * account.INTEREST_RATE, account.charge_interest(state, 3600))
+    state = new_account(-limit)
+    local periods = 100000
+    for period = 1, periods do account.charge_interest(state, period * 3600) end
+    local expected = -limit - periods * limit * account.INTEREST_RATE
+    assert.is_true(math.abs(state.balance - expected) < 1e-3)
+  end)
+
+  it("skips interest below a hundredth of a credit", function()
+    local state = new_account(-0.5)
+    assert.are.equal(0, account.charge_interest(state, 3600))
+    assert.are.same({}, state.journal)
+  end)
+
+  it("gives a state saved before the overdraft its lowest balance", function()
+    local state = { balance = -20, journal = {} }
+    account.init(state)
+    assert.are.equal(-20, state.overdraft_low)
+  end)
+end)
+
+describe("account.merge of the lowest balances", function()
+  it("adds the two lowest balances of the period", function()
+    local destination, source = new_account(10), new_account(5)
+    destination.overdraft_low, source.overdraft_low = -40, -60
+    account.merge(destination, source)
+    assert.are.equal(-100, destination.overdraft_low)
   end)
 end)

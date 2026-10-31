@@ -19,8 +19,9 @@ circuit_orders.ORDER_TICKS = 600
 circuit_orders.PASS_TICKS = 60
 circuit_orders.SLOTS = circuit_orders.ORDER_TICKS / circuit_orders.PASS_TICKS
 circuit_orders.BUDGET_SIGNAL = "gb-budget"
--- The balance emitted by price combinators: an input carrying it is prices, not orders.
-circuit_orders.REFUSED_SIGNAL = "gb-credits"
+-- Signals emitted by price combinators (their balance, and the price feed marker they always emit,
+-- even when the balance is 0): an input carrying one is prices, not orders.
+circuit_orders.REFUSED_SIGNALS = { ["gb-credits"] = true, ["gb-price-feed"] = true }
 -- Ticks over which a force's recurring orders of one item share one journal entry per kind.
 circuit_orders.JOURNAL_MERGE_TICKS = 3600
 
@@ -124,7 +125,7 @@ local function place_orders(module, tick)
   local state = storage.forces[force_index]
   if not (hub and state) then return end
   local requests, budget, refused = orders.requests(entity.get_signals(W.circuit_red, W.circuit_green),
-    circuit_orders.BUDGET_SIGNAL, circuit_orders.REFUSED_SIGNAL)
+    circuit_orders.BUDGET_SIGNAL, circuit_orders.REFUSED_SIGNALS)
   if refused or budget <= 0 or #requests == 0 then return end
   local spent = spending(force_index, tick)
   for _, request in ipairs(requests) do

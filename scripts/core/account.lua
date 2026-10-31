@@ -5,19 +5,23 @@ local account = {}
 -- Journal entries kept per force; older ones are dropped.
 account.JOURNAL_SIZE = 100
 
--- Overdraft (ADR-0020): a force may spend down to -limit. Every INTEREST_TICKS, a negative balance
--- pays INTEREST_RATE of itself as interest, journaled as one entry per INTEREST_MERGE_TICKS.
+-- Overdraft (ADR-0020): a force may spend down to -limit. Every INTEREST_TICKS, a force whose
+-- balance went below zero in the period pays INTEREST_RATE of its deepest debt, counted up to the
+-- limit, journaled as one entry per INTEREST_MERGE_TICKS; interest under INTEREST_MIN is waived.
 account.BASE_OVERDRAFT_LIMIT = 10000
 account.INTEREST_TICKS = 3600
 account.INTEREST_RATE = 0.005
+account.INTEREST_MIN = 0.005
 account.INTEREST_MERGE_TICKS = 36000
 account.INTEREST_KIND = "overdraft-interest"
 
 --- Gives a force state its account fields if it lacks them (new force, or a save made before the
---- account existed).
+--- account or the overdraft existed). `overdraft_low` is the lowest balance since the last interest
+--- charge.
 function account.init(state)
   state.balance = state.balance or 0
   state.journal = state.journal or {}
+  state.overdraft_low = state.overdraft_low or state.balance
 end
 
 --- The overdraft limit of a force: how far below zero its balance may go by spending.
@@ -59,6 +63,7 @@ end
 -- Adds `amount` to the balance and records `entry`, without any check.
 local function record(state, amount, entry)
   local balance = state.balance + amount
+  state.overdraft_low = math.min(state.overdraft_low or state.balance, balance)
   local journal = state.journal
   local position = entry.merge_ticks and merge_target(journal, entry)
   state.balance = balance
@@ -92,20 +97,30 @@ function account.apply(state, amount, entry)
   return true
 end
 
---- Charges a force one period of interest on a negative balance at `tick`, even beyond the overdraft
---- limit (bankruptcy decides what happens there). Returns the credits charged (0 when none).
+--- Charges a force one period of interest at `tick`, on the lowest balance it had since the last
+--- charge (a debt repaid within the period still pays), the debt counted up to the overdraft limit so
+--- that a debt beyond it grows linearly, not without bound, until bankruptcy decides what happens
+--- there. The charge may take the balance beyond the limit. Starts the next period. Returns the
+--- credits charged (0 when none).
 function account.charge_interest(state, tick)
-  if state.balance >= 0 then return 0 end
-  local interest = -state.balance * account.INTEREST_RATE
+  local low = math.min(state.overdraft_low or state.balance, state.balance)
+  state.overdraft_low = state.balance
+  if low >= 0 then return 0 end
+  local interest = math.min(-low, account.overdraft_limit(state)) * account.INTEREST_RATE
+  if interest < account.INTEREST_MIN then return 0 end
   record(state, -interest, {
     tick = tick, kind = account.INTEREST_KIND, key = "account/overdraft", merge_ticks = account.INTEREST_MERGE_TICKS,
   })
+  state.overdraft_low = state.balance
   return interest
 end
 
---- Folds `source` into `destination` when two forces merge: balances add up, journals are joined
---- in tick order and trimmed to the newest entries.
+--- Folds `source` into `destination` when two forces merge: balances add up, and so do the lowest
+--- balances of the period (each debt still pays its interest); journals are joined in tick order and
+--- trimmed to the newest entries.
 function account.merge(destination, source)
+  destination.overdraft_low = (destination.overdraft_low or destination.balance)
+    + (source.overdraft_low or source.balance)
   destination.balance = destination.balance + source.balance
   local journal = destination.journal
   for _, entry in ipairs(source.journal) do journal[#journal + 1] = entry end

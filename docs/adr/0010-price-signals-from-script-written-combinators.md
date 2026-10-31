@@ -30,6 +30,9 @@ only; electricity has no signal. A force's prices are snapshot every 10 s, quote
 snapshot's version changes only when a price changed. A combinator has two script-owned sections:
 the prices, rewritten with a full `filters` write when the version changed (at most one such write
 per pass, up to ten combinators visited per pass), and the balance, one slot set live at each visit.
+Amended by [ADR-0020](0020-overdraft-and-debit-interest.md): that section also always carries the
+**Price feed** marker (`gb-price-feed`, value 1), since a balance of 0 (a new force, or one on
+overdraft back at zero) emits no Credits signal; the balance itself may be negative.
 Combinators are not operable by players, foreign sections are replaced, and they stay silent without
 a powered hub of their force in range (ADR-0005).
 

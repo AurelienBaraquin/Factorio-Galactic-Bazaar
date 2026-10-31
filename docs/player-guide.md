@@ -17,7 +17,8 @@ the last ones get new prices a little later: about 0.1 s per combinator.
 Your force may spend below zero: purchases, contract guarantees, lease deposits and charges, power
 imports and orders all go through as long as they keep the balance above minus the **overdraft
 limit** (10 000 credits). The market window shows the overdraft you have left next to the balance.
-While the balance is negative, it pays **0.5 % interest every minute**, even if that takes it past
+Each minute your balance went below zero, it pays **0.5 % interest** on the lowest it reached in
+that minute (counted up to the limit, so at most 50 credits a minute), even if that takes it past
 the limit; past the limit, nothing more can be bought until sales bring the balance back.
 
 ## Price signal combinators
@@ -31,7 +32,8 @@ opened, since the mod writes its signals.
 | Buy price combinator | for every tradeable item and fluid, the price to **buy** one unit now |
 | Sell price combinator | for every tradeable item and fluid, the price the market **pays** for one unit now |
 
-Both also emit your force's balance on the **Credits** virtual signal.
+Both also emit your force's balance on the **Credits** virtual signal, and 1 on the **Price feed**
+virtual signal (always, even when the balance is 0).
 
 ### Units
 
@@ -76,7 +78,7 @@ nothing.
   most your force spends through all its order combinators in 10 s (never more than your available
   funds: your balance plus what is left of your overdraft).
   Set it to 0 to pause buying. An order that does not fit in what is left is skipped.
-- **Never wire a price combinator to it**: an input carrying the **Credits** signal is refused,
+- **Never wire a price combinator to it**: an input carrying the **Credits** or **Price feed** signal is refused,
   since its item signals are prices, not orders.
 - A signal left on keeps buying every 10 s. The capsule queue (20 per hub) stops it when the import
   chests stay full; removing the hub sells the queued capsules back at the market price.

@@ -33,6 +33,7 @@ describe("power module", function()
       if entity.valid then entity.destroy() end
     end
     if saved_balance then player_state().balance = saved_balance end
+    player_state().overdraft_low = player_state().balance
     player_state().markets["energy/electricity"] = nil
     level_2().researched = false
   end)

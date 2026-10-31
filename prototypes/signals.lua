@@ -1,6 +1,7 @@
 -- Circuit combinators of the terminal: price signal combinators (ADR-0010), constant combinators
 -- whose signals the script writes (buy prices on one, sell prices on the other, plus the force's
--- balance on a signal of its own), and the order combinator (ADR-0011), which the script only reads.
+-- balance and a price feed marker on signals of their own), and the order combinator (ADR-0011),
+-- which the script only reads.
 local COMBINATORS = {
   { name = "gb-buy-price-combinator", tint = { 0.4, 1, 0.5, 1 }, order = "e[signals]-a[buy]" },
   { name = "gb-sell-price-combinator", tint = { 1, 0.6, 0.2, 1 }, order = "e[signals]-b[sell]" },
@@ -29,6 +30,13 @@ data:extend({
     icon_size = 64,
     subgroup = "virtual-signal",
     order = "z[galactic-bazaar]-b[budget]",
+  },
+  {
+    type = "virtual-signal",
+    name = "gb-price-feed",
+    icon = "__base__/graphics/icons/info.png",
+    subgroup = "virtual-signal",
+    order = "z[galactic-bazaar]-c[price-feed]",
   },
 })
 

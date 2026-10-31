@@ -2,7 +2,7 @@ local force_registry = require("scripts.core.force_registry")
 
 local function new_state()
   return {
-    balance = 0, journal = {}, markets = {}, reputation = 0, contracts = { open = {}, history = {} },
+    balance = 0, overdraft_low = 0, journal = {}, markets = {}, reputation = 0, contracts = { open = {}, history = {} },
     reservations = {},
   }
 end
@@ -59,6 +59,14 @@ describe("force_registry.merge", function()
     assert.are.equal(42, forces[1].balance)
   end)
 
+  it("adds up the lowest balances of the period, so each debt still pays its interest", function()
+    local forces = { [1] = new_state(), [2] = new_state() }
+    forces[1].balance, forces[1].overdraft_low = 10, -300
+    forces[2].balance, forces[2].overdraft_low = 32, -100
+    force_registry.merge(forces, 2, 1)
+    assert.are.equal(-400, forces[1].overdraft_low)
+  end)
+
   it("creates the destination state when it is missing", function()
     local forces = { [2] = new_state() }
     force_registry.merge(forces, 2, 1)
@@ -98,6 +106,7 @@ describe("force_registry.charge_interest", function()
     local forces = {}
     for _, index in ipairs({ 5, 1, 3 }) do force_registry.ensure(forces, index) end
     forces[5].balance, forces[1].balance, forces[3].balance = -100, -300, 50
+    forces[5].overdraft_low, forces[1].overdraft_low, forces[3].overdraft_low = -100, -300, 50
     local charged = force_registry.charge_interest(forces, 3600)
     assert.are.same({ 1, 5 }, charged)
     assert.is_true(forces[1].balance < -300 and forces[5].balance < -100)

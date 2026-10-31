@@ -61,6 +61,16 @@ describe("catalog.format_credits", function()
     assert.are.equal("100k", catalog.format_credits(99960))
     assert.are.equal("0.00", catalog.format_credits(0))
   end)
+
+  it("never shows a negative zero", function()
+    assert.are.equal("0.00", catalog.format_credits(-0.001))
+  end)
+
+  it("shows non-finite amounts without failing", function()
+    assert.are.equal("∞", catalog.format_credits(math.huge))
+    assert.are.equal("-∞", catalog.format_credits(-math.huge))
+    assert.are.equal("?", catalog.format_credits(0 / 0))
+  end)
 end)
 
 describe("catalog.parse_quantity", function()

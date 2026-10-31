@@ -1,12 +1,13 @@
 -- Price signal combinators (ADR-0010): constant combinators that emit, on the circuit network, the
--- buy or sell price of every tradeable item and fluid (normal quality) and the force's balance, each
--- through the nearest powered hub of its force in range (ADR-0005).
+-- buy or sell price of every tradeable item and fluid (normal quality), the force's balance and a
+-- price feed marker (1, always present, so that an order combinator can refuse prices even when the
+-- balance is 0), each through the nearest powered hub of its force in range (ADR-0005).
 --
 -- Prices are snapshot per force every telecommunications period (ADR-0012), quoted SNAPSHOT_CHUNK
 -- per pass so that no tick pays for all of them; a snapshot gets a new version only when a price
 -- changed. A combinator holds
 -- two sections the script owns: the prices (rewritten whole when the version changed, the costly
--- write) and the balance (one slot, read live at each visit). Every PASS_TICKS, up to VISITS
+-- write) and the balance and marker (two slots, the balance read live at each visit). Every PASS_TICKS, up to VISITS
 -- combinators are visited in turn, stopping after one price rewrite. State lives in
 -- storage.price_signals.
 local hubs = require("scripts.hubs")
@@ -24,6 +25,7 @@ price_signals.VISITS = 10
 -- Prices quoted per pass while a snapshot is being built.
 price_signals.SNAPSHOT_CHUNK = 40
 price_signals.BALANCE_SIGNAL = "gb-credits"
+price_signals.MARKER_SIGNAL = "gb-price-feed"
 
 local PRICES, BALANCE = 1, 2
 
@@ -231,6 +233,7 @@ local function update(module)
     else
       section.set_slot(1, filter("virtual", price_signals.BALANCE_SIGNAL, balance))
     end
+    section.set_slot(2, filter("virtual", price_signals.MARKER_SIGNAL, 1))
     module.written_balance = balance
   end
   if not behavior.enabled then behavior.enabled = true end

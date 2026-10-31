@@ -1,5 +1,6 @@
 -- In-game tests of purchase deliveries by orbital capsule (scripts/freight.lua): payment, landing
 -- after the delay, waiting for room, bounded queue, and settlement when the hub is removed.
+local account = require("scripts.core.account")
 local freight = require("scripts.freight")
 
 local surface, created
@@ -44,7 +45,24 @@ describe("orbital capsule", function()
     end
     if saved_balance then player_state().balance = saved_balance end
     if saved_reputation then player_state().reputation = saved_reputation end
+    player_state().overdraft_low = player_state().balance
     player_state().markets["item/" .. GEAR] = nil
+  end)
+
+  test("orders on overdraft, down to exactly the limit, fee included", function()
+    player_state().balance = 0
+    local cost, fee = freight.preview(game.forces.player.index, GEAR, 50)
+    assert.is_true(freight.order(game.forces.player.index, hub.unit_number, GEAR, 50))
+    assert.is_true(math.abs(player_state().balance + cost + fee) < 1e-6)
+    local floor = -account.overdraft_limit(player_state())
+    cost, fee = freight.preview(game.forces.player.index, GEAR, 50)
+    -- A micro-credit above the exact need: adding the limit back can lose the last bit of a float.
+    player_state().balance = floor + cost + fee + 1e-6
+    assert.is_true(freight.order(game.forces.player.index, hub.unit_number, GEAR, 50))
+    assert.is_true(player_state().balance >= floor)
+    assert.is_true(player_state().balance - floor < 1e-5)
+    assert.are.same({ false, "insufficient-funds" },
+      { freight.order(game.forces.player.index, hub.unit_number, GEAR, 50) })
   end)
 
   test("charges the market cost plus the freight fee, and journals both", function()

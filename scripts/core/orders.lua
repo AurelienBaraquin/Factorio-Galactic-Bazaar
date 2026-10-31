@@ -4,16 +4,16 @@
 -- or fluid signal asks to buy that many units. Nothing is bought without a positive budget signal: its value
 -- caps what the force spends through order combinators in the period (never more than its available
 -- funds, overdraft included).
--- An input that carries the balance signal emitted by price combinators is refused whole, since its
--- item signals are prices, not orders.
+-- An input that carries a signal emitted by price combinators (their balance, or the price feed
+-- marker they always emit) is refused whole, since its item signals are prices, not orders.
 local orders = {}
 
 --- The buy requests in `signals` (an array of {signal = {type, name, quality}, count}, as the game
 --- returns them): {kind, name, units} for each positive item signal of normal quality and each
 --- positive fluid signal, sorted by kind and name;
---- the value of the `budget_signal` virtual signal (0 when absent); and whether the
---- `refused_signal` virtual signal is present.
-function orders.requests(signals, budget_signal, refused_signal)
+--- the value of the `budget_signal` virtual signal (0 when absent); and whether a virtual signal
+--- named in `refused_signals` (a set of names) is present.
+function orders.requests(signals, budget_signal, refused_signals)
   local requests, budget, refused = {}, 0, false
   for _, entry in ipairs(signals or {}) do
     local signal = entry.signal
@@ -23,7 +23,7 @@ function orders.requests(signals, budget_signal, refused_signal)
       requests[#requests + 1] = { kind = kind, name = signal.name, units = entry.count }
     elseif signal.type == "virtual" and signal.name == budget_signal then
       budget = entry.count
-    elseif signal.type == "virtual" and signal.name == refused_signal then
+    elseif signal.type == "virtual" and refused_signals[signal.name] then
       refused = true
     end
   end

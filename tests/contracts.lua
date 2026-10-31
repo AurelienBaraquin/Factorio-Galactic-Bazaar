@@ -29,6 +29,7 @@ describe("contracts", function()
     local saved = storage.gb_test_contracts
     if saved then
       state().balance, state().reputation = saved.balance, saved.reputation
+      state().overdraft_low = state().balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       storage.gb_test_contracts = nil
@@ -49,6 +50,14 @@ describe("contracts", function()
     assert.are.equal(core.FULFILLED, state().contracts.history[#state().contracts.history].state)
   end)
 
+  test("accept from a zero balance, the guarantee going on overdraft", function()
+    state().balance = 0
+    local id = contracts.offer(force_index(), spec())
+    assert.is_true(contracts.accept(force_index(), id))
+    assert.are.equal(-300, state().balance)
+    assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
+  end)
+
   test("keep the reputation within its bounds", function()
     state().reputation = 20
     local id = contracts.offer(force_index(), spec())
@@ -67,13 +76,13 @@ describe("contracts", function()
     assert.are.equal(balance, state().balance)
   end)
 
-  test("fail a late contract: the guarantee is kept even if the force spent everything else", function()
+  test("fail a late contract: the guarantee is kept even if the force spent into its overdraft", function()
     local id = contracts.offer(force_index(), spec())
     contracts.accept(force_index(), id)
-    state().balance = 0
+    state().balance = -5000
     local reputation = state().reputation
     contracts.on_settle_tick({ tick = game.tick + 601 })
-    assert.are.equal(0, state().balance)
+    assert.are.equal(-5000, state().balance)
     assert.are.equal(reputation - 1, state().reputation)
     assert.is_nil(state().contracts.open[id])
     local journal = state().journal

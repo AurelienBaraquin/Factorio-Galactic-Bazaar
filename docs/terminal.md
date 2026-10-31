@@ -146,11 +146,11 @@ scaling in `scripts/core/signals.lua`; prototypes: `prototypes/signals.lua`.
 
 | | |
 |---|---|
-| Prototypes | copies of the constant combinator, tinted green (buy) and orange (sell); the virtual signal `gb-credits` |
+| Prototypes | copies of the constant combinator, tinted green (buy) and orange (sell); the virtual signals `gb-credits` and `gb-price-feed` |
 | Recipe | 1 constant combinator + 5 electronic circuits, 2 s |
 | Technology | `gb-market-signals` (after the Galactic Bazaar and circuit network; 100 × red and green) |
 | Hub | attached like the power substations: nearest hub of the force within `price_signals.HUB_RANGE` (10 tiles), re-checked at each visit; silent (`enabled = false`) without a powered one |
-| Signals | section 1: buy or sell price of every item in `storage.tradeable_items` and fluid in `storage.tradeable_fluids`, normal quality, in milli-credits; section 2: the balance on `gb-credits` in credits (negative on overdraft), read live at each visit (`signals.price`, `signals.balance`: rounded, clamped to int32, zero values left out) |
+| Signals | section 1: buy or sell price of every item in `storage.tradeable_items` and fluid in `storage.tradeable_fluids`, normal quality, in milli-credits; section 2: the balance on `gb-credits` in credits (negative on overdraft), read live at each visit, and the marker `gb-price-feed` = 1, always present so an order combinator can tell prices from orders even at a balance of 0 (`signals.price`, `signals.balance`: rounded, clamped to int32, zero values left out) |
 | Snapshot | per force, taken again when older than the force's telecommunications period (30 s, 10 s or 2 s, ADR-0012), quoting `SNAPSHOT_CHUNK` (40) keys per pass from the item and fluid lists captured when it started; combinators keep the last complete snapshot; its version changes only when a price changed. Reading every price keeps a market entry per key and force up to date (`storage.forces[i].markets`) |
 | Writing | every `PASS_TICKS` (6), up to `VISITS` (10) combinators are visited in turn, the pass stopping after one price rewrite (a whole `filters` write); the balance slot is set when it changed. Prices thus reach every combinator within 10 s plus 0.1 s per combinator to rewrite |
 | Integrity | players cannot open it (`operable = false`); a combinator is registered once; any section that is not one of the script's two plain sections (blueprint, pasted settings, another mod: a group, inactive, a multiplier) is replaced at the next visit; pasted settings force a rewrite |
@@ -169,7 +169,7 @@ parsing and budget in `scripts/core/orders.lua`; prototype in `prototypes/signal
 | Technology | `gb-market-orders` (after market signals; 150 × red and green) |
 | Hub | attached like the other modules (`circuit_orders.HUB_RANGE`, 10 tiles); orders only through a powered hub of its force |
 | Reading | every `circuit_orders.ORDER_TICKS` (600, 10 s), spread over `SLOTS` (10) passes of `PASS_TICKS` (60) by unit number: its red and green inputs, after removing any section or output put on it (a combinator that had to be silenced skips that reading); each positive normal-quality item signal and each positive fluid signal asks to buy that many units |
-| Budget | nothing is bought without a positive `gb-budget` signal; its value caps what the force spends through order combinators in the period (`storage.circuit_orders.spent`), within the available funds (balance plus overdraft); an input carrying `gb-credits` (a price combinator's balance) is refused whole |
+| Budget | nothing is bought without a positive `gb-budget` signal; its value caps what the force spends through order combinators in the period (`storage.circuit_orders.spent`), within the available funds (balance plus overdraft); an input carrying `gb-credits` or `gb-price-feed` (a price combinator's balance or marker) is refused whole |
 | Orders | fluids first, then items, each in name order, each placed with `freight.order` (capsule delivery, freight fee, refused when it exceeds what is left of the budget: `over-budget`); a full capsule queue stops the combinator's orders for the period |
 | Budget (UPS) | a pass with 50 combinators asking for 5 items each: 0.09 ms in vanilla, 0.13 ms with Space Age (2.1.24) — budget 0.2 ms |
 | Journal | `buy` and `freight` entries merged per item and minute (`circuit_orders.JOURNAL_MERGE_TICKS`) |

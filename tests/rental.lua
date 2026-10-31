@@ -54,6 +54,7 @@ describe("capacity rental", function()
     local saved = storage.gb_test_rental
     if saved then
       state().balance, state().reputation = saved.balance, saved.reputation
+      state().overdraft_low = state().balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       force().technologies[rental.TECHNOLOGY].researched = saved.researched
@@ -103,6 +104,14 @@ describe("capacity rental", function()
     local plates = machine.get_inventory(defines.inventory.crafter_input).get_item_count("iron-plate")
     assert.is_true(plates > 0 and plates <= 2 * 100)
     assert.are.equal(plates, module_of(machine).provided["iron-plate"])
+  end)
+
+  test("acceptance from a zero balance puts the guarantee on overdraft", function()
+    state().balance = 0
+    local id = rent(machine, 100)
+    assert.is_true(rental.accept(force().index, id))
+    assert.is_true(state().balance <= -150)
+    assert.are.equal(core.ACTIVE, contracts.get(force().index, id).state)
   end)
 
   test("never provides more ingredients than the contract", function()

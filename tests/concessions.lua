@@ -76,6 +76,7 @@ describe("mining concessions", function()
     local saved = storage.gb_test_concessions
     if saved then
       state().balance, state().reputation = saved.balance, saved.reputation
+      state().overdraft_low = state().balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       state().reservations = saved.reservations
@@ -133,6 +134,19 @@ describe("mining concessions", function()
     assert.are.equal(id, capsules[1].contract)
     assert.is_true(capsules[1].arrival > game.tick + freight.TIERS.capsule.delay_ticks)
     assert.is_true(math.abs(before - charge - state().balance) < 1e-6)
+  end)
+
+  test("a force with no credits leases on overdraft, and its charge is paid, not defaulted", function()
+    state().balance = 0
+    local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
+    assert.is_truthy(id)
+    local contract = contracts.get(force_index(), id)
+    assert.is_true(math.abs(state().balance + contract.deposit) < 1e-6)
+    local reputation = state().reputation
+    run_period(id)
+    assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
+    assert.is_true(math.abs(state().balance + contract.deposit + contract.charge) < 1e-6)
+    assert.are.equal(reputation, state().reputation)
   end)
 
   test("a period that cannot ship is not charged", function()
