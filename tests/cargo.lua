@@ -29,7 +29,7 @@ describe("cargo module", function()
     for _, entity in ipairs(created or {}) do
       if entity.valid then entity.destroy() end
     end
-    player_state().balance = saved_balance
+    if saved_balance then player_state().balance = saved_balance end
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
 

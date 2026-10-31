@@ -11,7 +11,9 @@
 -- already paid stay paid when it fails. A contract with a `charge` is a service the force pays for
 -- (ADR-0019): it requires no goods, the force pays the charge every installment period, and it is
 -- fulfilled when its term ends with every charge paid; a charge the force cannot pay, or an abandon,
--- defaults it (failed).
+-- defaults it (failed). A contract with an `advance` is a loan (ADR-0021): the advance is paid to the
+-- force at acceptance and its charge repays it, with interest, with no service; a default leaves the
+-- installments not paid owed as arrears, and the force repays a loan (`repay`) instead of abandoning it.
 local reputation = require("scripts.core.reputation")
 
 local contracts = {}
@@ -61,8 +63,8 @@ end
 
 --- A new offer from `spec` = {kind, counterparty, provides, requires, reward, deposit, penalty,
 --- duration_ticks, accept_ticks, installment_ticks (optional), charge (optional, needs
---- installment_ticks)}, offered at `tick`; nil and a reason when the spec is invalid. The goods
---- lists are copied.
+--- installment_ticks), advance (optional, needs a charge)}, offered at `tick`; nil and a reason when
+--- the spec is invalid. The goods lists are copied.
 function contracts.new(spec, tick)
   local provides, reason = copy_goods(spec.provides or {}, false)
   if not provides then return nil, reason end
@@ -76,6 +78,12 @@ function contracts.new(spec, tick)
     if spec.installment_ticks == nil then return nil, "a charge needs installments" end
   elseif #requires == 0 then
     return nil, "a contract requires goods"
+  end
+  if spec.advance ~= nil then
+    if not (check_credits(spec.advance) and spec.advance > 0) then
+      return nil, "advance must be positive, at most " .. contracts.MAX_CREDITS
+    end
+    if spec.charge == nil then return nil, "an advance needs a charge to repay it" end
   end
   for _, field in ipairs({ "reward", "deposit", "penalty" }) do
     if not check_credits(spec[field]) then return nil, field .. " must be from 0 to " .. contracts.MAX_CREDITS end
@@ -92,7 +100,7 @@ function contracts.new(spec, tick)
     reward = spec.reward, deposit = spec.deposit, penalty = spec.penalty,
     duration_ticks = spec.duration_ticks, offered_tick = tick, accept_by = tick + spec.accept_ticks,
     state = contracts.OFFERED, delivered = delivered,
-    installment_ticks = spec.installment_ticks, paid = 0, charge = spec.charge,
+    installment_ticks = spec.installment_ticks, paid = 0, charge = spec.charge, advance = spec.advance,
   }
 end
 
@@ -214,18 +222,44 @@ function contracts.installment(contract, tick)
   return earned
 end
 
---- Defaults an active contract at `tick` (a charge the force could not pay): it fails at once, the
---- guarantee kept. Returns the outcome, or nil when it is not active.
-function contracts.default(contract, tick)
+--- Periods an active contract with a charge still has to charge: those scheduled from its next
+--- installment up to its deadline, a whole number; 0 for any other contract.
+function contracts.periods_left(contract)
+  if contract.state ~= contracts.ACTIVE or not contract.charge or contract.next_installment > contract.due_tick then
+    return 0
+  end
+  return math.floor((contract.due_tick - contract.next_installment) / contract.installment_ticks) + 1
+end
+
+--- What an active contract with a charge still has to take: its periods left times the charge.
+function contracts.payoff(contract)
+  return contracts.periods_left(contract) * (contract.charge or 0)
+end
+
+--- Defaults an active contract at `tick` (a charge of `unpaid` credits the force could not pay): it
+--- fails at once, the guarantee kept. A loan's outcome also carries the `arrears` the force still
+--- owes: the unpaid charge and every one left. Returns the outcome, or nil when it is not active.
+function contracts.default(contract, tick, unpaid)
   if contract.state ~= contracts.ACTIVE then return nil end
+  local arrears = contract.advance and (unpaid or 0) + contracts.payoff(contract) or nil
   contract.state, contract.settled_tick = contracts.FAILED, tick
-  return { state = contracts.FAILED, credits = 0, reputation = -1 }
+  return { state = contracts.FAILED, credits = 0, reputation = -1, arrears = arrears }
+end
+
+--- Repays an active loan at `tick`, once the adapter has taken every charge left (`payoff`) from the
+--- force: it is fulfilled at once, its guarantee given back, without reputation. Returns the outcome,
+--- or nil when it is not an active loan.
+function contracts.repay(contract, tick)
+  if contract.state ~= contracts.ACTIVE or not contract.advance then return nil end
+  contract.state, contract.settled_tick = contracts.FULFILLED, tick
+  return { state = contracts.FULFILLED, credits = contracts.guarantee(contract), reputation = 0 }
 end
 
 --- Abandons an active contract at `tick`: it is settled at once, failed unless every required unit
---- was already delivered (then it is fulfilled); a contract with a charge defaults.
+--- was already delivered (then it is fulfilled); a contract with a charge defaults. A loan cannot be
+--- abandoned (nil): it is repaid.
 function contracts.abandon(contract, tick)
-  if contract.state ~= contracts.ACTIVE then return nil end
+  if contract.state ~= contracts.ACTIVE or contract.advance then return nil end
   if contract.charge then return contracts.default(contract, tick) end
   contract.due_tick = math.min(contract.due_tick, tick - 1)
   return contracts.settle(contract, tick)
@@ -233,9 +267,10 @@ end
 
 --- Voids an active contract at `tick` that can no longer be fulfilled through no fault of the force
 --- (its goods no longer exist): the outcome gives the whole guarantee back, without reputation.
---- Returns nil when it is not active.
+--- Returns nil when it is not active. A loan is never voided: it has no goods, and voiding it would
+--- cancel the debt the force still owes.
 function contracts.void(contract, tick)
-  if contract.state ~= contracts.ACTIVE then return nil end
+  if contract.state ~= contracts.ACTIVE or contract.advance then return nil end
   contract.state, contract.settled_tick = contracts.VOIDED, tick
   return { state = contracts.VOIDED, credits = contracts.guarantee(contract), reputation = 0 }
 end

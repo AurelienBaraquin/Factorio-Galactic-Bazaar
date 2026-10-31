@@ -161,10 +161,11 @@ describe("mining concessions", function()
   test("a force that cannot pay defaults, and the slot is released", function()
     local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore")
     state().balance = -account.overdraft_limit(state())
-    local reputation = state().reputation
+    local reputation, arrears = state().reputation, state().arrears
     run_period(id)
     assert.is_nil(contracts.get(force_index(), id))
     assert.are.equal(reputation - 1, state().reputation)
+    assert.are.equal(arrears, state().arrears)
     concessions.on_sweep_tick()
     assert.are.equal(2, planets.free(force_index(), "ferrum-prime", "resource", "copper-ore"))
     assert.is_nil(storage.concessions[id])
@@ -262,6 +263,15 @@ describe("mining concessions", function()
     local capsules = freight.capsules(hub.unit_number)
     assert.are.equal("iron-gear-wheel", capsules[1].name)
     assert.is_true(math.abs(before - contract.charge - state().balance) < 1e-6)
+  end)
+
+  test("a booking the force cannot pay defaults without leaving arrears", function()
+    local id = concessions.book(force_index(), hub.unit_number, "fabrica-nova", "crafting", "iron-gear-wheel")
+    state().balance = -account.overdraft_limit(state())
+    local arrears = state().arrears
+    run_period(id)
+    assert.is_nil(contracts.get(force_index(), id))
+    assert.are.equal(arrears, state().arrears)
   end)
 
   test("bookings are refused without a recipe, for a locked one or the wrong category", function()

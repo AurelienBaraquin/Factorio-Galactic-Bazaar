@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.26
+Date: 2026-10-31
+  Features:
+    - Loans: borrow 5 000, 20 000 or 100 000 credits from the Contracts window, repaid with interest in 12 installments over an hour; the rate (5% to 15%) and the debt allowed (25 000 to 150 000) follow reputation.
+    - A missed installment defaults the loan: reputation -1, and what is left stays owed as arrears; no new loan until they are paid.
+    - Repay on a loan's row pays every installment left at once; a loan cannot be abandoned.
+  Changes:
+    - Existing saves: each force gets its loan arrears (none) on load.
+    - Loan installments may take the balance into the overdraft, which then pays its interest.
+    - Borrowing is refused while the balance is beyond the overdraft limit.
+    - Arrears of a defaulted loan are collected from available funds, overdraft included.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.25
 Date: 2026-10-31
   Features:

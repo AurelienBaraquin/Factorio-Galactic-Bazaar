@@ -1,13 +1,17 @@
--- The contracts window (#76, #78): a force's offers and active contracts from counterparties
--- (incoming contracts and machine rentals), opened from the market window of a hub within reach.
--- Offers can be accepted (an incoming contract's ingredients are shipped to that hub) or declined;
--- active contracts show their progress and deadline and can be abandoned. Rows are built once and
--- updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency).
--- Interface state lives in storage.contracts_gui.
+-- The contracts window (#76, #78, #96): a force's offers and active contracts from counterparties
+-- (incoming contracts, machine rentals, leases and loans), opened from the market window of a hub
+-- within reach. Offers can be accepted (an incoming contract's ingredients are shipped to that hub) or
+-- declined; active contracts show their progress and deadline and can be abandoned, loans repaid. Its
+-- credit line shows the force's debt and borrows a principal tier. Rows are built once and updated in
+-- place, so a refresh never destroys a button a player is clicking (multiplayer latency). Interface
+-- state lives in storage.contracts_gui.
+local catalog = require("scripts.core.catalog")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local loans = require("scripts.loans")
+local loans_core = require("scripts.core.loans")
 local planets = require("scripts.planets")
 local rental = require("scripts.rental")
 
@@ -45,10 +49,43 @@ local function minutes(ticks)
   return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
+-- The credit line: the force's debt against its cap, arrears if any, and a button per principal tier
+-- with its terms, enabled when the force may borrow it.
+local function refresh_credit(player, elements)
+  local state = storage.forces[player.force_index]
+  local debt, cap = loans.debt(player.force_index)
+  local arrears = state.arrears or 0
+  elements.debt.caption = arrears > 0
+    and { "gb-loans.debt-arrears", catalog.format_credits(debt), catalog.format_credits(cap),
+      catalog.format_credits(arrears) }
+    or { "gb-loans.debt", catalog.format_credits(debt), catalog.format_credits(cap) }
+  for tier, offer in ipairs(loans.offers(player.force_index)) do
+    local button = elements.borrow[tier]
+    button.enabled = offer.refusal == nil
+    button.tooltip = { "", { "gb-loans.borrow-terms", string.format("%.4g", offer.rate * 100),
+      loans_core.TERM_TICKS / 3600, catalog.format_credits(offer.charge), loans_core.periods(),
+      loans_core.PERIOD_TICKS / 3600, catalog.format_credits(offer.charge * loans_core.periods()) },
+      offer.refusal and { "", "\n", { "gb-loans.refused-" .. offer.refusal } } or "" }
+  end
+end
+
+-- What a row shows of a loan, in place of goods and terms.
+local function refresh_loan_row(row, contract)
+  local minutes_per_period = contract.installment_ticks / 3600
+  row.who.caption = { "gb-loans.lender" }
+  row.who.tooltip = { "gb-contracts.kind-loan", minutes_per_period }
+  row.provides.caption = { "gb-loans.borrowed", catalog.format_credits(contract.advance) }
+  row.requires.caption = { "gb-loans.left", catalog.format_credits(core.payoff(contract)) }
+  row.terms.caption = { "gb-loans.installment", catalog.format_credits(contract.charge), minutes_per_period }
+  row.primary.caption = { "gb-loans.repay" }
+  row.primary.tooltip = { "gb-loans.repay-tooltip", catalog.format_credits(core.payoff(contract)) }
+end
+
 local function refresh(player, data)
   local elements = data.elements
   local list = contracts.listed(player.force_index)
   elements.reputation.caption = { "gb-contracts.reputation", storage.forces[player.force_index].reputation }
+  refresh_credit(player, elements)
   elements.empty.visible = #list == 0
   for i, row in ipairs(elements.rows) do
     local contract = list[i]
@@ -69,8 +106,10 @@ local function refresh(player, data)
         or { "gb-contracts.due-in", minutes(contract.due_tick - game.tick) }
       row.primary.caption = offered and { "gb-contracts.accept" } or { "gb-contracts.abandon" }
       row.primary.tags = { gb_action = offered and "contract-accept" or "contract-abandon", id = contract.id }
+      row.primary.tooltip = ""
       row.secondary.visible = offered
       row.secondary.tags = { gb_action = "contract-decline", id = contract.id }
+      if contract.kind == "loan" and not offered then refresh_loan_row(row, contract) end
     end
   end
 end
@@ -83,6 +122,13 @@ local function build(player)
   local head = body.add({ type = "flow", direction = "horizontal" })
   elements.reputation = head.add({ type = "label", style = "bold_label" })
   head.add({ type = "button", caption = { "gb-contracts.close" }, tags = { gb_action = "contract-close" } })
+  local credit = body.add({ type = "flow", direction = "horizontal" })
+  elements.debt = credit.add({ type = "label" })
+  elements.borrow = {}
+  for tier, principal in ipairs(loans_core.TIERS) do
+    elements.borrow[tier] = credit.add({ type = "button", caption = { "gb-loans.borrow",
+      catalog.format_credits(principal) }, tags = { gb_action = "loan-borrow", tier = tier } })
+  end
   elements.empty = body.add({ type = "label", caption = { "gb-contracts.none" } })
   local list = body.add({ type = "table", column_count = 7 })
   elements.rows = {}
@@ -121,12 +167,18 @@ actions["contract-close"] = function(player)
   contracts_gui.close(player.index)
 end
 
-actions["contract-accept"] = function(player, data, tags)
+-- Whether the window's hub still exists, is the player's force's and within reach (GUI events are
+-- player input); when not, the window closes and the player is told why.
+local function hub_usable(player, data)
   local hub = hubs.get(data.hub)
-  if not (hub and hub.force == player.force and player.can_reach_entity(hub)) then
-    contracts_gui.close(player.index)
-    return player.print({ "gb-contracts.hub-unavailable" })
-  end
+  if hub and hub.force == player.force and player.can_reach_entity(hub) then return true end
+  contracts_gui.close(player.index)
+  player.print({ "gb-contracts.hub-unavailable" })
+  return false
+end
+
+actions["contract-accept"] = function(player, data, tags)
+  if not hub_usable(player, data) then return end
   local contract = contracts.get(player.force_index, tags.id)
   local ok, reason
   if contract and contract.kind == "rental" then
@@ -141,8 +193,20 @@ actions["contract-decline"] = function(player, _, tags)
   contracts.decline(player.force_index, tags.id)
 end
 
-actions["contract-abandon"] = function(player, _, tags)
-  contracts.abandon(player.force_index, tags.id)
+actions["contract-abandon"] = function(player, data, tags)
+  local contract = contracts.get(player.force_index, tags.id)
+  if contract and contract.kind == "loan" and not hub_usable(player, data) then return end
+  local outcome, reason = contracts.abandon(player.force_index, tags.id)
+  if not outcome and reason then player.print({ "gb-loans.refused-" .. reason }) end
+end
+
+actions["loan-borrow"] = function(player, data, tags)
+  if not hub_usable(player, data) then return end
+  local id, reason = loans.borrow(player.force_index, tags.tier)
+  if not id then return player.print({ "gb-loans.refused-" .. reason }) end
+  local contract = contracts.get(player.force_index, id)
+  player.print({ "gb-loans.borrowed-message", catalog.format_credits(contract.advance),
+    catalog.format_credits(contract.charge), contract.installment_ticks / 3600, loans_core.periods() })
 end
 
 --- on_gui_click: runs the action of one of this window's buttons.

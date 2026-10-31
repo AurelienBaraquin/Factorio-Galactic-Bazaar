@@ -3,7 +3,9 @@
 -- (storage.contract_next_id), so references survive a force merge; money moves through the force's
 -- account, the reputation score is the force's (storage.forces[i].reputation). Every SETTLE_TICKS,
 -- open contracts whose time has come are settled. Goods are moved by the features that offer
--- contracts.
+-- contracts. A loan (ADR-0021) pays its advance at acceptance, is repaid by its charge with no
+-- service, leaves its unpaid installments as the force's arrears when it defaults, and is repaid in
+-- full instead of abandoned.
 local account = require("scripts.core.account")
 local core = require("scripts.core.contracts")
 local reputation = require("scripts.core.reputation")
@@ -13,7 +15,7 @@ local contracts = {}
 contracts.SETTLE_TICKS = 60
 -- Kinds of contracts offered to the force by counterparties, shown in the contracts window, and how
 -- many of them may be open at once (the window's rows).
-contracts.LISTED_KINDS = { incoming = true, rental = true, concession = true, outsourcing = true }
+contracts.LISTED_KINDS = { incoming = true, rental = true, concession = true, outsourcing = true, loan = true }
 contracts.MAX_LISTED = 8
 
 -- The state of a force that has a contract book, or nil.
@@ -74,12 +76,15 @@ function contracts.listed(force_index)
   return list
 end
 
---- Accepts an offer: the force puts up the guarantee (deposit plus penalty), or nothing changes.
---- Returns true, or false and a reason (see `can_accept`).
+--- Accepts an offer: the force puts up the guarantee (deposit plus penalty) and is paid a loan's
+--- advance, or nothing changes. Returns true, or false and a reason (see `can_accept`).
 function contracts.accept(force_index, id)
   local ok, reason = contracts.can_accept(force_index, id)
   if not ok then return false, reason end
-  move(storage.forces[force_index], -core.accept(contracts.get(force_index, id), game.tick), "contract-guarantee", id)
+  local state, contract = storage.forces[force_index], contracts.get(force_index, id)
+  local guarantee = core.accept(contract, game.tick)
+  if guarantee > 0 then move(state, -guarantee, "contract-guarantee", id) end
+  if contract.advance then move(state, contract.advance, "contract-advance", id) end
   return true
 end
 
@@ -100,19 +105,39 @@ function contracts.deliver(force_index, id, key, count)
 end
 
 -- Applies an outcome to the force: what it gets back through its account (a failure is journaled
--- too, with nothing back: the guarantee is kept) and its reputation; then files the contract away.
+-- too, with nothing back: the guarantee is kept), its reputation and a defaulted loan's arrears; then
+-- files the contract away.
 local function apply(state, id, outcome)
   if outcome.state ~= core.EXPIRED then move(state, outcome.credits, "contract-" .. outcome.state, id) end
   state.reputation = reputation.add(state.reputation, outcome.reputation)
+  if outcome.arrears then state.arrears = (state.arrears or 0) + outcome.arrears end
   core.close(state, id)
 end
 
---- Abandons an active contract: it is settled at once (failed unless already complete). Returns the
---- outcome, or nil.
+-- Repays an active loan: every installment left is taken first (`contract-repaid`), and the loan is
+-- settled only once that debit went through. Returns the outcome, or nil and maybe a reason.
+local function repay(state, id, contract)
+  if contract.state ~= core.ACTIVE then return nil end
+  local owed = core.payoff(contract)
+  if owed > 0 then
+    local ok, reason = account.apply(state, -owed,
+      { tick = game.tick, kind = "contract-repaid", key = "contract/" .. id })
+    if not ok then return nil, reason end
+  end
+  local outcome = core.repay(contract, game.tick)
+  apply(state, id, outcome)
+  return outcome
+end
+
+--- Abandons an active contract: it is settled at once (failed unless already complete). A loan is
+--- repaid instead: the force pays every installment left at once, or nothing changes when its
+--- available funds (overdraft included) cannot. Returns the outcome, or nil and maybe a reason
+--- (insufficient-funds).
 function contracts.abandon(force_index, id)
   local state = state_of(force_index)
   local contract = state and state.contracts.open[id]
   if not contract then return nil end
+  if contract.advance then return repay(state, id, contract) end
   local outcome = core.abandon(contract, game.tick)
   if outcome then apply(state, id, outcome) end
   return outcome
@@ -140,12 +165,12 @@ end
 
 -- Takes a period's charge. A period that cannot be delivered is skipped, uncharged; otherwise a
 -- force whose available funds (overdraft included) cannot pay defaults, and one that can is charged
--- only if the service delivered.
+-- only if the service delivered. A loan's installment needs no service.
 local function charge(force_index, state, id, contract, amount, tick)
   local service = services[contract.kind]
-  if not (service and service.can_serve(force_index, contract)) then return end
-  if account.available(state) < amount then return apply(state, id, core.default(contract, tick)) end
-  if service.serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
+  if not (contract.advance or (service and service.can_serve(force_index, contract))) then return end
+  if account.available(state) < amount then return apply(state, id, core.default(contract, tick, amount)) end
+  if contract.advance or service.serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
 end
 
 --- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, and pays or charges

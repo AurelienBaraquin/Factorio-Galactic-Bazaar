@@ -118,6 +118,28 @@ them with the **Contracts** button of the market window.
 - At most 8 contracts are open at a time, offers and active ones together.
 - An offer not accepted within 5 minutes expires; **Decline** removes it at once.
 
+## Loans
+
+The **Contracts** window has a credit line from the start: your debt, what your reputation allows,
+and one **Borrow** button per amount (5 000, 20 000, 100 000 credits); hover one to see its rate and
+installments, or why it is refused.
+
+- The amount is paid at once. You repay it with interest in **12 installments, one every 5 minutes**.
+  The rate is fixed when you borrow: 10 % over the hour at reputation 0, down to 5 % at 20, up to
+  15 % at −20.
+- Your **debt** (what your loans still have to repay, plus arrears) may not exceed 50 000 credits at
+  reputation 0, 150 000 at 20, 25 000 at −5 and below.
+- Installments are paid from your available funds, overdraft included: one can take your balance
+  below zero, which then pays the overdraft's interest. Your debt does not count the overdraft.
+- **Repay** on a loan's row pays every installment left at once, interest included; it is refused if
+  your available funds cannot cover it. A loan cannot be abandoned.
+- If your available funds cannot cover an installment, the loan **defaults**: reputation −1, and that
+  installment and every one left become **arrears**, taken at once from your available funds, down to
+  your overdraft limit: your balance drops into the overdraft (and pays its interest), and what does
+  not fit is taken from your income as it comes. No new loan until they are paid.
+- No loan either while your balance is beyond the overdraft limit.
+- Loans take rows of the Contracts window (8 at most, with your other contracts).
+
 ## Machine rental
 
 Researched with **Capacity rental** (after Contracts and Automation 2). Build **rental assemblers**

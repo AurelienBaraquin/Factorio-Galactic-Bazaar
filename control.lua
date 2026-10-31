@@ -7,6 +7,7 @@ local docking_bay = require("scripts.docking_bay")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local loans = require("scripts.loans")
 local manifold = require("scripts.manifold")
 local market_gui = require("scripts.market_gui")
 local circuit_orders = require("scripts.circuit_orders")
@@ -151,6 +152,7 @@ every(manifold.EXPORT_INTERVAL, manifold.on_export_tick)
 every(catapult.PASS_TICKS, catapult.on_pass_tick)
 every(contracts.SETTLE_TICKS, contracts.on_settle_tick)
 every(forces.INTEREST_TICKS, forces.on_interest_tick)
+every(loans.COLLECT_TICKS, loans.on_collect_tick)
 every(incoming.OFFER_TICKS, incoming.on_offer_tick)
 every(incoming.COLLECT_TICKS, incoming.on_collect_tick)
 every(rental.OFFER_TICKS, rental.on_offer_tick)
@@ -192,7 +194,8 @@ end)
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/overdraft", "tests/contracts", "tests/incoming_contracts", "tests/rental", "tests/planets",
+    { "tests/forces", "tests/overdraft", "tests/contracts", "tests/loans", "tests/incoming_contracts",
+      "tests/rental", "tests/planets",
       "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",

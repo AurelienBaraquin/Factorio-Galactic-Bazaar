@@ -17,6 +17,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | `feed` | table or nil | `[key] = {tick, buy, sell, history}`: the prices this force last saw for each key read through `telecom.quote`, quoted again when older than its telecommunications period; `history` is the market entry's own table (live, not a copy); created on first read, cleared whenever base values are rebuilt |
 | `contracts` | table | `{open = {[id] = contract}, history = {contract...}}`: the force's contract book, ids unique across all forces (`storage.contract_next_id`) ([contracts.md](contracts.md), ADR-0015) |
 | `reservations` | list | `{planet, kind, name, slots, until_tick, contract}...`: the force's reservations of NPC planet slots and the contract each backs, ended ones dropped when a reservation is made, those of specialties gone from the catalog dropped on configuration change; carried over on merge ([planets.md](planets.md), ADR-0018) |
+| `arrears` | number | credits a defaulted loan left owed, 0 to start (added on configuration change for saves made before loans): its unpaid installment and every one left; taken from the available funds every 60 ticks, down to the overdraft limit (what is left stays owed); while above 0 no loan is granted; added up on merge ([contracts.md](contracts.md), ADR-0021) |
 | `reputation` | number | the force's reputation score, from −20 to 20 (brought within them on configuration change for saves before 0.1.17): +1 per fulfilled contract, −1 per failed one; on merge only the source's debt follows ([contracts.md](contracts.md), ADR-0016) |
 | `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
 
@@ -39,8 +40,8 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
   reconciled on `on_configuration_changed` as a self-heal for missed events (missing states
   created, states of vanished forces dropped);
 - when forces merge (`on_forces_merging`), the source state is folded into the destination and
-  removed: balances add up, journals are joined in tick order and trimmed, the destination keeps
-  its own markets. A new field must
+  removed: balances and arrears add up, journals are joined in tick order and trimmed, the
+  destination keeps its own markets. A new field must
   define how two values combine, in `force_registry.merge`;
 - `force_registry.ensure` fills in any field a state lacks, so a save from an older version is
   upgraded on `on_configuration_changed` without a separate migration;

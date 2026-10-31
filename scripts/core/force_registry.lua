@@ -2,6 +2,7 @@
 -- `forces` keyed by force index, so it runs identically in the game and under busted.
 local account = require("scripts.core.account")
 local contracts = require("scripts.core.contracts")
+local loans = require("scripts.core.loans")
 local planets = require("scripts.core.planets")
 
 local force_registry = {}
@@ -16,6 +17,7 @@ function force_registry.ensure(forces, force_index)
   end
   account.init(state)
   contracts.init_book(state)
+  loans.init(state)
   planets.init(state)
   state.markets = state.markets or {}
   return state
@@ -40,7 +42,7 @@ end
 --- Each field added to the force state must define here how two values combine. Markets and feed:
 --- the destination keeps its own; the source's are dropped with it. Contracts: the source's open
 --- contracts carry on in the destination's book; only a reputation debt follows. Reservations of NPC
---- planet slots carry over with the contracts they back.
+--- planet slots carry over with the contracts they back. Loan arrears add up.
 function force_registry.merge(forces, source_index, destination_index)
   local destination = force_registry.ensure(forces, destination_index)
   local source = forces[source_index]
@@ -48,6 +50,7 @@ function force_registry.merge(forces, source_index, destination_index)
     account.init(source)
     account.merge(destination, source)
     contracts.merge_books(destination, source)
+    loans.merge(destination, source)
     planets.merge(destination, source)
   end
   forces[source_index] = nil
