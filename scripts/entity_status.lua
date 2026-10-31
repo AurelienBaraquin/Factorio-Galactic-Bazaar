@@ -32,7 +32,7 @@ local entity_status = {}
 entity_status.PASS_TICKS = 10
 entity_status.CYCLE_TICKS = 300
 entity_status.PASSES = entity_status.CYCLE_TICKS / entity_status.PASS_TICKS
-entity_status.MAX_VISITS = 12
+entity_status.MAX_VISITS = 8
 entity_status.MAX_COSTLY_READS = 2
 entity_status.ALERT_SPRITES = {
   [core.NO_HUB] = "utility/warning_icon",
@@ -72,12 +72,14 @@ local function hub_state(module)
   return hubs.has_power(hub) and "powered" or "unpowered"
 end
 
--- Each kind of building: where its modules live and how its status is read. `describe(module, hub,
+-- Each kind of building: where its modules live, the costly reads its status may make (see `cached`)
+-- and how its status is read. `describe(module, hub,
 -- tick, work)` returns a descriptor (nil: the game's own status); `hub` is the module's hub state
 -- (nil for a hub); `work` carries the cycle's costly reads (see `cached`).
 local KINDS = {
   {
     name = "hub",
+    costly = 1,
     modules = function() return storage.hubs end,
     describe = function(module, _, _, work)
       local unit_number = module.entity.unit_number
@@ -89,6 +91,7 @@ local KINDS = {
   },
   {
     name = "cargo",
+    costly = 0,
     modules = function() return storage.cargo.modules end,
     describe = function(module, hub)
       if module.kind == "export" then
@@ -100,6 +103,7 @@ local KINDS = {
   },
   {
     name = "manifold",
+    costly = 0,
     modules = function() return storage.manifold.modules end,
     describe = function(module, hub)
       local fluid = module.entity.get_fluid(1)
@@ -112,6 +116,7 @@ local KINDS = {
   },
   {
     name = "power",
+    costly = 0,
     modules = function() return storage.power.modules end,
     describe = function(module, hub)
       local settled = power.settlements()[module.entity.force_index]
@@ -123,6 +128,7 @@ local KINDS = {
   },
   {
     name = "price",
+    costly = 1,
     modules = function() return storage.price_signals.modules end,
     describe = function(module, hub, _, work)
       local force_index = module.entity.force_index
@@ -137,6 +143,7 @@ local KINDS = {
   },
   {
     name = "order",
+    costly = 0,
     modules = function() return storage.circuit_orders.modules end,
     describe = function(module, hub)
       return core.module(hub, true, core.order_combinator({ last = module.last }))
@@ -144,6 +151,7 @@ local KINDS = {
   },
   {
     name = "docking-bay",
+    costly = 2,
     modules = function() return storage.docking_bays.modules end,
     describe = function(module, hub, _, work)
       local attached = hub ~= "none"
@@ -156,6 +164,7 @@ local KINDS = {
   },
   {
     name = "teleporter",
+    costly = 0,
     modules = function() return storage.teleporters.modules end,
     describe = function(module, hub)
       local entity = module.entity
@@ -166,6 +175,7 @@ local KINDS = {
   },
   {
     name = "catapult",
+    costly = 0,
     modules = function() return storage.catapults.modules end,
     describe = function(module, hub)
       local capacitor = module.capacitor
@@ -180,6 +190,7 @@ local KINDS = {
   },
   {
     name = "contract-chest",
+    costly = 1,
     modules = function() return storage.incoming_contracts.chests end,
     describe = function(module, hub, _, work)
       local needs = cached(work, "needs", module.entity.force_index, incoming.needs)
@@ -188,6 +199,7 @@ local KINDS = {
   },
   {
     name = "rental",
+    costly = 0,
     modules = function() return storage.rentals.machines end,
     describe = function(module, hub)
       local contract = module.contract and contracts.get(module.entity.force_index, module.contract)
@@ -224,15 +236,27 @@ local function add(state, unit_number, kind_name)
   state.units[n], state.kinds[n], state.index[unit_number] = unit_number, kind_name, n
 end
 
+-- Swaps two positions of the list.
+local function swap(state, a, b)
+  if a == b then return end
+  local units, kinds = state.units, state.kinds
+  units[a], units[b], kinds[a], kinds[b] = units[b], units[a], kinds[b], kinds[a]
+  state.index[units[a]], state.index[units[b]] = a, b
+end
+
 -- Removes a building from the list in O(1) (the last one takes its place), with its status and alert.
+-- One already refreshed this cycle (before the cursor) first trades places with the last one
+-- refreshed, and the cursor steps back onto the entry that replaces it, so no building is skipped.
 local function remove(state, unit_number)
   local position = state.index[unit_number]
   if position then
-    local last = #state.units
-    if position ~= last then
-      local moved = state.units[last]
-      state.units[position], state.kinds[position], state.index[moved] = moved, state.kinds[last], position
+    if position < state.cursor then
+      swap(state, position, state.cursor - 1)
+      position = state.cursor - 1
+      state.cursor = position
     end
+    local last = #state.units
+    swap(state, position, last)
     state.units[last], state.kinds[last], state.index[unit_number] = nil, nil, nil
   end
   state.shown[unit_number] = nil
@@ -315,7 +339,9 @@ end
 --- on_init and on_configuration_changed, after every module's init: creates the state, lists every
 --- building again (registries may have dropped some) and has every status written again.
 function entity_status.init()
+  local existed = storage.entity_status and storage.entity_status.index
   local state = state_of()
+  if not existed then return end
   state.shown, state.pending, state.facts, state.cursor = {}, {}, {}, 1
   list_all(state)
 end
@@ -326,7 +352,6 @@ function entity_status.on_pass_tick(event)
   local state = state_of()
   local work = { facts = state.facts, costly = 0 }
   for _ = 1, core.visits(#state.units, entity_status.PASSES, entity_status.MAX_VISITS) do
-    if work.costly >= entity_status.MAX_COSTLY_READS then return end
     if state.cursor > #state.units then
       state.cursor, state.counts, state.pending, state.facts = 1, state.pending, {}, {}
       work.facts = state.facts
@@ -335,6 +360,8 @@ function entity_status.on_pass_tick(event)
     local unit_number = state.units[index]
     if not unit_number then return end
     local kind = KIND_BY_NAME[state.kinds[index]]
+    -- Each kind reserves the costly reads it may make, so that a pass never makes more than the cap.
+    if work.costly + kind.costly > entity_status.MAX_COSTLY_READS then return end
     local module = kind.modules()[unit_number]
     if module then
       state.cursor = index + 1

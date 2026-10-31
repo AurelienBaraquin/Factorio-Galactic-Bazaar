@@ -185,9 +185,10 @@ force merge and `on_object_destroyed`; invalid entries are dropped and the index
 
 ## `storage.catapults`
 
-`{modules = {[unit_number] = {entity, capacitor, hub, next_shot, order_index}}, order =
+`{modules = {[unit_number] = {entity, capacitor, hub, next_shot, order_index, held}}, order =
 {unit_number...}, cursor}` — every catapult, its hidden capacitor and the tick it may shoot again,
-in visiting order, and `held` (whether its last shot that could fire sold nothing, for its status) ([terminal.md](terminal.md)). Written by `scripts/catapult.lua` on build events,
+in visiting order; `held` (absent before its first shot attempt) says whether its last shot that
+could fire sold nothing, for its status ([terminal.md](terminal.md)). Written by `scripts/catapult.lua` on build events,
 hub build and removal, force merge, shots and `on_object_destroyed` (which also removes the
 capacitor). Invariants: `order` lists exactly the modules and `modules[order[i]].order_index == i`;
 invalid entries are dropped and missing capacitors replaced on `on_configuration_changed`.

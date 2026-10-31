@@ -15,7 +15,7 @@ read why under the icon. What each building says (sales held below their price f
 the way, an order combinator's last reading and budget left, a catapult's charge, what a contract
 chest still waits for...) is listed in [terminal.md](terminal.md#building-status); a rented machine
 keeps the game's own status, and its contract's progress is in the contracts window. Statuses
-refresh about every 5 seconds (longer with more than 360 buildings of the mod).
+refresh about every 5 seconds (longer with more than 240 buildings of the mod).
 
 ## Market feed
 

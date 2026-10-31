@@ -411,28 +411,40 @@ describe("building status", function()
     local cycle = storage.entity_status
     assert.is_true(#cycle.units >= 1000)
     local passes = math.ceil(#cycle.units / entity_status.MAX_VISITS)
+    -- A first cycle reads every hub once; the measured one is the steady state.
+    for _ = 1, passes do entity_status.on_pass_tick({ tick = game.tick }) end
     local profiler = helpers.create_profiler()
     for _ = 1, passes do entity_status.on_pass_tick({ tick = game.tick }) end
     profiler.stop()
     profiler.divide(passes)
-    -- The costliest passes: MAX_VISITS price combinators in a row (the dearest refresh without a costly
-    -- read), and a docking bay whose hub's tier and fuel are not read yet (the pass stops after it).
+    -- The costliest pass: MAX_VISITS - 1 price combinators in a row (the dearest refresh without a
+    -- costly read), then a docking bay whose hub's tier and fuel are not read yet (its two costly reads).
     local first = #cycle.units + 1
-    for i = 0, entity_status.MAX_VISITS - 1 do place("gb-sell-price-combinator", -46 + i, Y + 37) end
+    for i = 0, entity_status.MAX_VISITS - 2 do place("gb-sell-price-combinator", -46 + i, Y + 37) end
+    place("gb-docking-bay", -46 + entity_status.MAX_VISITS, Y + 37)
     cycle.cursor = first
     entity_status.on_pass_tick({ tick = game.tick })
     cycle.cursor = first
-    local light = helpers.create_profiler()
+    cycle.facts.tiers, cycle.facts.fueled = nil, nil
+    local worst = helpers.create_profiler()
     entity_status.on_pass_tick({ tick = game.tick })
-    light.stop()
-    cycle.facts = {}
-    cycle.cursor = storage.entity_status.index[next(storage.docking_bays.modules)]
-    local costly = helpers.create_profiler()
-    entity_status.on_pass_tick({ tick = game.tick })
-    costly.stop()
+    worst.stop()
+    assert.are.equal(first + entity_status.MAX_VISITS, cycle.cursor)
     log({ "", "[galactic-bazaar] status refresh pass (", entity_status.MAX_VISITS, " of ", #cycle.units,
-      " buildings): average ", profiler, "; ", entity_status.MAX_VISITS, " price combinators ", light,
-      "; a docking bay with its hub's costly reads ", costly })
+      " buildings): average ", profiler, "; costliest ", worst })
+  end)
+
+  test("a building removed before the cursor does not make the last one miss the cycle", function()
+    for i = 1, 4 do place("gb-import-chest", 2 + i) end
+    local cycle = storage.entity_status
+    local last = cycle.units[#cycle.units]
+    cycle.cursor, cycle.pending = #cycle.units, {}
+    entity_status.forget(cycle.units[1])
+    assert.are.equal(last, cycle.units[cycle.cursor])
+    entity_status.on_pass_tick({ tick = game.tick })
+    assert.is_true(storage.entity_status.shown[last] ~= nil)
+    local counted = (cycle.pending[hub.unit_number] or 0) + (cycle.counts[hub.unit_number] or 0)
+    assert.is_true(counted >= 1)
   end)
 
   test("keeps its alerts and refreshes across a save and reload", function()
