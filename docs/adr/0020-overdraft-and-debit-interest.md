@@ -64,5 +64,5 @@ order combinator refuses that too.
 - Trade-offs accepted: interest is charged per whole minute on the period's lowest balance, so a
   brief dip pays a full minute; a force beyond the limit has no further consequence until bankruptcy
   exists. The `gb-credits` signal and the window show a negative balance.
-- Follow-up: #96 (loans), #97 (bankruptcy, what happens beyond `-limit`), #98 (research raising the
+- Follow-up: #96 (loans, [ADR-0021](0021-loans.md)), #97 (bankruptcy, what happens beyond `-limit`), #98 (research raising the
   limit).

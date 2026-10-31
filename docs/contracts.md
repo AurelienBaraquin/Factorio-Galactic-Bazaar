@@ -15,7 +15,7 @@ trades are not contracts ([market.md](market.md)).
 | `reward`, `deposit`, `penalty` | credits, each from 0 to 10¹²: paid on fulfilment; the guarantee held on acceptance is deposit plus penalty |
 | `duration_ticks`, `accept_ticks` | time to fulfil once accepted; time the offer stands (both positive and finite) |
 | `charge` | optional credits the force pays every installment period: a service contract ([ADR-0019](adr/0019-service-contracts-with-a-charge.md)), whose `requires` may be empty |
-| `advance` | optional credits (needs a `charge`) paid to the force at acceptance: a loan, whose charge repays it with interest and needs no service ([ADR-0020](adr/0020-loans.md)) |
+| `advance` | optional credits (needs a `charge`) paid to the force at acceptance: a loan, whose charge repays it with interest and needs no service ([ADR-0021](adr/0021-loans.md)) |
 | `installment_ticks`, `paid`, `next_installment` | optional period at which the reward is paid in installments ([ADR-0017](adr/0017-capacity-rental-with-installments.md)); reward paid so far; tick of the next installment |
 | `state` | `offered`, `active`, `fulfilled`, `failed`, `expired`, `declined` or `voided` |
 | `delivered` | units handed over so far, per `kind/name` key |
@@ -105,7 +105,7 @@ the guarantee exceeds what can be taken.
 
 ## Loans
 
-A force borrows from the Galactic Credit Union (#96, [ADR-0020](adr/0020-loans.md)). Code:
+A force borrows from the Galactic Credit Union (#96, [ADR-0021](adr/0021-loans.md)). Code:
 `scripts/loans.lua` (runtime), `scripts/core/loans.lua` (terms and bounds, pure), the credit line of
 `scripts/contracts_gui.lua`.
 
@@ -116,9 +116,10 @@ A force borrows from the Galactic Credit Union (#96, [ADR-0020](adr/0020-loans.m
 | Terms | the principal (`advance`) is paid at acceptance; `TERM_TICKS` (60 min), `PERIOD_TICKS` (5 min): 12 installments of principal × (1 + rate) / 12; no deposit, penalty or reward |
 | Rate | over the term, fixed at borrowing: `BASE_RATE` (10 %) − `RATE_STEP` (0.25 %) × reputation, 5 % at 20, 15 % at −20 |
 | Debt cap | `DEBT_CAP` (50 000) × the reputation's contract scale: 25 000 from −5 down, 150 000 at 20; the debt is the principal active loans still have to repay, principal × whole installments left / 12, plus arrears (`loans.outstanding`); a loan that would take it above the cap is refused (`debt-cap`) |
-| Refusals | `debt-cap`; `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
-| Repay | the row's **Repay** button (`contracts.abandon`) pays every installment left at once, interest included; refused, changing nothing, when the balance cannot cover it |
-| Default | an installment the balance cannot cover fails the loan (−1 reputation); that installment and every one left become the force's `arrears`, taken every `loans.COLLECT_TICKS` (60) from whatever its balance holds (`loan-arrears`, journaled in one entry per minute) |
+| Refusals | `debt-cap` (the debt counts loans only, not the overdraft); `insufficient-funds` when the balance is beyond the overdraft limit (no available funds: `contracts.can_accept` refuses even a zero guarantee); `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
+| Repay | the row's **Repay** button (`contracts.abandon`) pays every installment left at once, interest included (`contract-repaid`), taken before the loan is settled; refused, changing nothing, when the available funds cannot cover it |
+| Installments | one the available funds can pay is paid, even into the overdraft (which then pays its debit interest) |
+| Default | an installment the available funds cannot cover fails the loan (−1 reputation); that installment and every one left become the force's `arrears`, taken every `loans.COLLECT_TICKS` (60) from what a positive balance holds, never from the overdraft (`loan-arrears`, journaled in one entry per minute) |
 | Force merge | open loans carry over with the contract book; arrears add up |
 
 ## Storage

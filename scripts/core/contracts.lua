@@ -11,7 +11,7 @@
 -- already paid stay paid when it fails. A contract with a `charge` is a service the force pays for
 -- (ADR-0019): it requires no goods, the force pays the charge every installment period, and it is
 -- fulfilled when its term ends with every charge paid; a charge the force cannot pay, or an abandon,
--- defaults it (failed). A contract with an `advance` is a loan (ADR-0020): the advance is paid to the
+-- defaults it (failed). A contract with an `advance` is a loan (ADR-0021): the advance is paid to the
 -- force at acceptance and its charge repays it, with interest, with no service; a default leaves the
 -- installments not paid owed as arrears, and the force repays a loan (`repay`) instead of abandoning it.
 local reputation = require("scripts.core.reputation")

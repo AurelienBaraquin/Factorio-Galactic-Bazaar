@@ -1,9 +1,10 @@
--- Loans (#96, ADR-0020). Pure Lua: the terms of a loan and the bounds on borrowing. A loan is a
+-- Loans (#96, ADR-0021). Pure Lua: the terms of a loan and the bounds on borrowing. A loan is a
 -- contract (core/contracts.lua) whose `advance`, the principal, is paid to the force at acceptance and
 -- whose charge repays principal plus interest in equal installments over the term. The interest rate
 -- falls as reputation rises; a cap on the debt, scaled like the contracts a force is offered, bounds
--- borrowing. A loan that defaults leaves what was not repaid owed as the force's `arrears`, taken from
--- its balance as it comes in; no loan is granted while arrears are owed.
+-- borrowing; it counts loans only, not the overdraft. A loan that defaults leaves what was not repaid
+-- owed as the force's `arrears`, taken from its positive balance as it comes in (never from the
+-- overdraft); no loan is granted while arrears are owed.
 local contracts = require("scripts.core.contracts")
 local reputation = require("scripts.core.reputation")
 

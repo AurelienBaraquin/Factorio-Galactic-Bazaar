@@ -3,7 +3,7 @@
 -- (storage.contract_next_id), so references survive a force merge; money moves through the force's
 -- account, the reputation score is the force's (storage.forces[i].reputation). Every SETTLE_TICKS,
 -- open contracts whose time has come are settled. Goods are moved by the features that offer
--- contracts. A loan (ADR-0020) pays its advance at acceptance, is repaid by its charge with no
+-- contracts. A loan (ADR-0021) pays its advance at acceptance, is repaid by its charge with no
 -- service, leaves its unpaid installments as the force's arrears when it defaults, and is repaid in
 -- full instead of abandoned.
 local account = require("scripts.core.account")
@@ -128,7 +128,8 @@ end
 
 --- Abandons an active contract: it is settled at once (failed unless already complete). A loan is
 --- repaid instead: the force pays every installment left at once, or nothing changes when its
---- balance cannot. Returns the outcome, or nil and maybe a reason (insufficient-funds).
+--- available funds (overdraft included) cannot. Returns the outcome, or nil and maybe a reason
+--- (insufficient-funds).
 function contracts.abandon(force_index, id)
   local state = state_of(force_index)
   local contract = state and state.contracts.open[id]

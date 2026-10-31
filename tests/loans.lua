@@ -1,6 +1,8 @@
--- In-game tests of loans (scripts/loans.lua, #96, ADR-0020): borrowing a tier, repayment over the
+-- In-game tests of loans (scripts/loans.lua, #96, ADR-0021): borrowing a tier, repayment over the
 -- term at the contract settlement, the rate and cap by reputation, repaying instead of abandoning,
--- default and arrears, force merge, the contracts window's credit line and persistence.
+-- default and arrears, the overdraft's part, force merge, the contracts window's credit line and
+-- persistence.
+local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
@@ -11,6 +13,8 @@ local loans_core = require("scripts.core.loans")
 local function force_index() return game.forces.player.index end
 local function state() return storage.forces[force_index()] end
 local function near(expected, actual) return math.abs(expected - actual) < 1e-6 end
+-- The balance at which a force has `available` funds left, overdraft included.
+local function funds(available) return available - account.overdraft_limit(state()) end
 
 -- Runs the contract settlement and the arrears collection at `tick`.
 local function settle(tick)
@@ -46,6 +50,7 @@ describe("loans", function()
       history = #state().contracts.history,
     }
     state().balance, state().reputation, state().arrears = 0, 0, 0
+    state().overdraft_low = 0
     state().contracts.open = {}
   end)
   after_each(function()
@@ -57,6 +62,7 @@ describe("loans", function()
     local saved = storage.gb_test_loans
     if saved then
       state().balance, state().reputation, state().arrears = saved.balance, saved.reputation, saved.arrears
+      state().overdraft_low = saved.balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       storage.gb_test_loans = nil
@@ -102,10 +108,10 @@ describe("loans", function()
 
   test("repay a loan in full instead of abandoning it, never for free", function()
     local id = loans.borrow(force_index(), 1)
-    state().balance = 1000
+    state().balance = funds(1000)
     assert.are.same({ nil, "insufficient-funds" }, { contracts.abandon(force_index(), id) })
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
-    assert.are.equal(1000, state().balance)
+    assert.are.equal(funds(1000), state().balance)
     state().balance = 6000
     assert.are.equal(core.FULFILLED, contracts.abandon(force_index(), id).state)
     assert.is_true(near(500, state().balance))
@@ -126,9 +132,10 @@ describe("loans", function()
   test("default a loan whose installment is not paid: what is left stays owed as arrears", function()
     local id = loans.borrow(force_index(), 1)
     local charge = contracts.get(force_index(), id).charge
-    state().balance = 0
+    state().balance = funds(charge - 1)
     settle(game.tick + loans_core.PERIOD_TICKS)
     assert.is_nil(contracts.get(force_index(), id))
+    assert.are.equal(funds(charge - 1), state().balance)
     assert.are.equal(core.FAILED, state().contracts.history[#state().contracts.history].state)
     assert.are.equal(-1, state().reputation)
     assert.is_true(near(charge * loans_core.periods(), state().arrears))
@@ -138,6 +145,31 @@ describe("loans", function()
     assert.are.equal(0, state().balance)
     assert.is_true(near(5500 - 1000, state().arrears))
     assert.are.equal("loan-arrears", state().journal[#state().journal].kind)
+  end)
+
+  test("pay an installment from the overdraft, and take arrears from a positive balance only", function()
+    local id = loans.borrow(force_index(), 1)
+    local charge = contracts.get(force_index(), id).charge
+    state().balance = 0
+    settle(game.tick + loans_core.PERIOD_TICKS)
+    assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
+    assert.is_true(near(-charge, state().balance))
+    state().arrears = 300
+    loans.on_collect_tick({ tick = game.tick })
+    assert.is_true(near(-charge, state().balance))
+    assert.are.equal(300, state().arrears)
+  end)
+
+  test("lend nothing to a force beyond its overdraft limit, and say so on the Borrow buttons", function()
+    state().balance = funds(-1)
+    for _, offer in ipairs(loans.offers(force_index())) do assert.are.equal("insufficient-funds", offer.refusal) end
+    assert.are.same({ nil, "insufficient-funds" }, { loans.borrow(force_index(), 1) })
+    assert.are.equal(funds(-1), state().balance)
+    local player = game.get_player(1)
+    contracts_gui.open(player, place_hub(3).unit_number)
+    assert.is_false(find(player.gui.screen.gb_contracts, "loan-borrow", "tier", 1).enabled)
+    state().balance = funds(0)
+    assert.is_truthy(loans.borrow(force_index(), 1))
   end)
 
   test("carry a merged force's loans and arrears over to the destination", function()

@@ -129,11 +129,14 @@ installments, or why it is refused.
   15 % at −20.
 - Your **debt** (what your loans still have to repay, plus arrears) may not exceed 50 000 credits at
   reputation 0, 150 000 at 20, 25 000 at −5 and below.
+- Installments are paid from your available funds, overdraft included: one can take your balance
+  below zero, which then pays the overdraft's interest. Your debt does not count the overdraft.
 - **Repay** on a loan's row pays every installment left at once, interest included; it is refused if
-  your balance cannot cover it. A loan cannot be abandoned.
-- If your balance cannot cover an installment, the loan **defaults**: reputation −1, and that
-  installment and every one left become **arrears**, taken from your balance as credits come in.
-  No new loan until they are paid.
+  your available funds cannot cover it. A loan cannot be abandoned.
+- If your available funds cannot cover an installment, the loan **defaults**: reputation −1, and that
+  installment and every one left become **arrears**, taken from your balance whenever it is above
+  zero (never from the overdraft). No new loan until they are paid.
+- No loan either while your balance is beyond the overdraft limit.
 - Loans take rows of the Contracts window (8 at most, with your other contracts).
 
 ## Machine rental
