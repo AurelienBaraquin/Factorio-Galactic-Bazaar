@@ -8,35 +8,29 @@
 -- their slots (concessions sweep), rented machines are released (rental service).
 local catalog = require("scripts.core.catalog")
 local core = require("scripts.core.insolvency")
+local notifications = require("scripts.notifications")
 local reputation = require("scripts.core.reputation")
 
 local insolvency = {}
 
 insolvency.CHECK_TICKS = core.CHECK_TICKS
 
-local WARNING = { r = 1, g = 0.4, b = 0.3 }
-local GOOD = { r = 0.4, g = 1, b = 0.4 }
-
--- What a force is told of an event, and in which colour.
-local function message(state, event)
+-- The parameters of what a force is told of an event (kinds of the same names, scripts/notifications.lua).
+local function params(state, event)
   if event.name == "insolvent" then
-    return { "gb-insolvency.insolvent", catalog.format_credits(core.recovery_balance(state)),
-      core.GRACE_TICKS / 3600 }, WARNING
+    return { catalog.format_credits(core.recovery_balance(state)), core.GRACE_TICKS / 3600 }
   elseif event.name == "bankrupt" then
-    return { "gb-insolvency.bankrupt", #event.contracts, catalog.format_credits(event.debt), reputation.MIN,
-      event.ban_ticks / 3600, string.format("%.4g", core.RESTRUCTURING_SURCHARGE * 100) }, WARNING
+    return { #event.contracts, catalog.format_credits(event.debt), reputation.MIN, event.ban_ticks / 3600,
+      string.format("%.4g", core.RESTRUCTURING_SURCHARGE * 100) }
   end
-  return { "gb-insolvency." .. event.name }, GOOD
+  return {}
 end
 
 --- on_nth_tick(CHECK_TICKS): checks every force and tells it what changed.
 function insolvency.on_check_tick(event)
   for _, reported in ipairs(core.check_all(storage.forces, event.tick)) do
-    local force = game.forces[reported.force_index]
-    if force then
-      local text, color = message(storage.forces[reported.force_index], reported.event)
-      force.print(text, { color = color })
-    end
+    local index = reported.force_index
+    notifications.notify(index, reported.event.name, params(storage.forces[index], reported.event))
   end
 end
 
