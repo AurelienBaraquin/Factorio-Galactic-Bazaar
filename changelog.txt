@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.24
+Date: 2026-10-31
+  Features:
+    - Outsourcing research branch: Planetary concessions (Planets window and mining concessions) and Outsourcing (crafting slot bookings).
+  Changes:
+    - Existing saves: the Planets window and new leases or bookings now need their research; leases and bookings already running continue and can still be abandoned from the Contracts window.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.23
 Date: 2026-10-31
   Features:

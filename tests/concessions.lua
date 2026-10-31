@@ -20,6 +20,7 @@ end
 
 local function force_index() return game.forces.player.index end
 local function recipe_of(name) return game.forces.player.recipes[name] end
+local function technology(name) return game.forces.player.technologies[name] end
 local function state() return storage.forces[force_index()] end
 
 local function find(element, action, resource)
@@ -47,7 +48,13 @@ describe("mining concessions", function()
     storage.gb_test_concessions = {
       balance = state().balance, reputation = state().reputation, history = #state().contracts.history,
       reservations = state().reservations,
+      researched = {
+        concession = technology(concessions.CONCESSION_TECHNOLOGY).researched,
+        outsourcing = technology(concessions.OUTSOURCING_TECHNOLOGY).researched,
+      },
     }
+    technology(concessions.CONCESSION_TECHNOLOGY).researched = true
+    technology(concessions.OUTSOURCING_TECHNOLOGY).researched = true
     state().balance = 1e6
     state().contracts.open = {}
     state().reservations = {}
@@ -71,10 +78,39 @@ describe("mining concessions", function()
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       state().reservations = saved.reservations
+      technology(concessions.CONCESSION_TECHNOLOGY).researched = saved.researched.concession
+      technology(concessions.OUTSOURCING_TECHNOLOGY).researched = saved.researched.outsourcing
       storage.gb_test_concessions = nil
     end
     state().contracts.open = {}
     storage.concessions = {}
+  end)
+
+  test("leasing and booking wait for their research, and the Planets button with them", function()
+    technology(concessions.CONCESSION_TECHNOLOGY).researched = false
+    technology(concessions.OUTSOURCING_TECHNOLOGY).researched = false
+    assert.are.same({ nil, "not-researched" },
+      { concessions.lease(force_index(), hub.unit_number, "carbo", "coal") })
+    market_gui.open(player, hub)
+    assert.is_false(find(player.gui.screen.gb_market, "planets").visible)
+    technology(concessions.CONCESSION_TECHNOLOGY).researched = true
+    assert.is_truthy(concessions.lease(force_index(), hub.unit_number, "carbo", "coal"))
+    assert.are.same({ nil, "not-researched" },
+      { concessions.book(force_index(), hub.unit_number, "fabrica-nova", "crafting", "iron-gear-wheel") })
+    market_gui.close(1)
+    market_gui.open(player, hub)
+    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+    local book
+    for _, row in ipairs(storage.planets_gui[1].elements.rows) do
+      if row.book then book = row.book end
+    end
+    assert.is_false(book.enabled)
+    assert.are.equal("gb-planets.book-locked", book.tooltip[1])
+    planets_gui.close(1)
+    technology(concessions.CONCESSION_TECHNOLOGY).researched = false
+    market_gui.open(player, hub)
+    market_gui.on_gui_click({ element = find(player.gui.screen.gb_market, "planets"), player_index = 1 })
+    assert.is_nil(player.gui.screen.gb_planets)
   end)
 
   test("a lease reserves a slot and holds one period's charge as guarantee", function()
@@ -178,6 +214,7 @@ describe("mining concessions", function()
   test("leases follow a merged force", function()
     local source = game.create_force("gb-test-concessions")
     storage.forces[source.index].balance = 1e6
+    source.technologies[concessions.CONCESSION_TECHNOLOGY].researched = true
     local id = concessions.lease(source.index, hub.unit_number, "carbo", "coal")
     game.merge_forces(source, "player")
     after_ticks(1, function()

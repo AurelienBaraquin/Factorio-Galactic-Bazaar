@@ -8,6 +8,7 @@ local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local concessions = require("scripts.concessions")
 local planets_gui = require("scripts.planets_gui")
 local reputation = require("scripts.core.reputation")
 local telecom = require("scripts.telecom")
@@ -68,6 +69,7 @@ local function refresh_status(player, data)
     string.format("%.4g", reputation.contract_scale(state.reputation) * 100) }
   local hub = usable_hub(player, data)
   elements.power.caption = hub and hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
+  elements.planets.visible = concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY)
   local tier = freight.tier(data.hub)
   elements.freight.caption = { "gb-gui.delivery", { "gb-gui.tier-" .. tier.name },
     freight.queued(data.hub, tier.name), tier.max_capsules }
@@ -206,7 +208,7 @@ local function build(player)
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })
   status.add({ type = "button", caption = { "gb-contracts.open" }, tags = { gb_action = "contracts" } })
-  status.add({ type = "button", caption = { "gb-planets.open" }, tags = { gb_action = "planets" } })
+  elements.planets = status.add({ type = "button", caption = { "gb-planets.open" }, tags = { gb_action = "planets" } })
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
   controls.add({ type = "label", caption = { "gb-gui.search" } })
@@ -283,6 +285,7 @@ function actions.contracts(player, data)
 end
 
 function actions.planets(player, data)
+  if not concessions.researched(player.force, concessions.CONCESSION_TECHNOLOGY) then return end
   planets_gui.open(player, data.hub)
 end
 

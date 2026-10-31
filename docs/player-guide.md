@@ -123,7 +123,8 @@ one is offered for rent in the **Contracts** window (hover the counterparty to s
 
 ## NPC planets
 
-The **Planets** button of the market window lists the planets of the galaxy: what each extracts or
+Researched with **Planetary concessions** (after Contracts), the **Planets** button of the market
+window lists the planets of the galaxy: what each extracts or
 crafts, how far it is, and how many of its slots are free for your force. Each force has its own
 slots, and its transit terms: how much longer goods from it take to land, and the most of a
 shipment that can be lost on the way (farther planets risk more). With Space Age, Vulcanus, Fulgora,
@@ -142,8 +143,9 @@ guarantee is lost and your reputation drops by 1. Each planet has only a few slo
 
 ### Outsourced production
 
-On a crafting row of the Planets window (smelting, assembly, chemistry…), pick one of your recipes
-and press **Book**. For 30 minutes the planet buys the ingredients, crafts the recipe as one machine
+Researched with **Outsourcing** (after Planetary concessions and chemical science). On a crafting
+row of the Planets window (smelting, assembly, chemistry…), pick one of your recipes and press
+**Book**. For 30 minutes the planet buys the ingredients, crafts the recipe as one machine
 of speed 1 would, and ships you the products every 5 minutes by transit, charged at 105 % of their base
 value (the market price without the freight fee) — otherwise the terms of a mining concession. The
 message printed when you book gives the amount, the charge and the guarantee. Only recipes you have unlocked, with a single sure product,

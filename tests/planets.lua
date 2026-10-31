@@ -7,6 +7,7 @@ local planets_gui = require("scripts.planets_gui")
 
 local function force_index() return game.forces.player.index end
 local function state() return storage.forces[force_index()] end
+local function concessions_research() return game.forces.player.technologies["gb-planetary-concessions"] end
 
 local function find(element, action)
   if element.tags.gb_action == action then return element end
@@ -19,6 +20,8 @@ end
 describe("NPC planets", function()
   before_each(function()
     storage.gb_test_reservations = state().reservations
+    storage.gb_test_planets_researched = concessions_research().researched
+    concessions_research().researched = true
     state().reservations = {}
   end)
   after_each(function()
@@ -27,6 +30,8 @@ describe("NPC planets", function()
     if storage.gb_test_reservations then
       state().reservations = storage.gb_test_reservations
       storage.gb_test_reservations = nil
+      concessions_research().researched = storage.gb_test_planets_researched
+      storage.gb_test_planets_researched = nil
     end
   end)
 
