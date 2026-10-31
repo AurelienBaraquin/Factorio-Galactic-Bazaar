@@ -40,13 +40,16 @@ so the destination may hold more slots than a specialty has until they end.
 ## Transit
 
 Goods a service ships from a planet to a hub (`planets.ship(force, hub, planet, goods, contract_id)`,
-#84) go through freight (`freight.ship` with an origin, [terminal.md](terminal.md)): orbital capsules
+#84) go through freight (`freight.ship` with an origin, `scripts/freight.lua`): orbital capsules
 with the capsule's schedule and queue bound, landing `transit.TICKS_PER_DISTANCE` (3 600 ticks, one
-minute) per distance unit later. Each good loses a share on the way, drawn in (0, max loss] where max
+minute) per distance unit later. Each good loses a share on the way, drawn in (0, max loss) where max
 loss = `LOSS_PER_DISTANCE` (2 %) × distance, at most `MAX_LOSS` (25 %); what arrives is rounded down
-to whole units, and a good entirely lost is not shipped. The draw is seeded by the contract id and
-the tick, so every peer computes the same loss. `planets.transit_terms(planet)` gives the delay and
-the max loss — the terms a service announces.
+to whole units, and a good entirely lost is not shipped (a shipment of one unit is always lost). Each
+good draws from the force's own state in `storage.planet_rng`, advanced at every draw, so every peer
+computes the same loss and the moment a force ships changes nothing. Counts must be positive whole
+numbers (`invalid-quantity`). `planets.transit_terms(planet)` gives the delay and the max loss — the
+terms a service announces; the loss actually drawn is known only once shipped. Transit capsules
+count in the hub's capsule queue bound while in flight, longer than a purchase's.
 
 | Planet | Extra delay | Max loss |
 |---|---|---|

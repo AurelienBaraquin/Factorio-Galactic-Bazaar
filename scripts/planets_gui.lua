@@ -2,6 +2,7 @@
 -- player's force, opened from the market window. Read-only; rows are built once on opening and
 -- updated in place. Interface state lives in storage.planets_gui.
 local planets = require("scripts.planets")
+local transit = require("scripts.core.transit")
 
 local planets_gui = {}
 
@@ -44,7 +45,7 @@ local function build(player)
     for _, specialty in ipairs(planet.specialties) do
       list.add({ type = "label", caption = { "?", { "gb-planets.name-" .. planet.name }, planet.name } })
       list.add({ type = "label", caption = { "gb-planets.distance", planet.distance } })
-      local terms = planets.transit_terms(planet.name)
+      local terms = transit.terms(planet.distance)
       list.add({ type = "label", caption = { "gb-planets.transit", string.format("%d", terms.delay_ticks / 60),
         string.format("%.4g", terms.max_loss * 100) } })
       list.add({ type = "label", caption = specialty_caption(specialty) })

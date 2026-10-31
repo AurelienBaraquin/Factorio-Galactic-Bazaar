@@ -195,6 +195,12 @@ leaves, changes force or is removed, and every window is closed on `on_configura
 to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
 `scripts/planets.lua` on `on_init` and `on_configuration_changed` only.
 
+## `storage.planet_rng`
+
+`storage.planet_rng[force_index]` — each force's random state for transit losses
+([planets.md](planets.md)), advanced at every draw, starting from its index. Written by
+`scripts/planets.lua`; the merged force's entry is dropped on `on_forces_merged`.
+
 ## `storage.planets_gui`
 
 `storage.planets_gui[player_index] = {elements}` — the planets window of a player who has it open,

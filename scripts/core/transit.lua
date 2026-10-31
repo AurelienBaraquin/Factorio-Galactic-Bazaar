@@ -1,9 +1,7 @@
 -- Transit from NPC planets (#84, ADR-0018). Pure Lua: goods shipped from a planet travel longer the
--- farther it is, and lose a share on the way, drawn from (0, max_loss] of the planet — the terms a
--- service announces before the force commits. The draw comes from a seed the caller derives from
--- game state (a contract id and a tick), so every peer computes the same loss.
-local random = require("scripts.core.random")
-
+-- farther it is, and lose a share on the way, drawn in (0, max_loss) of the planet — the maximum is
+-- what a service announces before the force commits. The caller supplies the draw from a state kept
+-- in storage, so every peer computes the same loss and no choice of timing changes it.
 local transit = {}
 
 -- Ticks of travel per distance unit, added to the capsule's landing delay.
@@ -21,10 +19,9 @@ function transit.terms(distance)
   }
 end
 
---- Share of a shipment from `distance` lost on the way, for `seed` (any number): from just above 0
---- to the planet's max_loss.
-function transit.loss_share(distance, seed)
-  local _, draw = random.next(random.seed(seed))
+--- Share of a shipment from `distance` lost on the way, for `draw` in (0, 1): between 0 and the
+--- planet's max_loss.
+function transit.loss_share(distance, draw)
   return transit.terms(distance).max_loss * draw
 end
 

@@ -10,13 +10,10 @@ describe("transit", function()
     assert.are.equal(transit.MAX_LOSS, transit.terms(1000).max_loss)
   end)
 
-  it("draws a loss within the terms, the same for the same seed", function()
-    for seed = 1, 50 do
-      local share = transit.loss_share(3, seed)
-      assert.is_true(share > 0 and share <= transit.terms(3).max_loss)
-      assert.are.equal(share, transit.loss_share(3, seed))
-    end
-    assert.are_not.equal(transit.loss_share(3, 1), transit.loss_share(3, 2))
+  it("scales a draw to the planet's maximum loss", function()
+    assert.are.near(0.03, transit.loss_share(3, 0.5), 1e-12)
+    assert.is_true(transit.loss_share(3, 0.999999) < transit.terms(3).max_loss)
+    assert.is_true(transit.loss_share(3, 1e-9) > 0)
   end)
 
   it("delivers whole units, rounded down", function()
