@@ -54,7 +54,7 @@ local function refresh(player, data)
     for _, cell in pairs(row) do cell.visible = contract ~= nil end
     if contract then
       local offered = contract.state == core.OFFERED
-      row.who.caption = contract.kind == "concession"
+      row.who.caption = (contract.kind == "concession" or contract.kind == "outsourcing")
         and { "?", { "gb-planets.name-" .. contract.counterparty }, contract.counterparty } or contract.counterparty
       row.who.tooltip = { "gb-contracts.kind-" .. contract.kind }
       row.provides.caption = goods_text(contract.provides)

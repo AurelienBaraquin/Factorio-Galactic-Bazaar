@@ -112,8 +112,8 @@ end
 
 local function valued(name) return storage.base_values["item/" .. name] ~= nil end
 
--- The single sure product of a recipe in a whole amount, or nil.
-local function sole_product(products)
+--- The single sure product of a recipe in a whole amount, with a base value, or nil.
+function incoming.sole_product(products)
   local product = #products == 1 and products[1]
   local amount = product and product.type == "item" and product.amount
   local sure = amount and amount >= 1 and amount % 1 == 0 and (product.probability or 1) == 1
@@ -138,7 +138,7 @@ function incoming.candidates(force, categories)
   local list = {}
   for name, recipe in pairs(force.recipes) do
     if recipe.enabled and not recipe.hidden and assembled(recipe.prototype, categories) then
-      local product = sole_product(recipe.products)
+      local product = incoming.sole_product(recipe.products)
       local ingredients = product and item_ingredients(recipe.ingredients)
       if ingredients then
         list[#list + 1] = {

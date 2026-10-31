@@ -197,8 +197,10 @@ to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
 
 ## `storage.concessions`
 
-`storage.concessions[contract_id] = {force_index, hub, planet, resource, slots}` — every mining
-concession whose contract may still be open ([planets.md](planets.md)). Written by
+`storage.concessions[contract_id] = {force_index, hub, planet, item, units}` — every mining
+concession or outsourcing booking whose contract may still be open, the item it ships and how many
+units a period ([planets.md](planets.md)); leases saved by 0.1.21 (`resource`, `slots`) are
+converted on configuration change. Written by
 `scripts/concessions.lua` on lease, force merge and sweep (every 60 ticks a lease whose contract is
 no longer active is removed and its slot released) and on configuration change.
 

@@ -32,6 +32,7 @@ local function refresh(player, data)
     local free = planets.free(player.force_index, row.planet, row.kind, row.name) or 0
     row.slots.caption = { "gb-planets.slots", free, row.total }
     if row.lease then row.lease.enabled = free > 0 end
+    if row.book then row.book.enabled = free > 0 end
   end
 end
 
@@ -72,7 +73,11 @@ local function build(player)
           tooltip = lease_tooltip(planet, specialty.name),
           tags = { gb_action = "planets-lease", planet = planet.name, resource = specialty.name } })
       else
-        list.add({ type = "empty-widget" })
+        local cell = list.add({ type = "flow", direction = "horizontal" })
+        row.recipe = cell.add({ type = "choose-elem-button", elem_type = "recipe",
+          tooltip = { "gb-planets.book-recipe" } })
+        row.book = cell.add({ type = "button", caption = { "gb-planets.book" }, tooltip = { "gb-planets.book-terms" },
+          tags = { gb_action = "planets-book", planet = planet.name, category = specialty.name } })
       end
       elements.rows[#elements.rows + 1] = row
     end
@@ -97,15 +102,22 @@ function planets_gui.close(player_index)
   storage.planets_gui[player_index] = nil
 end
 
--- Leases a slot from a lease button, at the window's hub, which must still be the player's force's
--- and within reach (GUI events are player input).
-local function lease(player, data, tags)
+-- Leases a slot from a lease or book button, at the window's hub, which must still be the player's
+-- force's and within reach (GUI events are player input). A book button books its row's recipe.
+local function lease(player, data, element)
   local hub = hubs.get(data.hub)
   if not (hub and hub.force == player.force and player.can_reach_entity(hub)) then
     planets_gui.close(player.index)
     return player.print({ "gb-planets.hub-unavailable" })
   end
-  local id, reason = concessions.lease(player.force_index, data.hub, tags.planet, tags.resource)
+  local tags = element.tags
+  local id, reason
+  if tags.gb_action == "planets-book" then
+    local recipe = element.parent.children[1].elem_value
+    id, reason = concessions.book(player.force_index, data.hub, tags.planet, tags.category, recipe)
+  else
+    id, reason = concessions.lease(player.force_index, data.hub, tags.planet, tags.resource)
+  end
   if id then
     player.print({ "gb-planets.leased", { "?", { "gb-planets.name-" .. tags.planet }, tags.planet } })
   else
@@ -114,7 +126,7 @@ local function lease(player, data, tags)
   refresh(player, data)
 end
 
---- on_gui_click: the close and lease buttons of this window.
+--- on_gui_click: the close, lease and book buttons of this window.
 function planets_gui.on_gui_click(event)
   local element = event.element
   if not (element and element.valid and element.get_mod() == script.mod_name) then return end
@@ -122,8 +134,8 @@ function planets_gui.on_gui_click(event)
   local data = storage.planets_gui[event.player_index]
   if action == "planets-close" then
     planets_gui.close(event.player_index)
-  elseif action == "planets-lease" and data and window_of(event.player_index) then
-    lease(game.get_player(event.player_index), data, element.tags)
+  elseif (action == "planets-lease" or action == "planets-book") and data and window_of(event.player_index) then
+    lease(game.get_player(event.player_index), data, element)
   end
 end
 
