@@ -22,6 +22,14 @@ rental.BUFFER_SECONDS = 4
 
 local function machines() return storage.rentals.machines end
 
+-- Unit numbers of every machine, in order.
+local function sorted_units()
+  local units = {}
+  for unit_number in pairs(machines()) do units[#units + 1] = unit_number end
+  table.sort(units)
+  return units
+end
+
 -- The machine module renting for contract `id`, or nil.
 local function machine_of(id)
   for _, module in pairs(machines()) do
@@ -40,7 +48,26 @@ local function release(module)
   end
 end
 
+-- Whether a machine can still craft `recipe_name` (a mod may have removed it or changed it).
+local function craftable(entity, recipe_name)
+  local recipe = prototypes.recipe[recipe_name]
+  if not recipe then return false end
+  for _, category in ipairs(recipe.categories) do
+    if entity.prototype.crafting_categories[category] then return true end
+  end
+  return false
+end
+
+-- Closes a machine to the player: no GUI, and no recipe set by a circuit network (a blueprint may
+-- carry that setting).
+local function close_to_player(entity)
+  entity.operable = false
+  local control = entity.get_control_behavior()
+  if control then control.circuit_set_recipe = false end
+end
+
 --- on_init and on_configuration_changed: creates the state, drops machines that no longer exist,
+--- withdraws rentals whose recipe the machine can no longer craft (the force is not at fault),
 --- re-attaches the others and keeps them closed to the player.
 function rental.init()
   storage.rentals = storage.rentals or { machines = {} }
@@ -49,8 +76,14 @@ function rental.init()
     if not module.entity.valid then gone[#gone + 1] = unit_number end
   end
   for _, unit_number in ipairs(gone) do machines()[unit_number] = nil end
-  for _, module in pairs(machines()) do
-    module.entity.operable = false
+  for _, unit_number in ipairs(sorted_units()) do
+    local module = machines()[unit_number]
+    if module.recipe and not craftable(module.entity, module.recipe) then
+      local force_index = module.entity.force_index
+      if not contracts.void(force_index, module.contract) then contracts.decline(force_index, module.contract) end
+      release(module)
+    end
+    close_to_player(module.entity)
     hubs.attach(module, rental.HUB_RANGE)
   end
 end
@@ -60,9 +93,10 @@ function rental.on_built(entity)
   if entity.name ~= rental.NAME then return false end
   if machines()[entity.unit_number] then return true end
   local module = { entity = entity }
-  entity.operable = false
-  -- A clone or a revived ghost may carry a recipe: the machine starts idle.
+  close_to_player(entity)
+  -- A clone or a revived ghost may carry a recipe or products: the machine starts idle and empty.
   entity.set_recipe(nil)
+  entity.get_output_inventory().clear()
   hubs.attach(module, rental.HUB_RANGE)
   machines()[entity.unit_number] = module
   script.register_on_object_destroyed(entity)
@@ -84,13 +118,32 @@ function rental.reattach()
   end
 end
 
---- Offers one machine for rent: a recipe it can craft, drawn from its force's state. Returns the
---- contract id, or nil.
+-- Whether the surface a machine stands on meets a recipe's surface conditions (Space Age).
+local function meets_conditions(surface, recipe_name)
+  for _, condition in ipairs(prototypes.recipe[recipe_name].surface_conditions or {}) do
+    local value = surface.get_property(condition.property)
+    if value < (condition.min or -math.huge) or value > (condition.max or math.huge) then return false end
+  end
+  return true
+end
+
+--- The recipes a machine could be rented for, sorted by name: those of its force an incoming
+--- contract could name, of its crafting categories, whose surface conditions its surface meets.
+function rental.candidates(entity)
+  local list = {}
+  for _, recipe in ipairs(incoming.candidates(entity.force, entity.prototype.crafting_categories)) do
+    if meets_conditions(entity.surface, recipe.name) then list[#list + 1] = recipe end
+  end
+  return list
+end
+
+--- Offers one machine for rent: a recipe it can craft where it stands, drawn from its force's state.
+--- Returns the contract id, or nil.
 function rental.make_offer(module)
   local entity = module.entity
   local force = entity.force
   local prototype = entity.prototype
-  local recipe = offers.pick(incoming.candidates(force, prototype.crafting_categories), incoming.draw(force.index))
+  local recipe = offers.pick(rental.candidates(entity), incoming.draw(force.index))
   if not recipe then return nil end
   local crafts = offers.rental_crafts(recipe.energy, prototype.get_crafting_speed(entity.quality))
   local spec = offers.rental(recipe, storage.base_values, incoming.draw(force.index), crafts)
@@ -131,6 +184,7 @@ function rental.accept(force_index, id)
   if not (module and module.entity.valid and module.entity.force_index == force_index) then
     return false, "machine-gone"
   end
+  if not (module.hub and hubs.get(module.hub)) then return false, "machine-no-hub" end
   local at_stake = contract.requires
   if incoming.market_value(force_index, contract.provides) > incoming.market_value(force_index, contract.requires) then
     at_stake = contract.provides
@@ -138,20 +192,21 @@ function rental.accept(force_index, id)
   local penalty = incoming.penalty_now(force_index, contract, at_stake)
   local ok, reason = contracts.can_accept(force_index, id, contract.deposit + penalty)
   if not ok then return false, reason end
-  module.entity.set_recipe(module.recipe)
   contract.penalty = penalty
-  return contracts.accept(force_index, id)
+  ok, reason = contracts.accept(force_index, id)
+  if ok then module.entity.set_recipe(module.recipe) end
+  return ok, reason
 end
 
--- Takes the machine's products for the contract; a product leaves the machine only for what the
--- contract took.
+-- Takes the machine's products for the contract. Every product leaves the machine, delivered or
+-- not: what it made beyond the contract (a productivity bonus) is the counterparty's too.
 local function collect(module, force_index, contract)
   local output = module.entity.get_output_inventory()
   for _, goods in ipairs(contract.requires) do
     local held = output.get_item_count({ name = goods.name, quality = "normal" })
     if held > 0 then
-      local taken = contracts.deliver(force_index, contract.id, core.key(goods), held)
-      if taken > 0 then output.remove({ name = goods.name, quality = "normal", count = taken }) end
+      contracts.deliver(force_index, contract.id, core.key(goods), held)
+      output.remove({ name = goods.name, quality = "normal", count = held })
     end
   end
 end
@@ -192,7 +247,7 @@ local function serve(module)
   if (recipe and recipe.name) ~= wanted then entity.set_recipe(wanted) end
   if not (rented and module.hub and hubs.get(module.hub)) then return end
   collect(module, force_index, contract)
-  provision(module, contract)
+  if not core.complete(contract) then provision(module, contract) end
 end
 
 --- on_nth_tick(SERVICE_TICKS): every machine is served.

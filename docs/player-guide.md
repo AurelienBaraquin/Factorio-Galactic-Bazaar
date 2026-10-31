@@ -116,5 +116,7 @@ one is offered for rent in the **Contracts** window (hover the counterparty to s
   ingredients arrive in it, a few crafts at a time; its products leave it as they come.
 - The rental lasts **30 minutes** and promises 80 % of what the machine makes at full speed: keep it
   powered and running. Rent is paid **every 5 minutes** for what it made.
+- **Do not put an output inserter next to it**: products it takes out never reach the
+  counterparty, and the contract falls short.
 - On time, you get the rest of the rent and the guarantee back, and +1 reputation. Short of the
   promise at the end, or if you remove the machine, the guarantee is lost (rent already paid stays).

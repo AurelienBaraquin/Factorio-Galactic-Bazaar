@@ -178,7 +178,7 @@ assembler, the hub it is attached to and, while offered or rented, the contract 
 crafts promised and the units of each ingredient put in it so far ([contracts.md](contracts.md)).
 Written by `scripts/rental.lua` on build events, hub build and removal, force merge,
 `on_object_destroyed`, offer and service ticks. Invariants: a machine has a recipe only while its
-contract is active; `provided[name]` never exceeds what the contract provides. Invalid machines are
+contract is active (up to one service pass after it ends); `provided[name]` never exceeds what the contract provides. Invalid machines are
 dropped on `on_configuration_changed`. Offers draw from `storage.incoming_contracts.rng`.
 
 ## `storage.contracts_gui`

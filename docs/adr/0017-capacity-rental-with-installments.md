@@ -37,8 +37,10 @@ force could take from the machine.
 
 ## Consequences
 
-- Positive: the machine cannot be used by the force while rented, without guarding a general
-  assembler; rent arrives during the rental; the contract model stays one model.
-- Trade-offs accepted: a single machine per contract (no groups); a machine is rented only as the
+- Positive: the machine cannot be set to the force's own recipes, without guarding a general
+  assembler (inserters, mining or a paste can still take what is in it, which leaves the contract
+  short and is covered by the guarantee); rent arrives during the rental; the contract model stays one model.
+- Trade-offs accepted: a single machine per contract (no groups); recipes are filtered by surface
+  conditions but not by heating, so a machine on a frozen surface may be offered work it cannot do; a machine is rented only as the
   dedicated building; the promised capacity is checked at the end, not per period.
 - Follow-up: groups of machines, and recipes with fluids, by a later ADR if needed.

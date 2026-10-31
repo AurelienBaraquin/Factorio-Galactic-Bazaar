@@ -74,9 +74,10 @@ end
 
 -- Machine rental (#78): a counterparty rents a machine for RENTAL_TICKS to craft one recipe, at
 -- CAPACITY_SHARE of the machine's nominal speed, and pays RENT_SHARE of the products' value in
--- installments every INSTALLMENT_TICKS. The products go straight to the counterparty, never to the
--- force, so the rent needs no cap by the value crafting adds; the guarantee exceeds what the force
--- could take from the machine (the products or the ingredients, whichever is worth more).
+-- installments every INSTALLMENT_TICKS. Only products the script takes from the machine count, so
+-- buying them on the market cannot fulfil a rental and the rent needs no cap by the value crafting
+-- adds; the guarantee exceeds what the force could take from the machine (the products or the
+-- ingredients, whichever is worth more).
 contract_offers.RENTAL_TICKS = 3600 * 30
 contract_offers.INSTALLMENT_TICKS = 3600 * 5
 contract_offers.CAPACITY_SHARE = 0.8

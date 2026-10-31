@@ -2,6 +2,7 @@
 -- acceptance, the machine working only for the counterparty, installments and release.
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
+local incoming = require("scripts.incoming_contracts")
 local rental = require("scripts.rental")
 
 local surface, created
@@ -133,16 +134,73 @@ describe("capacity rental", function()
     end)
   end)
 
+  test("a fulfilled rental pays the rest of the rent and the guarantee, and frees the machine", function()
+    local id = rent(machine, 10)
+    rental.accept(force().index, id)
+    local guarantee = core.guarantee(contracts.get(force().index, id))
+    local before = state().balance
+    machine.get_output_inventory().insert({ name = "iron-gear-wheel", count = 4 })
+    rental.on_service_tick()
+    contracts.get(force().index, id).next_installment = game.tick
+    contracts.on_settle_tick({ tick = game.tick })
+    assert.is_true(math.abs(state().balance - before - 120) < 1e-6)
+    machine.get_output_inventory().insert({ name = "iron-gear-wheel", count = 7 })
+    rental.on_service_tick()
+    assert.are.equal(0, machine.get_output_inventory().get_item_count("iron-gear-wheel"))
+    contracts.on_settle_tick({ tick = game.tick })
+    assert.is_true(math.abs(state().balance - before - 300 - guarantee) < 1e-6)
+    rental.on_service_tick()
+    assert.is_nil(module_of(machine).contract)
+    assert.is_nil(machine.get_recipe())
+  end)
+
   test("a machine whose contract ended is released, and a pasted recipe is undone", function()
     local id = rent(machine, 100)
     rental.accept(force().index, id)
-    machine.get_output_inventory().insert({ name = "iron-gear-wheel", count = 1 })
+    machine.get_output_inventory().insert({ name = "stone", count = 1 })
     contracts.abandon(force().index, id)
     rental.on_service_tick()
     assert.is_nil(module_of(machine).contract)
     assert.is_nil(machine.get_recipe())
+    assert.is_true(machine.get_output_inventory().is_empty())
     machine.set_recipe("iron-gear-wheel")
     rental.on_settings_pasted({ destination = machine })
+    assert.is_nil(machine.get_recipe())
+  end)
+
+  test("a rental whose recipe the machine can no longer craft is voided on configuration change", function()
+    local id = rent(machine, 10)
+    rental.accept(force().index, id)
+    local before = state().balance
+    local guarantee = core.guarantee(contracts.get(force().index, id))
+    module_of(machine).recipe = "gb-test-vanished"
+    rental.init()
+    assert.is_nil(contracts.get(force().index, id))
+    assert.is_true(math.abs(state().balance - before - guarantee) < 1e-6)
+    assert.is_nil(module_of(machine).contract)
+    assert.is_nil(machine.get_recipe())
+  end)
+
+  test("only recipes the machine can craft where it stands are offered", function()
+    local space = force().recipes["space-science-pack"]
+    local enabled = space and space.enabled
+    if space then space.enabled = true end
+    local names, unfiltered = {}, {}
+    for _, recipe in ipairs(rental.candidates(machine)) do names[recipe.name] = true end
+    for _, recipe in ipairs(incoming.candidates(force(), machine.prototype.crafting_categories)) do
+      unfiltered[recipe.name] = true
+    end
+    if space then space.enabled = enabled end
+    assert.is_true(names["iron-gear-wheel"])
+    -- With Space Age, the space science pack could be crafted by the machine, but not on Nauvis.
+    assert.are.equal(space ~= nil, unfiltered["space-science-pack"] == true)
+    assert.is_nil(names["space-science-pack"])
+  end)
+
+  test("acceptance is refused without a hub to serve the machine", function()
+    local id = rent(machine, 10)
+    module_of(machine).hub = nil
+    assert.are.same({ false, "machine-no-hub" }, { rental.accept(force().index, id) })
     assert.is_nil(machine.get_recipe())
   end)
 

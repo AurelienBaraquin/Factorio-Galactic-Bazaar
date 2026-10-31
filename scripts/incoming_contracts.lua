@@ -34,13 +34,15 @@ local function goods_exist(list)
   return true
 end
 
--- Withdraws the incoming contracts whose goods no longer exist: offers are declined, active
--- contracts voided with their guarantee back (the force is not at fault).
+-- Withdraws the contracts of the listed kinds (incoming and rental) whose goods no longer exist:
+-- offers are declined, active contracts voided with their guarantee back (the force is not at
+-- fault).
 local function withdraw_vanished()
   for force_index, state in pairs(storage.forces) do
     local ids = {}
     for id, contract in pairs(state.contracts and state.contracts.open or {}) do
-      if contract.kind == "incoming" and not (goods_exist(contract.provides) and goods_exist(contract.requires)) then
+      if contracts.LISTED_KINDS[contract.kind]
+        and not (goods_exist(contract.provides) and goods_exist(contract.requires)) then
         ids[#ids + 1] = id
       end
     end

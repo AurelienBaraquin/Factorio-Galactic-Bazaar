@@ -82,14 +82,17 @@ Code: `scripts/rental.lua` (runtime), `scripts/core/contract_offers.lua` (`renta
 | | |
 |---|---|
 | Unlock | the `gb-capacity-rental` technology (rental assembler) |
-| Offers | every `rental.OFFER_TICKS` (5 min), each idle rental assembler attached to a hub, of a force that researched it and has room in the contracts window, is offered, in unit number order; the recipe is drawn like an incoming contract's among those of the machine's crafting categories; the machine is reserved for that offer until it ends |
+| Offers | every `rental.OFFER_TICKS` (5 min), each idle rental assembler attached to a hub, of a force that researched it and has room in the contracts window, is offered, in unit number order; the recipe is drawn like an incoming contract's among those of the machine's crafting categories whose surface conditions (Space Age) the machine's surface meets; the machine is reserved for that offer until it ends |
 | Terms | `RENTAL_TICKS` (30 min); the products of `rental_crafts` crafts: `CAPACITY_SHARE` (0.8) of what the machine makes at its nominal speed in that time; reward (rent) = `RENT_SHARE` (0.3) × products' value, paid every `INSTALLMENT_TICKS` (5 min) for what was delivered; deposit = 0.2 and penalty = 1 × the products' or ingredients' base value, whichever is more |
-| Acceptance | from the contracts window: refused when the machine is gone (`machine-gone`); the penalty rises to the market value of the products or ingredients, whichever is more; the guarantee is held and the machine gets the recipe |
-| Service | every `SERVICE_TICKS` (60), through a hub of its force: the machine keeps the contract's recipe (a pasted or other recipe is undone; an idle machine has none), its normal-quality products are taken and delivered, and its ingredients topped up to `BUFFER_SECONDS` (4 s) of crafting, at least one craft, never beyond what the contract provides in all |
-| End | once the contract is settled, declined or expired, the machine is released: its recipe, ingredients and products go back to the counterparty. A machine removed during a rental cannot fulfil it: the contract fails at its deadline |
+| Acceptance | from the contracts window: refused when the machine is gone (`machine-gone`) or has no hub (`machine-no-hub`); the penalty rises to the market value of the products or ingredients, whichever is more; the guarantee is held, then the machine gets the recipe |
+| Service | every `SERVICE_TICKS` (60), through a hub of its force: the machine keeps the contract's recipe (a pasted or other recipe is undone; an idle machine has none), its normal-quality products are taken (all of them: a surplus, from a productivity bonus, is the counterparty's too) and delivered, and, until the contract is complete, its ingredients topped up to `BUFFER_SECONDS` (4 s) of crafting, at least one craft, never beyond what the contract provides in all |
+| End | once the contract is settled, declined or expired, the machine is released: its recipe, ingredients and products go back to the counterparty. A machine removed during a rental cannot fulfil it: the contract fails at its deadline. On configuration change, a rental whose recipe the machine can no longer craft (removed, or moved to another category) is withdrawn — declined if offered, voided with its guarantee back if active — and its machine released; one whose goods no longer exist is withdrawn like an incoming contract |
 
-The rent needs no cap by the value crafting adds, unlike an incoming contract's reward: the
-products go straight to the counterparty, so buying them on the market cannot fulfil the contract.
+The rent needs no cap by the value crafting adds, unlike an incoming contract's reward: only
+products the script takes from the machine count, so buying them on the market cannot fulfil the
+contract. The machine is closed to the player's GUI, but inserters, mining or a paste can still
+take from it what is in it between two services; any such taking leaves the contract short, and
+the guarantee exceeds what can be taken.
 
 ## Storage
 

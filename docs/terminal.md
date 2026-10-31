@@ -273,7 +273,7 @@ Code: `scripts/rental.lua`; prototypes: `prototypes/rental_assembler.lua`.
 
 | | |
 |---|---|
-| Prototypes | a copy of assembling machine 2, tinted teal; no module slots, beacons may change only its speed, consumption and pollution; not operable (the script sets it so on build and on configuration change) |
+| Prototypes | a copy of assembling machine 2, tinted teal; no module slots, beacons may change only its speed, consumption and pollution; not operable and its circuit recipe setting off (the script sets both on build and on configuration change) |
 | Recipe | 1 assembling machine 2, 10 electronic circuits |
 | Technology | `gb-capacity-rental` (after contracts and automation 2; 150 × red and green) |
 | Hub | attached like the other modules (`rental.HUB_RANGE`, 10 tiles); offered and served only through a hub of its force |
