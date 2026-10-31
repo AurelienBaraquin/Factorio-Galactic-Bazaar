@@ -13,7 +13,7 @@ local contracts = {}
 contracts.SETTLE_TICKS = 60
 -- Kinds of contracts offered to the force by counterparties, shown in the contracts window, and how
 -- many of them may be open at once (the window's rows).
-contracts.LISTED_KINDS = { incoming = true, rental = true }
+contracts.LISTED_KINDS = { incoming = true, rental = true, concession = true }
 contracts.MAX_LISTED = 8
 
 -- The state of a force that has a contract book, or nil.
@@ -128,10 +128,29 @@ function contracts.void(force_index, id)
   return outcome
 end
 
---- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, and pays the
---- installments due, in id order.
+-- What serves a period of each kind of contract that charges the force, registered at load:
+-- `can_serve(force_index, contract)` tells, without side effects, whether the period can be
+-- delivered; `serve(force_index, contract)` delivers it and returns whether it did.
+local services = {}
+
+--- Registers, at load (file scope), the service of contracts of `kind` that charge the force.
+function contracts.register_service(kind, can_serve, serve)
+  services[kind] = { can_serve = can_serve, serve = serve }
+end
+
+-- Takes a period's charge. A period that cannot be delivered is skipped, uncharged; otherwise a
+-- force that cannot pay defaults, and one that can is charged only if the service delivered.
+local function charge(force_index, state, id, contract, amount, tick)
+  local service = services[contract.kind]
+  if not (service and service.can_serve(force_index, contract)) then return end
+  if state.balance < amount then return apply(state, id, core.default(contract, tick)) end
+  if service.serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
+end
+
+--- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, and pays or charges
+--- the installments due, in id order.
 function contracts.on_settle_tick(event)
-  for _, state in pairs(storage.forces) do
+  for force_index, state in pairs(storage.forces) do
     if state.contracts then
       local ids = {}
       for id in pairs(state.contracts.open) do ids[#ids + 1] = id end
@@ -143,7 +162,11 @@ function contracts.on_settle_tick(event)
           apply(state, id, outcome)
         else
           local installment = core.installment(contract, event.tick)
-          if installment then move(state, installment, "contract-installment", id) end
+          if installment and installment > 0 then
+            move(state, installment, "contract-installment", id)
+          elseif installment then
+            charge(force_index, state, id, contract, -installment, event.tick)
+          end
         end
       end
     end

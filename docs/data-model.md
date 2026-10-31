@@ -94,7 +94,7 @@ re-attached on `on_configuration_changed`.
 ## `storage.freight`
 
 `{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract}...}}}}`
-— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), with `unit_cost` 0, nil for purchases) ([terminal.md](terminal.md), ADR-0006). Written by
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), nil for purchases; `unit_cost` is 0 for goods the force did not pay for, and for a concession's ore the charge per arriving unit, so that it is sold back like a purchase) ([terminal.md](terminal.md), ADR-0006). Written by
 `scripts/freight.lua`. Invariants: `capsules` is in ordering order (tiers land on their own schedules: every landed shipment is unloaded, none holds back another); `launches[tier]` is that tier's next free launch tick (`next_launch`, from before 0.1.10, is the capsule's) and holds at most
 `max_capsules` entries per tier; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
@@ -194,6 +194,13 @@ leaves, changes force or is removed, and every window is closed on `on_configura
 `{{name, distance, specialties = {{kind, name, slots}...}}...}` — the NPC planet catalog limited
 to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
 `scripts/planets.lua` on `on_init` and `on_configuration_changed` only.
+
+## `storage.concessions`
+
+`storage.concessions[contract_id] = {force_index, hub, planet, resource, slots}` — every mining
+concession whose contract may still be open ([planets.md](planets.md)). Written by
+`scripts/concessions.lua` on lease, force merge and sweep (every 60 ticks a lease whose contract is
+no longer active is removed and its slot released) and on configuration change.
 
 ## `storage.planet_rng`
 

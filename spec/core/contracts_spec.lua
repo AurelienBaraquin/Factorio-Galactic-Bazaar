@@ -99,6 +99,45 @@ describe("contract lifecycle", function()
     assert.is_nil(contracts.installment(contracts.new(spec(), 0), 1e9))
   end)
 
+  it("charges a service every period, and gives the guarantee back at the end of its term", function()
+    local contract = contracts.new(spec({ requires = {}, charge = 40, installment_ticks = 100, reward = 0 }), 0)
+    assert.is_truthy(contract)
+    contracts.accept(contract, 0)
+    assert.is_nil(contracts.installment(contract, 99))
+    assert.are.equal(-40, contracts.installment(contract, 100))
+    assert.is_nil(contracts.settle(contract, 3601))
+    while contracts.installment(contract, 3601) do end
+    assert.is_nil(contracts.settle(contract, 3600))
+    assert.are.same({ state = contracts.FULFILLED, credits = 300, reputation = 0 }, contracts.settle(contract, 3601))
+  end)
+
+  it("charges every period up to the deadline when settlement runs late", function()
+    local terms = { requires = {}, charge = 40, installment_ticks = 600, duration_ticks = 3600 }
+    local contract = contracts.new(spec(terms), 7)
+    contracts.accept(contract, 7)
+    local charges, outcome = 0, nil
+    for tick = 60, 7200, 60 do
+      outcome = contracts.settle(contract, tick)
+      if outcome then break end
+      if contracts.installment(contract, tick) then charges = charges + 1 end
+    end
+    assert.are.equal(6, charges)
+    assert.are.equal(contracts.FULFILLED, outcome.state)
+  end)
+
+  it("defaults a service on an unpaid charge or an abandon, and validates the charge", function()
+    local contract = contracts.new(spec({ requires = {}, charge = 40, installment_ticks = 100 }), 0)
+    contracts.accept(contract, 0)
+    assert.are.same({ state = contracts.FAILED, credits = 0, reputation = -1 }, contracts.default(contract, 50))
+    assert.is_nil(contracts.default(contract, 51))
+    local abandoned = contracts.new(spec({ requires = {}, charge = 40, installment_ticks = 100 }), 0)
+    contracts.accept(abandoned, 0)
+    assert.are.equal(contracts.FAILED, contracts.abandon(abandoned, 10).state)
+    assert.is_nil(contracts.new(spec({ requires = {}, charge = 40 }), 0))
+    assert.is_nil(contracts.new(spec({ requires = {}, charge = 0, installment_ticks = 100 }), 0))
+    assert.is_nil(contracts.new(spec({ requires = {} }), 0))
+  end)
+
   it("voids an active contract with its whole guarantee back and no reputation, and nothing else", function()
     local contract = active()
     assert.are.same({ state = contracts.VOIDED, credits = 300, reputation = 0 }, contracts.void(contract, 10))

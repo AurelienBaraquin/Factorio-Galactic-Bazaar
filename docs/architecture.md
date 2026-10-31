@@ -74,6 +74,9 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).
 - **Planets**: on init and configuration change, `planets.init` limits the NPC planet catalog to the
   loaded game; every `planets_gui.REFRESH_TICKS`, open planets windows refresh ([planets.md](planets.md)).
+- **Concessions**: their periods run in the contract settlement (the registered service ships the
+  ore, then the charge is taken); every `concessions.SWEEP_TICKS`, ended leases release their slot
+  ([planets.md](planets.md)).
 - **Machine rental**: every `rental.OFFER_TICKS`, idle rental assemblers are offered; every
   `rental.SERVICE_TICKS`, rented ones are served and released ones cleared; a settings paste onto
   one is undone at once ([contracts.md](contracts.md)).

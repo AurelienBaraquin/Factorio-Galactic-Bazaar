@@ -14,6 +14,7 @@ trades are not contracts ([market.md](market.md)).
 | `requires` | goods the force must hand over (at least one, each `kind/name@quality` key once) |
 | `reward`, `deposit`, `penalty` | credits, each from 0 to 10¹²: paid on fulfilment; the guarantee held on acceptance is deposit plus penalty |
 | `duration_ticks`, `accept_ticks` | time to fulfil once accepted; time the offer stands (both positive and finite) |
+| `charge` | optional credits the force pays every installment period: a service contract ([ADR-0019](adr/0019-service-contracts-with-a-charge.md)), whose `requires` may be empty |
 | `installment_ticks`, `paid`, `next_installment` | optional period at which the reward is paid in installments ([ADR-0017](adr/0017-capacity-rental-with-installments.md)); reward paid so far; tick of the next installment |
 | `state` | `offered`, `active`, `fulfilled`, `failed`, `expired`, `declined` or `voided` |
 | `delivered` | units handed over so far, per `kind/name` key |
@@ -28,6 +29,9 @@ trades are not contracts ([market.md](market.md)).
 | offered | `contracts.decline(force, id)` | declined | — | — |
 | active | `contracts.deliver(force, id, key, count)`, until the deadline | active | — | — |
 | active | every `installment_ticks`, at the next settlement | active | + reward × share of required units delivered − `paid` (`contract-installment`) | — |
+| active (service) | every `installment_ticks` on its schedule from acceptance, up to the deadline: a period the service of its kind cannot deliver is skipped; otherwise the service delivers it, then the charge is taken; a period not delivered is not charged | active | − charge (`contract-charge`) | — |
+| active (service) | a charge the balance cannot cover, or `contracts.abandon` | failed | nothing back: the guarantee is kept | −1 |
+| active (service) | its term ended (`due_tick` passed) and its last period charged | fulfilled | + deposit + penalty (`contract-fulfilled`) | — |
 | active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward − `paid` + deposit + penalty (`contract-fulfilled`) | +1 |
 | active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept, installments paid stay paid (`contract-failed`, amount 0) | −1 |
 | offered | offer window passed | expired | — | — |
@@ -60,7 +64,7 @@ also lists machine rentals; each row's counterparty tooltip names the kind).
 | | |
 |---|---|
 | Unlock | the `gb-contracts` technology, which also unlocks the contract chest ([terminal.md](terminal.md)) |
-| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`) open, offered or active (the rows of the contracts window), gets one; the recipe and counterparty are drawn from the force's own deterministic random state |
+| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists concessions) open, offered or active (the rows of the contracts window), gets one; the recipe and counterparty are drawn from the force's own deterministic random state |
 | Recipes | enabled, not hidden, made in an assembling machine (`crafting` or `advanced-crafting`), item ingredients only and one sure item product in a whole amount (no range, probability or extra fraction), every good with a base value, products worth more than ingredients; sorted by name before the draw |
 | Batch | enough crafts for the products to be worth `TARGET_VALUE` (1 000) credits × the force's contract scale (see Reputation), from 1 to `MAX_BATCH` (1 000) |
 | Terms | reward = the value crafting adds (products' minus ingredients' base value), at most `LABOR_SHARE` (0.3) × products' value, so buying the products and selling the ingredients does not pay at base prices; deposit = `DEPOSIT_SHARE` (0.2) and penalty = `PENALTY_SHARE` (1) × ingredients' base value; at acceptance the penalty rises to what the ingredients would sell for on the force's market then, if more, so the guarantee always exceeds what the force receives; time = recipe time × batch × `TIME_FACTOR` (4) + `MARGIN_TICKS` (5 min); the offer stands `ACCEPT_TICKS` (5 min) |

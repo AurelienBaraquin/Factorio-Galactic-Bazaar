@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.21
+Date: 2026-10-31
+  Features:
+    - Mining concessions: lease a planet's ore slot from the Planets window; it ships ore to your hub every 5 minutes for 30 minutes, charged per shipment.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.20
 Date: 2026-10-31
   Features:

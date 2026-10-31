@@ -215,13 +215,15 @@ end
 
 --- Ships goods a contract's counterparty provides (ADR-0015) to a hub, free for the force, by
 --- orbital capsule (the counterparty's own transport): `goods` = {{kind, name, count}...}. With
---- `origin` = {distance, shares}, the goods come from an NPC planet (#84): they land later and each
---- good loses `shares[index]` of its units on the way (scripts/core/transit.lua). Either every good
---- is queued or none is. Returns true, the landing tick of the last capsule (or, when every unit was
---- lost, the tick it would have landed) and the goods that will arrive ({{kind, name, count}...}, a
---- good entirely lost left out); or false and a reason (no-import-chest, no-import-manifold,
---- queue-full, not-tradeable, invalid-quantity). Such capsules
---- are never sold back: the goods were the counterparty's.
+--- `origin` = {distance, shares, unit_costs}, the goods come from an NPC planet (#84): they land later
+--- and each good loses `shares[index]` of its units on the way (scripts/core/transit.lua); a good the
+--- force paid for (a concession, #85) carries `unit_costs[index]`, the price paid per arriving unit,
+--- and is sold back like a purchase if it can never land. Either every good is queued or none is.
+--- Returns true, the landing tick of the last capsule (or, when every unit was lost, the tick it
+--- would have landed) and the goods that will arrive ({{kind, name, count}...}, a good entirely lost
+--- left out); or false and a reason (no-import-chest, no-import-manifold, queue-full, not-tradeable,
+--- invalid-quantity). Capsules of goods the force did not pay for are never sold back: the goods
+--- were the counterparty's.
 function freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
   local tier = core.TIERS[core.DEFAULT_TIER]
   local existing = storage.freight.hubs[hub_unit_number]
@@ -246,7 +248,9 @@ function freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
     end
     for _, capsule in ipairs(capsules) do
       capsule.arrival = capsule.arrival + extra_delay
-      capsule.force_index, capsule.kind, capsule.name, capsule.unit_cost = force_index, entry.kind, entry.name, 0
+      local unit_cost = origin and origin.unit_costs and origin.unit_costs[index] or 0
+      capsule.force_index, capsule.kind, capsule.name = force_index, entry.kind, entry.name
+      capsule.unit_cost = unit_cost
       capsule.tier, capsule.contract = tier.name, contract_id
       planned[#planned + 1] = capsule
     end
@@ -321,7 +325,7 @@ function freight.on_hub_removed(hub_unit_number)
   if not queue then return end
   storage.freight.hubs[hub_unit_number] = nil
   for _, capsule in ipairs(queue.capsules) do
-    if not capsule.contract then
+    if not capsule.contract or capsule.unit_cost > 0 then
       local sold = market.sell(capsule.force_index, capsule.kind or "item", capsule.name, capsule.count)
       if not sold then refund(capsule) end
     end
@@ -339,13 +343,13 @@ function freight.on_forces_merging(event)
 end
 
 -- Refunds and drops capsules of items or fluids that no longer exist (a mod was removed): they
--- cannot land. A contract's capsules were not paid for: they are dropped (the contract is voided).
+-- cannot land. Capsules the force did not pay for (a contract's, unit cost 0) are dropped.
 local function drop_unknown_cargo(queue)
   local kept = {}
   for _, capsule in ipairs(queue.capsules) do
     if CARGO[capsule.kind or "item"].stack_size(capsule.name) then
       kept[#kept + 1] = capsule
-    elseif not capsule.contract then
+    elseif capsule.unit_cost > 0 then
       refund(capsule)
     end
   end
