@@ -72,6 +72,45 @@ function contract_offers.offer(recipe, values, draw, scale)
   }
 end
 
+-- Machine rental (#78): a counterparty rents a machine for RENTAL_TICKS to craft one recipe, at
+-- CAPACITY_SHARE of the machine's nominal speed, and pays RENT_SHARE of the products' value in
+-- installments every INSTALLMENT_TICKS. The products go straight to the counterparty, never to the
+-- force, so the rent needs no cap by the value crafting adds; the guarantee exceeds what the force
+-- could take from the machine (the products or the ingredients, whichever is worth more).
+contract_offers.RENTAL_TICKS = 3600 * 30
+contract_offers.INSTALLMENT_TICKS = 3600 * 5
+contract_offers.CAPACITY_SHARE = 0.8
+contract_offers.RENT_SHARE = 0.3
+
+--- Crafts a rental promises: CAPACITY_SHARE of what a machine of crafting speed `speed` makes in
+--- RENTAL_TICKS of a recipe taking `energy` seconds; 0 when it cannot make one.
+function contract_offers.rental_crafts(energy, speed)
+  if not (energy > 0 and speed > 0) then return 0 end
+  return math.floor(contract_offers.CAPACITY_SHARE * speed * contract_offers.RENTAL_TICKS / (energy * 60))
+end
+
+--- A rental contract spec for `crafts` crafts of `recipe` (as in `offer`), with base `values` by
+--- key and the counterparty picked by `draw`; nil when a good has no value or no craft is promised.
+function contract_offers.rental(recipe, values, draw, crafts)
+  local product_value = value_of(recipe.products, values)
+  local ingredient_value = value_of(recipe.ingredients, values)
+  if not (product_value and ingredient_value) or product_value <= 0 or crafts < 1 then return nil end
+  local at_stake = math.max(product_value, ingredient_value) * crafts
+  local counterparties = contract_offers.COUNTERPARTIES
+  return {
+    kind = "rental",
+    counterparty = counterparties[math.min(#counterparties, math.floor(draw * #counterparties) + 1)],
+    provides = scaled(recipe.ingredients, crafts),
+    requires = scaled(recipe.products, crafts),
+    reward = contract_offers.RENT_SHARE * product_value * crafts,
+    deposit = contract_offers.DEPOSIT_SHARE * at_stake,
+    penalty = contract_offers.PENALTY_SHARE * at_stake,
+    duration_ticks = contract_offers.RENTAL_TICKS,
+    accept_ticks = contract_offers.ACCEPT_TICKS,
+    installment_ticks = contract_offers.INSTALLMENT_TICKS,
+  }
+end
+
 --- The recipe of `candidates` (a sorted list) that `draw` (a number in (0, 1)) picks.
 function contract_offers.pick(candidates, draw)
   if #candidates == 0 then return nil end

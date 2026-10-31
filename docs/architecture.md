@@ -55,7 +55,7 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   exist, re-attaches the others) and `freight.init` (settles the queues of hubs that no longer
   exist).
 - **Building events**: `control.lua` routes every way an entity can appear (filtered to the mod's
-  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, `manifold.on_built` for a fluid manifold, `docking_bay.on_built` for a docking bay, `teleporter.on_built` for a teleporter, `catapult.on_built` for a catapult, `incoming.on_built` for a contract chest, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
+  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, `manifold.on_built` for a fluid manifold, `docking_bay.on_built` for a docking bay, `teleporter.on_built` for a teleporter, `catapult.on_built` for a catapult, `incoming.on_built` for a contract chest, `rental.on_built` for a rental assembler, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
@@ -72,6 +72,9 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Incoming contracts**: every `incoming.OFFER_TICKS`, forces that researched contracts get an
   offer; every `incoming.COLLECT_TICKS`, contract chests hand over what active contracts need; every
   `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).
+- **Machine rental**: every `rental.OFFER_TICKS`, idle rental assemblers are offered; every
+  `rental.SERVICE_TICKS`, rented ones are served and released ones cleared; a settings paste onto
+  one is undone at once ([contracts.md](contracts.md)).
 - **Power**: every `power.SETTLE_TICKS`, each force's export substations are sold and its import
   substations refilled through the market ([terminal.md](terminal.md)).
 - **Delivery**: a purchase is paid and queued in capsules (`freight.order`); every

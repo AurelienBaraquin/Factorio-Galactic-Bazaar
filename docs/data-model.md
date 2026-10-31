@@ -171,6 +171,16 @@ and the hub it is attached to, and each force's random state for drawing offers
 build and removal, force merge, `on_object_destroyed` and offer ticks. Invalid chests are dropped
 on `on_configuration_changed`. A force's random state starts from its index.
 
+## `storage.rentals`
+
+`{machines = {[unit_number] = {entity, hub, contract, recipe, crafts, provided}}}` — every rental
+assembler, the hub it is attached to and, while offered or rented, the contract id, its recipe, the
+crafts promised and the units of each ingredient put in it so far ([contracts.md](contracts.md)).
+Written by `scripts/rental.lua` on build events, hub build and removal, force merge,
+`on_object_destroyed`, offer and service ticks. Invariants: a machine has a recipe only while its
+contract is active; `provided[name]` never exceeds what the contract provides. Invalid machines are
+dropped on `on_configuration_changed`. Offers draw from `storage.incoming_contracts.rng`.
+
 ## `storage.contracts_gui`
 
 `storage.contracts_gui[player_index] = {hub, elements}` — the contracts window of a player who has

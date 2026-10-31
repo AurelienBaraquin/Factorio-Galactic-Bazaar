@@ -15,6 +15,7 @@ local contracts_gui = require("scripts.contracts_gui")
 local power = require("scripts.power")
 local teleporter = require("scripts.teleporter")
 local price_signals = require("scripts.price_signals")
+local rental = require("scripts.rental")
 local value_overrides = require("scripts.value_overrides")
 
 local function init()
@@ -32,6 +33,7 @@ local function init()
   circuit_orders.init()
   market_gui.init()
   incoming.init()
+  rental.init()
   contracts_gui.init()
 end
 
@@ -52,6 +54,7 @@ script.on_event(defines.events.on_forces_merged, function(event)
   teleporter.on_forces_merged(event)
   catapult.on_forces_merged(event)
   incoming.on_forces_merged(event)
+  rental.on_forces_merged(event)
   price_signals.on_forces_merged(event)
   circuit_orders.on_forces_merged(event)
 end)
@@ -69,6 +72,7 @@ local BUILDING_FILTER = {
   { filter = "name", name = hubs.NAME }, { filter = "name", name = circuit_orders.NAME, mode = "or" },
   { filter = "name", name = docking_bay.NAME, mode = "or" }, { filter = "name", name = teleporter.NAME, mode = "or" },
   { filter = "name", name = catapult.NAME, mode = "or" }, { filter = "name", name = incoming.CHEST, mode = "or" },
+  { filter = "name", name = rental.NAME, mode = "or" },
 }
 for _, kinds in ipairs({ cargo.KINDS, power.KINDS, price_signals.KINDS, manifold.KINDS }) do
   for name in pairs(kinds) do
@@ -87,11 +91,12 @@ local function on_built(event)
     teleporter.on_hub_built(entity)
     catapult.on_hub_built(entity)
     incoming.reattach()
+    rental.reattach()
     price_signals.on_hub_built(entity)
     circuit_orders.on_hub_built(entity)
   elseif not (power.on_built(entity) or price_signals.on_built(entity) or circuit_orders.on_built(entity)
     or manifold.on_built(entity) or docking_bay.on_built(entity) or teleporter.on_built(entity)
-    or catapult.on_built(entity) or incoming.on_built(entity)) then
+    or catapult.on_built(entity) or incoming.on_built(entity) or rental.on_built(entity)) then
     cargo.on_built(entity)
   end
 end
@@ -110,6 +115,7 @@ script.on_event(defines.events.on_object_destroyed, function(event)
     teleporter.on_hub_removed(event.useful_id)
     catapult.on_hub_removed(event.useful_id)
     incoming.reattach()
+    rental.reattach()
     price_signals.on_hub_removed(event.useful_id)
     circuit_orders.on_hub_removed(event.useful_id)
     freight.on_hub_removed(event.useful_id)
@@ -118,7 +124,7 @@ script.on_event(defines.events.on_object_destroyed, function(event)
   elseif not (power.forget(event.useful_id) or price_signals.forget(event.useful_id)
     or circuit_orders.forget(event.useful_id) or manifold.forget(event.useful_id)
     or docking_bay.forget(event.useful_id) or teleporter.forget(event.useful_id)
-    or catapult.forget(event.useful_id) or incoming.forget(event.useful_id)) then
+    or catapult.forget(event.useful_id) or incoming.forget(event.useful_id) or rental.forget(event.useful_id)) then
     cargo.forget(event.useful_id)
   end
 end)
@@ -138,6 +144,8 @@ every(catapult.PASS_TICKS, catapult.on_pass_tick)
 every(contracts.SETTLE_TICKS, contracts.on_settle_tick)
 every(incoming.OFFER_TICKS, incoming.on_offer_tick)
 every(incoming.COLLECT_TICKS, incoming.on_collect_tick)
+every(rental.OFFER_TICKS, rental.on_offer_tick)
+every(rental.SERVICE_TICKS, rental.on_service_tick)
 every(contracts_gui.REFRESH_TICKS, contracts_gui.on_refresh_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
@@ -151,6 +159,7 @@ script.on_event(market_gui.INPUT, market_gui.on_open_input)
 script.on_event(defines.events.on_entity_settings_pasted, function(event)
   price_signals.on_settings_pasted(event)
   circuit_orders.on_settings_pasted(event)
+  rental.on_settings_pasted(event)
 end)
 script.on_event(defines.events.on_gui_click, function(event)
   market_gui.on_gui_click(event)
@@ -167,9 +176,9 @@ end)
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/contracts", "tests/incoming_contracts", "tests/recipe_graph", "tests/pricing",
-      "tests/overrides", "tests/quality", "tests/market", "tests/hubs", "tests/cargo", "tests/catapult",
-      "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter", "tests/power",
+    { "tests/forces", "tests/contracts", "tests/incoming_contracts", "tests/rental", "tests/recipe_graph",
+      "tests/pricing", "tests/overrides", "tests/quality", "tests/market", "tests/hubs", "tests/cargo",
+      "tests/catapult", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter", "tests/power",
       "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/technologies", "tests/market_gui" },
     { load_luassert = true }
   )

@@ -148,15 +148,15 @@ describe("incoming contracts", function()
     assert.is_true(larger.reward > plain.reward)
   end)
 
-  test("no more offers while MAX_CONTRACTS incoming contracts are open", function()
+  test("no more offers while the contracts window is full", function()
     force().technologies[incoming.TECHNOLOGY].researched = true
-    for _ = 1, incoming.MAX_CONTRACTS do
+    for _ = 1, contracts.MAX_LISTED do
       contracts.accept(force().index, contracts.offer(force().index, spec()))
     end
     incoming.on_offer_tick()
     local count = 0
     for _ in pairs(state().contracts.open) do count = count + 1 end
-    assert.are.equal(incoming.MAX_CONTRACTS, count)
+    assert.are.equal(contracts.MAX_LISTED, count)
   end)
 
   test("a contract whose goods no longer exist is voided with its guarantee back", function()

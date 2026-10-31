@@ -64,6 +64,7 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
 ├── gb-telecommunications-1 (red, green) ── gb-telecommunications-2 (red, green, after advanced circuits)
 ├── gb-fluid-trading (red, green) ── fluid manifolds
 ├── gb-contracts (red, green) ── contract chest, incoming contract offers
+│   └── gb-capacity-rental (red, green, after automation 2) ── rental assembler
 └── [space logistics branch]
     └── gb-cargo-shuttle (red, green, blue) ── docking bay
         ├── gb-catapult (red, green, blue) ── electromagnetic catapult
@@ -264,3 +265,16 @@ prototypes: `prototypes/contract_chest.lua`.
 | Technology | `gb-contracts` (after the Galactic Bazaar and logistic science; 100 × red and green) |
 | Hub | attached like the other modules (`incoming.HUB_RANGE`, 10 tiles); hands nothing over without a hub, powered or not |
 | Delivery | every second, the normal-quality items active incoming contracts still need leave the chest, oldest contract first ([contracts.md](contracts.md)) |
+
+## Rental assembler (`gb-rental-assembler`)
+
+Rented out to counterparties (#78, [ADR-0017](adr/0017-capacity-rental-with-installments.md)).
+Code: `scripts/rental.lua`; prototypes: `prototypes/rental_assembler.lua`.
+
+| | |
+|---|---|
+| Prototypes | a copy of assembling machine 2, tinted teal; no module slots, beacons may change only its speed, consumption and pollution; not operable (the script sets it so on build and on configuration change) |
+| Recipe | 1 assembling machine 2, 10 electronic circuits |
+| Technology | `gb-capacity-rental` (after contracts and automation 2; 150 × red and green) |
+| Hub | attached like the other modules (`rental.HUB_RANGE`, 10 tiles); offered and served only through a hub of its force |
+| Work | idle, no recipe; rented, the counterparty's recipe, ingredients and products, served every second ([contracts.md](contracts.md)); the force provides power |

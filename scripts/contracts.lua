@@ -11,6 +11,10 @@ local reputation = require("scripts.core.reputation")
 local contracts = {}
 
 contracts.SETTLE_TICKS = 60
+-- Kinds of contracts offered to the force by counterparties, shown in the contracts window, and how
+-- many of them may be open at once (the window's rows).
+contracts.LISTED_KINDS = { incoming = true, rental = true }
+contracts.MAX_LISTED = 8
 
 -- The state of a force that has a contract book, or nil.
 local function state_of(force_index)
@@ -57,6 +61,17 @@ function contracts.can_accept(force_index, id, guarantee)
   if game.tick > contract.accept_by then return false, "expired" end
   if state.balance < (guarantee or core.guarantee(contract)) then return false, "insufficient-funds" end
   return true
+end
+
+--- A force's open contracts of the listed kinds, offers and active ones, by id.
+function contracts.listed(force_index)
+  local state = state_of(force_index)
+  local list = {}
+  for _, contract in pairs(state and state.contracts.open or {}) do
+    if contracts.LISTED_KINDS[contract.kind] then list[#list + 1] = contract end
+  end
+  table.sort(list, function(a, b) return a.id < b.id end)
+  return list
 end
 
 --- Accepts an offer: the force puts up the guarantee (deposit plus penalty), or nothing changes.
@@ -113,7 +128,8 @@ function contracts.void(force_index, id)
   return outcome
 end
 
---- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, in id order.
+--- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, and pays the
+--- installments due, in id order.
 function contracts.on_settle_tick(event)
   for _, state in pairs(storage.forces) do
     if state.contracts then
@@ -121,8 +137,14 @@ function contracts.on_settle_tick(event)
       for id in pairs(state.contracts.open) do ids[#ids + 1] = id end
       table.sort(ids)
       for _, id in ipairs(ids) do
-        local outcome = core.settle(state.contracts.open[id], event.tick)
-        if outcome then apply(state, id, outcome) end
+        local contract = state.contracts.open[id]
+        local outcome = core.settle(contract, event.tick)
+        if outcome then
+          apply(state, id, outcome)
+        else
+          local installment = core.installment(contract, event.tick)
+          if installment then move(state, installment, "contract-installment", id) end
+        end
       end
     end
   end

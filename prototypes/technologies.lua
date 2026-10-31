@@ -196,4 +196,19 @@ data:extend({
       time = 15,
     },
   },
+  {
+    type = "technology",
+    name = "gb-capacity-rental",
+    icons = data.raw.item["gb-rental-assembler"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-contracts", "automation-2" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-rental-assembler" },
+    },
+    unit = {
+      count = 150,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 15,
+    },
+  },
 })

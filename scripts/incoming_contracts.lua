@@ -2,7 +2,7 @@
 -- names a recipe the force can make; on acceptance the ingredients are shipped free to the hub the
 -- force accepted at, and the products are collected from contract chests attached to the force's
 -- hubs (ADR-0005). Offers come every OFFER_TICKS, at most MAX_OFFERS open at a time and
--- MAX_CONTRACTS offered and active together. State lives in
+-- contracts.MAX_LISTED contracts offered to the force open together. State lives in
 -- storage.incoming_contracts (chests and each force's random state); contracts live in the force's
 -- book (scripts/contracts.lua).
 local contracts = require("scripts.contracts")
@@ -21,8 +21,6 @@ incoming.TECHNOLOGY = "gb-contracts"
 incoming.HUB_RANGE = 10
 incoming.OFFER_TICKS = 3600 * 5
 incoming.MAX_OFFERS = 3
--- Incoming contracts offered and active together, so that the contracts window shows them all.
-incoming.MAX_CONTRACTS = 8
 incoming.COLLECT_TICKS = 60
 -- Crafting categories a recipe of an offer may have: what assembling machines make.
 incoming.CATEGORIES = { crafting = true, ["advanced-crafting"] = true }
@@ -103,9 +101,9 @@ end
 -- The recipes a force can offer to craft, sorted by name: enabled, visible, made in an assembling
 -- machine, item ingredients and one sure item product in a whole amount, every good with a base
 -- value.
-local function assembled(prototype)
+local function assembled(prototype, categories)
   for _, category in ipairs(prototype.categories) do
-    if incoming.CATEGORIES[category] then return true end
+    if (categories or incoming.CATEGORIES)[category] then return true end
   end
   return false
 end
@@ -132,10 +130,12 @@ local function item_ingredients(ingredients)
   return list
 end
 
-local function candidates(force)
+--- The recipes a force can be offered to craft, sorted by name (see above); with `categories` (a set
+--- of crafting category names), only recipes of one of them.
+function incoming.candidates(force, categories)
   local list = {}
   for name, recipe in pairs(force.recipes) do
-    if recipe.enabled and not recipe.hidden and assembled(recipe.prototype) then
+    if recipe.enabled and not recipe.hidden and assembled(recipe.prototype, categories) then
       local product = sole_product(recipe.products)
       local ingredients = product and item_ingredients(recipe.ingredients)
       if ingredients then
@@ -150,25 +150,22 @@ local function candidates(force)
   return list
 end
 
--- The force's next random draw, from its own deterministic state.
-local function draw(force_index)
+--- The force's next random draw, from its own deterministic state.
+function incoming.draw(force_index)
   local rng = storage.incoming_contracts.rng
   local state, value = random.next(rng[force_index] or random.seed(force_index * 7919 + 1))
   rng[force_index] = state
   return value
 end
 
--- Whether a force may get another offer: fewer than MAX_OFFERS open offers and fewer than
--- MAX_CONTRACTS incoming contracts offered or active.
-local function room_for_offer(state)
-  local offered, open = 0, 0
+-- Whether a force may get another offer: fewer than MAX_OFFERS open incoming offers and room in
+-- the contracts window.
+local function room_for_offer(force_index, state)
+  local offered = 0
   for _, contract in pairs(state.contracts.open) do
-    if contract.kind == "incoming" then
-      open = open + 1
-      if contract.state == core.OFFERED then offered = offered + 1 end
-    end
+    if contract.kind == "incoming" and contract.state == core.OFFERED then offered = offered + 1 end
   end
-  return offered < incoming.MAX_OFFERS and open < incoming.MAX_CONTRACTS
+  return offered < incoming.MAX_OFFERS and #contracts.listed(force_index) < contracts.MAX_LISTED
 end
 
 local function has_hub(force)
@@ -181,9 +178,9 @@ end
 --- Makes one offer to a force from a recipe it can craft, sized by its reputation; returns its id,
 --- or nil.
 function incoming.make_offer(force)
-  local recipe = offers.pick(candidates(force), draw(force.index))
+  local recipe = offers.pick(incoming.candidates(force), incoming.draw(force.index))
   local scale = reputation.contract_scale(storage.forces[force.index].reputation)
-  local spec = recipe and offers.offer(recipe, storage.base_values, draw(force.index), scale)
+  local spec = recipe and offers.offer(recipe, storage.base_values, incoming.draw(force.index), scale)
   return spec and contracts.offer(force.index, spec)
 end
 
@@ -198,21 +195,27 @@ end
 function incoming.on_offer_tick()
   for force_index, state in pairs(storage.forces) do
     local force = game.forces[force_index]
-    if force and state.contracts and researched(force) and room_for_offer(state)
+    if force and state.contracts and researched(force) and room_for_offer(force_index, state)
       and has_hub(force) then
       incoming.make_offer(force)
     end
   end
 end
 
--- The penalty of a contract at acceptance: at least what its ingredients would sell for on the
--- force's market now, so that keeping them never pays even where they sell above their base value.
-local function penalty_now(force_index, contract)
+--- What a goods list would sell for on a force's market now.
+function incoming.market_value(force_index, list)
   local value = 0
-  for _, goods in ipairs(contract.provides) do
+  for _, goods in ipairs(list) do
     local quote = market.quote(force_index, goods.kind, goods.name)
     value = value + (quote and quote.sell or 0) * goods.count
   end
+  return value
+end
+
+--- The penalty of a contract at acceptance: at least what `at_stake` (the goods the force could keep)
+--- would sell for on its market now, so that keeping them never pays even above their base value.
+function incoming.penalty_now(force_index, contract, at_stake)
+  local value = incoming.market_value(force_index, at_stake)
   return math.min(core.MAX_CREDITS, math.max(contract.penalty, offers.PENALTY_SHARE * value))
 end
 
@@ -221,7 +224,7 @@ end
 function incoming.accept(force_index, id, hub_unit_number)
   local contract = contracts.get(force_index, id)
   if not (contract and contract.kind == "incoming") then return false, "not-offered" end
-  local penalty = penalty_now(force_index, contract)
+  local penalty = incoming.penalty_now(force_index, contract, contract.provides)
   local ok, reason = contracts.can_accept(force_index, id, contract.deposit + penalty)
   if not ok then return false, reason end
   local shipped, refusal = freight.ship(force_index, hub_unit_number, contract.provides, id)

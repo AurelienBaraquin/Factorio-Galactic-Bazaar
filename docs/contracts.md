@@ -14,6 +14,7 @@ trades are not contracts ([market.md](market.md)).
 | `requires` | goods the force must hand over (at least one, each `kind/name@quality` key once) |
 | `reward`, `deposit`, `penalty` | credits, each from 0 to 10¹²: paid on fulfilment; the guarantee held on acceptance is deposit plus penalty |
 | `duration_ticks`, `accept_ticks` | time to fulfil once accepted; time the offer stands (both positive and finite) |
+| `installment_ticks`, `paid`, `next_installment` | optional period at which the reward is paid in installments ([ADR-0017](adr/0017-capacity-rental-with-installments.md)); reward paid so far; tick of the next installment |
 | `state` | `offered`, `active`, `fulfilled`, `failed`, `expired`, `declined` or `voided` |
 | `delivered` | units handed over so far, per `kind/name` key |
 | `offered_tick`, `accept_by`, `accepted_tick`, `due_tick`, `completed_tick`, `settled_tick`, `id` | lifecycle ticks, and the id, unique across all forces |
@@ -26,8 +27,9 @@ trades are not contracts ([market.md](market.md)).
 | offered | `contracts.accept(force, id)` (refused without the guarantee) | active | − deposit − penalty (`contract-guarantee`) | — |
 | offered | `contracts.decline(force, id)` | declined | — | — |
 | active | `contracts.deliver(force, id, key, count)`, until the deadline | active | — | — |
-| active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward + deposit + penalty (`contract-fulfilled`) | +1 |
-| active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept (`contract-failed`, amount 0) | −1 |
+| active | every `installment_ticks`, at the next settlement | active | + reward × share of required units delivered − `paid` (`contract-installment`) | — |
+| active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward − `paid` + deposit + penalty (`contract-fulfilled`) | +1 |
+| active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept, installments paid stay paid (`contract-failed`, amount 0) | −1 |
 | offered | offer window passed | expired | — | — |
 | active | `contracts.void(force, id)`: its goods no longer exist (a mod was removed) | voided | + deposit + penalty (`contract-voided`) | — |
 
@@ -52,12 +54,13 @@ The market window shows the score, with its effects in the tooltip ([terminal.md
 
 Counterparties offer each force to craft for them (#76): they provide a batch of a recipe's
 ingredients, the force hands back its products. Code: `scripts/incoming_contracts.lua` (runtime),
-`scripts/core/contract_offers.lua` (pricing, pure), `scripts/contracts_gui.lua` (window).
+`scripts/core/contract_offers.lua` (pricing, pure), `scripts/contracts_gui.lua` (window, which
+also lists machine rentals; each row's counterparty tooltip names the kind).
 
 | | |
 |---|---|
 | Unlock | the `gb-contracts` technology, which also unlocks the contract chest ([terminal.md](terminal.md)) |
-| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open offers and fewer than `MAX_CONTRACTS` (8) incoming contracts offered or active (the rows of the contracts window) gets one; the recipe and counterparty are drawn from the force's own deterministic random state |
+| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`) open, offered or active (the rows of the contracts window), gets one; the recipe and counterparty are drawn from the force's own deterministic random state |
 | Recipes | enabled, not hidden, made in an assembling machine (`crafting` or `advanced-crafting`), item ingredients only and one sure item product in a whole amount (no range, probability or extra fraction), every good with a base value, products worth more than ingredients; sorted by name before the draw |
 | Batch | enough crafts for the products to be worth `TARGET_VALUE` (1 000) credits × the force's contract scale (see Reputation), from 1 to `MAX_BATCH` (1 000) |
 | Terms | reward = the value crafting adds (products' minus ingredients' base value), at most `LABOR_SHARE` (0.3) × products' value, so buying the products and selling the ingredients does not pay at base prices; deposit = `DEPOSIT_SHARE` (0.2) and penalty = `PENALTY_SHARE` (1) × ingredients' base value; at acceptance the penalty rises to what the ingredients would sell for on the force's market then, if more, so the guarantee always exceeds what the force receives; time = recipe time × batch × `TIME_FACTOR` (4) + `MARGIN_TICKS` (5 min); the offer stands `ACCEPT_TICKS` (5 min) |
@@ -70,9 +73,28 @@ are dropped, not sold back, since the force never paid for them. On configuratio
 contracts whose goods no longer exist are withdrawn: offers declined, active contracts voided with
 their guarantee back; their capsules are dropped without refund.
 
+## Machine rental
+
+Counterparties rent the force's rental assemblers (#78, [ADR-0017](adr/0017-capacity-rental-with-installments.md)).
+Code: `scripts/rental.lua` (runtime), `scripts/core/contract_offers.lua` (`rental_crafts`,
+`rental`); the building is described in [terminal.md](terminal.md).
+
+| | |
+|---|---|
+| Unlock | the `gb-capacity-rental` technology (rental assembler) |
+| Offers | every `rental.OFFER_TICKS` (5 min), each idle rental assembler attached to a hub, of a force that researched it and has room in the contracts window, is offered, in unit number order; the recipe is drawn like an incoming contract's among those of the machine's crafting categories; the machine is reserved for that offer until it ends |
+| Terms | `RENTAL_TICKS` (30 min); the products of `rental_crafts` crafts: `CAPACITY_SHARE` (0.8) of what the machine makes at its nominal speed in that time; reward (rent) = `RENT_SHARE` (0.3) × products' value, paid every `INSTALLMENT_TICKS` (5 min) for what was delivered; deposit = 0.2 and penalty = 1 × the products' or ingredients' base value, whichever is more |
+| Acceptance | from the contracts window: refused when the machine is gone (`machine-gone`); the penalty rises to the market value of the products or ingredients, whichever is more; the guarantee is held and the machine gets the recipe |
+| Service | every `SERVICE_TICKS` (60), through a hub of its force: the machine keeps the contract's recipe (a pasted or other recipe is undone; an idle machine has none), its normal-quality products are taken and delivered, and its ingredients topped up to `BUFFER_SECONDS` (4 s) of crafting, at least one craft, never beyond what the contract provides in all |
+| End | once the contract is settled, declined or expired, the machine is released: its recipe, ingredients and products go back to the counterparty. A machine removed during a rental cannot fulfil it: the contract fails at its deadline |
+
+The rent needs no cap by the value crafting adds, unlike an incoming contract's reward: the
+products go straight to the counterparty, so buying them on the market cannot fulfil the contract.
+
 ## Storage
 
 `storage.forces[i].contracts = {open = {[id] = contract}, history = {contract...}}`,
 `storage.forces[i].reputation` (a score, 0 to start, within [−20, 20]) and `storage.contract_next_id`, the next id —
 see [data-model.md](data-model.md); `storage.incoming_contracts` holds the contract chests and each
-force's random state, `storage.contracts_gui` the open contracts windows.
+force's random state, `storage.rentals` the rental assemblers, `storage.contracts_gui` the open
+contracts windows.

@@ -1,16 +1,18 @@
--- The contracts window (#76): a force's incoming contract offers and active contracts, opened from
--- the market window of a hub within reach. Offers can be accepted at that hub (their ingredients
--- are shipped to it) or declined; active contracts show their progress and deadline and can be
--- abandoned. Rows are built once and updated in place, so a refresh never destroys a button a
--- player is clicking (multiplayer latency). Interface state lives in storage.contracts_gui.
+-- The contracts window (#76, #78): a force's offers and active contracts from counterparties
+-- (incoming contracts and machine rentals), opened from the market window of a hub within reach.
+-- Offers can be accepted (an incoming contract's ingredients are shipped to that hub) or declined;
+-- active contracts show their progress and deadline and can be abandoned. Rows are built once and
+-- updated in place, so a refresh never destroys a button a player is clicking (multiplayer latency).
+-- Interface state lives in storage.contracts_gui.
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local rental = require("scripts.rental")
 
 local contracts_gui = {}
 
-contracts_gui.ROWS = incoming.MAX_CONTRACTS
+contracts_gui.ROWS = contracts.MAX_LISTED
 contracts_gui.REFRESH_TICKS = 60
 
 local WINDOW = "gb_contracts"
@@ -42,20 +44,9 @@ local function minutes(ticks)
   return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
--- The force's offers and active incoming contracts, by id.
-local function listed(force_index)
-  local state = storage.forces[force_index]
-  local list = {}
-  for _, contract in pairs(state and state.contracts and state.contracts.open or {}) do
-    if contract.kind == "incoming" then list[#list + 1] = contract end
-  end
-  table.sort(list, function(a, b) return a.id < b.id end)
-  return list
-end
-
 local function refresh(player, data)
   local elements = data.elements
-  local list = listed(player.force_index)
+  local list = contracts.listed(player.force_index)
   elements.reputation.caption = { "gb-contracts.reputation", storage.forces[player.force_index].reputation }
   elements.empty.visible = #list == 0
   for i, row in ipairs(elements.rows) do
@@ -64,6 +55,7 @@ local function refresh(player, data)
     if contract then
       local offered = contract.state == core.OFFERED
       row.who.caption = contract.counterparty
+      row.who.tooltip = { "gb-contracts.kind-" .. contract.kind }
       row.provides.caption = goods_text(contract.provides)
       row.requires.caption = goods_text(contract.requires, not offered and contract.delivered or nil)
       row.terms.caption = { "gb-contracts.terms", string.format("%.0f", contract.reward),
@@ -130,7 +122,13 @@ actions["contract-accept"] = function(player, data, tags)
     contracts_gui.close(player.index)
     return player.print({ "gb-contracts.hub-unavailable" })
   end
-  local ok, reason = incoming.accept(player.force_index, tags.id, data.hub)
+  local contract = contracts.get(player.force_index, tags.id)
+  local ok, reason
+  if contract and contract.kind == "rental" then
+    ok, reason = rental.accept(player.force_index, tags.id)
+  else
+    ok, reason = incoming.accept(player.force_index, tags.id, data.hub)
+  end
   if not ok then player.print({ "gb-contracts.refused-" .. reason }) end
 end
 

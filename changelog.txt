@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.18
+Date: 2026-10-31
+  Features:
+    - Capacity rental: counterparties rent your rental assemblers for 30 minutes, supply the ingredients, take the products and pay rent every 5 minutes.
+  Changes:
+    - The contracts window lists rentals too, with the kind of each contract in the counterparty's tooltip.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.17
 Date: 2026-10-30
   Features:
