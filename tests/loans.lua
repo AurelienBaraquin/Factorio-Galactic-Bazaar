@@ -1,17 +1,19 @@
 -- In-game tests of loans (scripts/loans.lua, #96, ADR-0021): borrowing a tier, repayment over the
 -- term at the contract settlement, the rate and cap by reputation, repaying instead of abandoning,
 -- default and arrears, the overdraft's part, force merge, the contracts window's credit line and
--- persistence.
+-- persistence. The forces borrowing have researched credit (#98; its gating: tests/finance.lua).
 local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
+local finance = require("scripts.finance")
 local forces = require("scripts.forces")
 local loans = require("scripts.loans")
 local loans_core = require("scripts.core.loans")
 
 local function force_index() return game.forces.player.index end
 local function state() return storage.forces[force_index()] end
+local function credit(force) return force.technologies[finance.CREDIT_TECHNOLOGY] end
 local function near(expected, actual) return math.abs(expected - actual) < 1e-6 end
 -- The balance at which a force has `available` funds left, overdraft included.
 local function funds(available) return available - account.overdraft_limit(state()) end
@@ -47,8 +49,9 @@ describe("loans", function()
     -- In storage, so that it survives the reload of the last test.
     storage.gb_test_loans = {
       balance = state().balance, reputation = state().reputation, arrears = state().arrears,
-      history = #state().contracts.history,
+      history = #state().contracts.history, credit = credit(game.forces.player).researched,
     }
+    credit(game.forces.player).researched = true
     state().balance, state().reputation, state().arrears = 0, 0, 0
     state().overdraft_low = 0
     state().contracts.open = {}
@@ -65,6 +68,7 @@ describe("loans", function()
       state().overdraft_low = saved.balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
+      credit(game.forces.player).researched = saved.credit
       storage.gb_test_loans = nil
     end
     state().contracts.open = {}
@@ -202,6 +206,7 @@ describe("loans", function()
 
   test("carry a merged force's loans and arrears over to the destination", function()
     local source = game.create_force("gb-test-loans")
+    credit(source).researched = true
     local source_state = storage.forces[source.index]
     local id = loans.borrow(source.index, 1)
     source_state.arrears = 300
@@ -217,6 +222,7 @@ describe("loans", function()
 
   test("refuse a destination a loan once a merged force's loans take it over its cap", function()
     local source = game.create_force("gb-test-loans-cap")
+    credit(source).researched = true
     storage.forces[source.index].reputation = 10
     loans.borrow(source.index, 3)
     assert.is_truthy(loans.borrow(force_index(), 2))

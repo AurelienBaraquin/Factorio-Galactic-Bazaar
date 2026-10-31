@@ -30,7 +30,7 @@ logic in `scripts/core/catalog.lua`.
 | Sell | items only (fluids are sold by export manifolds); needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
 | Refresh | once a second per open window of a connected player, spread over `SLOTS` (10) slots of `SLOT_TICKS` (6) ticks by player index; a window whose hub is gone, foreign or out of reach is closed. Measured on 2.1.24: 0.18 ms per window refresh in vanilla (196 items), 0.40 ms with Space Age (284) — budget 0.5 ms per window |
 | Planets | shown once `gb-planetary-concessions` is researched, a button opens the planets window at this hub: NPC planets, their transit terms, specialties and free slots, and a Lease button for each ore (mining concessions delivered to this hub) ([planets.md](planets.md)) |
-| Contracts | a button opens the contracts window at this hub: offers to accept or decline, active contracts with their progress, deadline and an abandon button (repay for a loan), the force's reputation, and its credit line: debt, cap and a borrow button per loan tier; refreshed every second, closed with its hub ([contracts.md](contracts.md)) |
+| Contracts | a button opens the contracts window at this hub: offers to accept or decline, active contracts with their progress, deadline and an abandon button (repay for a loan), the force's reputation, and its credit line: debt, cap and a borrow button per loan tier (disabled before the credit research, with a tooltip naming it); refreshed every second, closed with its hub ([contracts.md](contracts.md)) |
 | Closing | close button, E/Esc or another window (`on_gui_closed`), hub destroyed, player leaves, changes force or is removed, out of reach on refresh, configuration change |
 
 Every action re-checks the hub (exists, same force, within reach, powered), the item and the
@@ -66,6 +66,10 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
 ├── gb-fluid-trading (red, green) ── fluid manifolds
 ├── gb-contracts (red, green) ── contract chest, incoming contract offers
 │   ├── gb-capacity-rental (red, green, after automation 2) ── rental assembler
+│   ├── [financial engineering branch]
+│   │   └── gb-credit (red, green) ── loans
+│   │       └── gb-overdraft-1 (red, green) ── overdraft limit 25 000
+│   │           └── gb-overdraft-2 (red, green, blue) ── overdraft limit 100 000
 │   └── gb-planetary-concessions (red, green) ── Planets window, mining concessions
 │       └── gb-outsourcing (red, green, blue) ── crafting slot bookings
 └── [space logistics branch]
@@ -73,6 +77,9 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
         ├── gb-catapult (red, green, blue) ── electromagnetic catapult
         └── gb-teleporter (red, green, blue, purple, yellow) ── teleporter
 ```
+
+The **financial engineering** branch (#98) opens borrowing, then raises the overdraft limit
+([contracts.md](contracts.md#research)).
 
 `tests/technologies.lua` checks, in vanilla and with Space Age, that each of these technologies uses
 vanilla packs only, never needs fewer packs than a prerequisite, and unlocks recipes whose

@@ -245,4 +245,50 @@ data:extend({
       time = 30,
     },
   },
+  -- Financial engineering branch (#98): credit unlocks loans, then each overdraft level raises the
+  -- overdraft limit. Effects are script-side: scripts/finance.lua reads these technologies.
+  {
+    type = "technology",
+    name = "gb-credit",
+    icons = { { icon = "__base__/graphics/icons/coin.png", icon_size = 64 } },
+    prerequisites = { "gb-contracts" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-credit" } },
+    },
+    unit = {
+      count = 150,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 30,
+    },
+  },
+  {
+    type = "technology",
+    name = "gb-overdraft-1",
+    icons = { { icon = "__base__/graphics/icons/coin.png", icon_size = 64 } },
+    prerequisites = { "gb-credit" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-overdraft-1" } },
+    },
+    unit = {
+      count = 200,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 30,
+    },
+  },
+  {
+    type = "technology",
+    name = "gb-overdraft-2",
+    icons = { { icon = "__base__/graphics/icons/coin.png", icon_size = 64 } },
+    prerequisites = { "gb-overdraft-1", "chemical-science-pack" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-overdraft-2" } },
+    },
+    unit = {
+      count = 300,
+      ingredients = {
+        { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 },
+      },
+      time = 30,
+    },
+  },
 })

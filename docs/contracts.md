@@ -107,16 +107,37 @@ the guarantee exceeds what can be taken.
 
 A force borrows from the Galactic Credit Union (#96, [ADR-0021](adr/0021-loans.md)). Code:
 `scripts/loans.lua` (runtime), `scripts/core/loans.lua` (terms and bounds, pure), the credit line of
-`scripts/contracts_gui.lua`.
+`scripts/contracts_gui.lua`, the research `scripts/finance.lua`.
+
+### Research
+
+The financial engineering branch (#98, `prototypes/technologies.lua`, [terminal.md](terminal.md)).
+Its effects are script-side (`nothing` effects with a description):
+
+| Technology | After | Cost | Effect |
+|---|---|---|---|
+| `gb-credit` | `gb-contracts` | 150 × red, green | borrowing (`finance.CREDIT_TECHNOLOGY`): without it `loans.borrow` refuses with `not-researched` and the Borrow buttons are disabled, their tooltip naming the technology |
+| `gb-overdraft-1` | `gb-credit` | 200 × red, green | overdraft limit 25 000 credits (from `account.BASE_OVERDRAFT_LIMIT`, 10 000) |
+| `gb-overdraft-2` | `gb-overdraft-1`, chemical science | 300 × red, green, blue | overdraft limit 100 000 credits |
+
+The limits are `account.OVERDRAFT_LEVEL_LIMITS`, one per technology of
+`finance.OVERDRAFT_TECHNOLOGIES`. The pure account cannot read research, so `scripts/finance.lua`
+records each force's level, the highest overdraft technology researched, in
+`storage.forces[i].overdraft_level`: on `on_research_finished` and `on_research_reversed` of these
+technologies, on `on_force_reset` and `on_technology_effects_reset`, and on init and configuration
+change for every force. Un-researching a level lowers the limit at once: a balance below the new
+limit spends nothing until it comes back, and pays interest on its debt up to the new limit.
+Without the credit research, loans already taken are still repaid (installments, the Repay button)
+and arrears still collected; the credit line still shows the debt.
 
 | | |
 |---|---|
-| Unlock | none: the contracts window, opened from the market window, has a credit line from the start |
+| Unlock | `gb-credit` (see Research above); the contracts window, opened from the market window, shows its credit line from the start |
 | Tiers | `TIERS`: 5 000, 20 000 or 100 000 credits, each one button; the contract is offered and accepted at once (`loans.borrow`), or nothing changes. Like Accept, the Borrow and Repay buttons need the window's hub to still be the force's and within reach, or the window closes |
 | Terms | the principal (`advance`) is paid at acceptance; `TERM_TICKS` (60 min), `PERIOD_TICKS` (5 min): 12 installments of principal × (1 + rate) / 12; no deposit, penalty or reward |
 | Rate | over the term, fixed at borrowing: `BASE_RATE` (10 %) − `RATE_STEP` (0.25 %) × reputation, 5 % at 20, 15 % at −20 |
 | Debt cap | `DEBT_CAP` (50 000) × the reputation's contract scale: 25 000 from −5 down, 150 000 at 20; the debt is the principal active loans still have to repay, principal × whole installments left / 12, plus arrears (`loans.outstanding`); a loan that would take it above the cap is refused (`debt-cap`) |
-| Refusals | `debt-cap` (the debt counts loans only, not the overdraft); `overdrawn` when the available funds are below zero (the balance beyond the overdraft limit: `contracts.can_accept` refuses even a zero guarantee); `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
+| Refusals | `not-researched` before `gb-credit`; `debt-cap` (the debt counts loans only, not the overdraft); `overdrawn` when the available funds are below zero (the balance beyond the overdraft limit: `contracts.can_accept` refuses even a zero guarantee); `in-arrears` while any arrears are owed; `too-many-contracts` when `contracts.MAX_LISTED` listed contracts (loans included) are open; `invalid-amount` for an unknown tier |
 | Repay | the row's **Repay** button (`contracts.abandon`) pays every installment left at once, interest included (`contract-repaid`), taken before the loan is settled; refused, changing nothing, when the available funds cannot cover it |
 | Installments | one the available funds can pay is paid, even into the overdraft (which then pays its debit interest) |
 | Default | an installment the available funds cannot cover fails the loan (−1 reputation); that installment and every one left become the force's `arrears`, taken every `loans.COLLECT_TICKS` (60) from the available funds, down to the overdraft limit (`loan-arrears`, journaled in one entry per minute): unpaid loan debt becomes overdraft debt, which pays debit interest; arrears beyond the overdraft stay owed until income covers them |
@@ -126,7 +147,8 @@ A force borrows from the Galactic Credit Union (#96, [ADR-0021](adr/0021-loans.m
 
 `storage.forces[i].contracts = {open = {[id] = contract}, history = {contract...}}`,
 `storage.forces[i].reputation` (a score, 0 to start, within [−20, 20]), `storage.forces[i].arrears`
-(credits a defaulted loan left owed) and `storage.contract_next_id`, the next id —
+(credits a defaulted loan left owed), `storage.forces[i].overdraft_level` (the overdraft research
+level) and `storage.contract_next_id`, the next id —
 see [data-model.md](data-model.md); `storage.incoming_contracts` holds the contract chests and each
 force's random state, `storage.rentals` the rental assemblers, `storage.contracts_gui` the open
 contracts windows.

@@ -9,6 +9,9 @@ account.JOURNAL_SIZE = 100
 -- balance went below zero in the period pays INTEREST_RATE of its deepest debt, counted up to the
 -- limit, journaled as one entry per INTEREST_MERGE_TICKS; interest under INTEREST_MIN is waived.
 account.BASE_OVERDRAFT_LIMIT = 10000
+-- Limits the overdraft research raises it to (#98): at level n (gb-overdraft-n, the highest the force
+-- researched, recorded by the adapter in `state.overdraft_level`), OVERDRAFT_LEVEL_LIMITS[n].
+account.OVERDRAFT_LEVEL_LIMITS = { 25000, 100000 }
 account.INTEREST_TICKS = 3600
 account.INTEREST_RATE = 0.005
 account.INTEREST_MIN = 0.005
@@ -24,9 +27,11 @@ function account.init(state)
   state.overdraft_low = state.overdraft_low or state.balance
 end
 
---- The overdraft limit of a force: how far below zero its balance may go by spending.
-function account.overdraft_limit(_state)
-  return account.BASE_OVERDRAFT_LIMIT
+--- The overdraft limit of a force: how far below zero its balance may go by spending. The base limit
+--- at research level 0 (also when `overdraft_level` is absent), the highest limit beyond the last.
+function account.overdraft_limit(state)
+  local level = math.min(state.overdraft_level or 0, #account.OVERDRAFT_LEVEL_LIMITS)
+  return account.OVERDRAFT_LEVEL_LIMITS[level] or account.BASE_OVERDRAFT_LIMIT
 end
 
 --- The funds a force can spend now: its balance plus its overdraft limit. Every check of a purchase,

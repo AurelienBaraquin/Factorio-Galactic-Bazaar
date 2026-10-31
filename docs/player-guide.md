@@ -16,10 +16,11 @@ the last ones get new prices a little later: about 0.1 s per combinator.
 
 Your force may spend below zero: purchases, contract guarantees, lease deposits and charges, power
 imports and orders all go through as long as they keep the balance above minus the **overdraft
-limit** (10 000 credits). The market window shows the overdraft you have left next to the balance.
+limit**: 10 000 credits, raised to 25 000 by the **Overdraft 1** research and to 100 000 by
+**Overdraft 2**. The market window shows the overdraft you have left next to the balance.
 Each minute your balance went below zero, it pays **0.5 % interest** on the lowest it reached in
-that minute (counted up to the limit, so at most 50 credits a minute), even if that takes it past
-the limit; past the limit, nothing more can be bought until sales bring the balance back.
+that minute (counted up to the limit, so at most 50 credits a minute at 10 000), even if that takes
+it past the limit; past the limit, nothing more can be bought until sales bring the balance back.
 
 ## Price signal combinators
 
@@ -120,9 +121,10 @@ them with the **Contracts** button of the market window.
 
 ## Loans
 
-The **Contracts** window has a credit line from the start: your debt, what your reputation allows,
-and one **Borrow** button per amount (5 000, 20 000, 100 000 credits); hover one to see its rate and
-installments, or why it is refused.
+The **Contracts** window has a credit line: your debt, what your reputation allows, and one
+**Borrow** button per amount (5 000, 20 000, 100 000 credits); hover one to see its rate and
+installments, or why it is refused. Borrowing needs the **Credit** research (after Contracts); loans
+you already have are repaid whether or not you have it.
 
 - The amount is paid at once. You repay it with interest in **12 installments, one every 5 minutes**.
   The rate is fixed when you borrow: 10 % over the hour at reputation 0, down to 5 % at 20, up to

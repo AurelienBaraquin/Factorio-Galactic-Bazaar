@@ -133,6 +133,50 @@ describe("account overdraft", function()
   end)
 end)
 
+describe("account overdraft research levels", function()
+  local function at_level(balance, level)
+    local state = new_account(balance)
+    state.overdraft_level = level
+    return state
+  end
+
+  it("keeps the base limit at level 0 and for a state saved before the levels", function()
+    assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(at_level(0, 0)))
+    assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(at_level(0, nil)))
+  end)
+
+  it("raises the limit at each level, never below the one before", function()
+    local previous = account.BASE_OVERDRAFT_LIMIT
+    for level, limit in ipairs(account.OVERDRAFT_LEVEL_LIMITS) do
+      assert.are.equal(limit, account.overdraft_limit(at_level(0, level)))
+      assert.is_true(limit > previous)
+      previous = limit
+    end
+  end)
+
+  it("holds the highest limit beyond the last level", function()
+    local levels = #account.OVERDRAFT_LEVEL_LIMITS
+    assert.are.equal(account.OVERDRAFT_LEVEL_LIMITS[levels], account.overdraft_limit(at_level(0, levels + 3)))
+  end)
+
+  it("lets a raised level spend further and pay interest on a deeper debt", function()
+    local raised = account.OVERDRAFT_LEVEL_LIMITS[1]
+    local state = at_level(0, 1)
+    assert.are.equal(raised, account.available(state))
+    assert.is_true(account.apply(state, -raised, { tick = 1 }))
+    assert.are.same({ false, "insufficient-funds" }, { account.apply(state, -1, { tick = 2 }) })
+    assert.are.equal(raised * account.INTEREST_RATE, account.charge_interest(state, 3600))
+  end)
+
+  it("leaves a balance beyond a lowered limit owing, with nothing more to spend", function()
+    local state = at_level(-account.OVERDRAFT_LEVEL_LIMITS[1], 1)
+    state.overdraft_level = 0
+    assert.is_true(account.available(state) < 0)
+    assert.are.equal(0, account.overdraft_left(state))
+    assert.are.same({ false, "insufficient-funds" }, { account.apply(state, -1, { tick = 1 }) })
+  end)
+end)
+
 describe("account.charge_interest", function()
   it("charges nothing on a balance at or above zero", function()
     for _, balance in ipairs({ 0, 120 }) do
