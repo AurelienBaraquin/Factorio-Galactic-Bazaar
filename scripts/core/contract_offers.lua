@@ -129,10 +129,10 @@ end
 
 -- A lease of planet slots of `kind` shipping `units` of `item` (base value `value`) every period;
 -- nil without a positive value or a unit to ship.
-local function lease_spec(kind, planet, item, units, value)
+local function lease_spec(kind, planet, item, units, value, price)
   if not (value and value > 0 and units >= 1) then return nil end
   local periods = contract_offers.CONCESSION_TICKS / contract_offers.CONCESSION_PERIOD_TICKS
-  local charge = units * value * contract_offers.CONCESSION_PRICE
+  local charge = units * value * price
   return {
     kind = kind, counterparty = planet,
     provides = { { kind = "item", name = item, count = units * periods } },
@@ -146,13 +146,17 @@ end
 --- A concession spec for `slots` slots of `resource` (an item) with base value `value`, from
 --- `planet`; nil without a positive value.
 function contract_offers.concession(planet, resource, value, slots)
-  return lease_spec("concession", planet, resource, contract_offers.concession_units(slots), value)
+  return lease_spec("concession", planet, resource, contract_offers.concession_units(slots), value,
+    contract_offers.CONCESSION_PRICE)
 end
 
 -- Outsourced production (#86): the force books slots of a planet's crafting category for one recipe,
 -- on the terms of a concession: the planet buys the ingredients itself, crafts at crafting speed 1
--- per slot and ships the products every period, charged at CONCESSION_PRICE times their base value
--- (the force pays for products, never for ingredients it does not see).
+-- per slot and ships the products every period, charged at OUTSOURCING_PRICE times their base value:
+-- the market's buy price when balanced, without the freight fee, so that products a force can pick
+-- by the hundred do not undercut the market when its price drifts up (the force pays for products,
+-- never for ingredients it does not see).
+contract_offers.OUTSOURCING_PRICE = 1.05
 
 --- Products a booking of `slots` slots ships every period, of a recipe taking `energy` seconds and
 --- making `amount` of its product per craft (whole crafts only).
@@ -165,7 +169,7 @@ end
 --- base value `value`, on `planet`; nil without a positive value or a whole craft a period.
 function contract_offers.outsourcing(planet, recipe, value, slots)
   local units = contract_offers.outsourcing_units(recipe.energy, recipe.amount, slots)
-  return lease_spec("outsourcing", planet, recipe.product, units, value)
+  return lease_spec("outsourcing", planet, recipe.product, units, value, contract_offers.OUTSOURCING_PRICE)
 end
 
 --- The recipe of `candidates` (a sorted list) that `draw` (a number in (0, 1)) picks.

@@ -3,6 +3,7 @@
 -- can be leased from it (a mining concession delivered to that hub). Rows are built once on opening
 -- and updated in place. Interface state lives in storage.planets_gui.
 local concessions = require("scripts.concessions")
+local contracts = require("scripts.contracts")
 local hubs = require("scripts.hubs")
 local planets = require("scripts.planets")
 local transit = require("scripts.core.transit")
@@ -113,13 +114,20 @@ local function lease(player, data, element)
   local tags = element.tags
   local id, reason
   if tags.gb_action == "planets-book" then
-    local recipe = element.parent.children[1].elem_value
+    local recipe
+    for _, row in ipairs(data.elements.rows) do
+      if row.book == element then recipe = row.recipe.elem_value end
+    end
     id, reason = concessions.book(player.force_index, data.hub, tags.planet, tags.category, recipe)
   else
     id, reason = concessions.lease(player.force_index, data.hub, tags.planet, tags.resource)
   end
   if id then
-    player.print({ "gb-planets.leased", { "?", { "gb-planets.name-" .. tags.planet }, tags.planet } })
+    local contract = contracts.get(player.force_index, id)
+    local lease_record = storage.concessions[id]
+    player.print({ "gb-planets.leased", { "?", { "gb-planets.name-" .. tags.planet }, tags.planet },
+      lease_record.units, "[item=" .. lease_record.item .. "]", string.format("%.0f", contract.charge),
+      string.format("%.0f", contract.deposit) })
   else
     player.print({ "gb-planets.refused-" .. reason })
   end

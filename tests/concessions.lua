@@ -236,8 +236,20 @@ describe("mining concessions", function()
     end
     button.parent.children[1].elem_value = "iron-gear-wheel"
     planets_gui.on_gui_click({ element = button, player_index = 1 })
-    local _, lease = next(storage.concessions)
+    local id, lease = next(storage.concessions)
     assert.are.same({ "iron-gear-wheel", 600 }, { lease.item, lease.units })
+    assert.are.equal("outsourcing", contracts.get(force_index(), id).kind)
+  end)
+
+  test("leases saved by 0.1.21 are converted on configuration change", function()
+    local id = concessions.lease(force_index(), hub.unit_number, "carbo", "stone")
+    storage.concessions[id] = { force_index = force_index(), hub = hub.unit_number, planet = "carbo",
+      resource = "stone", slots = 1 }
+    concessions.init({})
+    local lease = storage.concessions[id]
+    assert.are.same({ "stone", 150 }, { lease.item, lease.units })
+    assert.is_nil(lease.resource)
+    assert.is_nil(lease.slots)
   end)
 
   test("keeps leases across a save and reload", function()

@@ -142,6 +142,7 @@ guarantee is lost and your reputation drops by 1. Each planet has only a few slo
 
 On a crafting row of the Planets window (smelting, assembly, chemistry…), pick one of your recipes
 and press **Book**. For 30 minutes the planet buys the ingredients, crafts the recipe as one machine
-of speed 1 would, and ships you the products every 5 minutes by transit, charged at their base value
-— the same terms as a mining concession. Only recipes you have unlocked, with a single sure product,
+of speed 1 would, and ships you the products every 5 minutes by transit, charged at 105 % of their base
+value (the market price without the freight fee) — otherwise the terms of a mining concession. The
+message printed when you book gives the amount, the charge and the guarantee. Only recipes you have unlocked, with a single sure product,
 can be booked.

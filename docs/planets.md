@@ -81,14 +81,15 @@ Leases live in `storage.concessions`; on a force merge they follow their contrac
 A force books one slot of a crafting category a planet serves (smelting, assembly, chemistry…) for
 one of its own recipes (#86), from the planets window: pick the recipe on the row, then **Book**
 (`concessions.book(force, hub, planet, category, recipe)`). It is a lease like a concession, of kind
-`outsourcing`, on the same term, period, guarantee, charge rule and refusals, with these differences:
+`outsourcing`, on the same term, period, guarantee and refusals, with these differences:
 
 | | |
 |---|---|
-| Recipe | one of the force's enabled, visible recipes, of that category, with one sure item product in a whole amount and a base value (`no-recipe`, `recipe-locked`, `wrong-category`, `not-craftable`, `not-tradeable` otherwise) |
+| Recipe | one of the force's enabled, visible recipes, of that category, with one sure item product in a whole amount and a base value (`no-recipe`, `recipe-locked`, `wrong-category`, `not-craftable` otherwise) |
 | Ingredients | the planet buys them itself: the force never ships nor pays for them, only for the products |
 | Shipments | every period, the whole crafts one slot makes at crafting speed 1 in 5 minutes (`outsourcing_units`), times the product amount; a recipe taking longer than a period is refused (`too-slow`) |
-| Charge | the products shipped × their base value × `CONCESSION_PRICE` (1) |
+| Charge | the products shipped × their base value × `OUTSOURCING_PRICE` (1.05): the market's buy price when balanced, without the freight fee — above a concession's, because a force can pick any valued product by the hundred and would otherwise resell it whenever the market drifts up |
+| Terms shown | the Book button's tooltip gives the rule; the message printed on booking gives the units per period, the charge per shipment and the guarantee held |
 
 A booking keeps its products and amount from the day it was made, even if a mod later changes the
 recipe.
