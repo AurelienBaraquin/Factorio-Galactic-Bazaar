@@ -147,7 +147,7 @@ you already have are repaid whether or not you have it.
 ## Insolvency and bankruptcy
 
 Your force is **insolvent** when its balance goes past the overdraft limit (interest can push it
-there), or when it owes arrears it cannot pay. You are told so in the chat, and the market window
+there), or when it owes arrears it cannot pay. You are told so by an alert and in the chat, and the market window
 shows **Insolvent: bankruptcy in m:ss**.
 
 - You have **10 minutes** to recover: bring your balance back until 5 % of your overdraft limit is
@@ -217,3 +217,19 @@ of speed 1 would, and ships you the products every 5 minutes by transit, charged
 value (the market price without the freight fee) — otherwise the terms of a mining concession. The
 message printed when you book gives the amount, the charge and the guarantee. Only recipes you have unlocked, with a single sure product,
 can be booked.
+
+## Alerts and notifications
+
+The mod raises game alerts (the icons above the minimap; hover for the message, click to see the
+building on the map) and, for most of them, prints a line in the chat:
+
+- **Contracts**: a new offer (incoming or rental), a contract due within 2 minutes with goods still to
+  deliver, a contract fulfilled or failed.
+- **Deliveries**: shipments landed at a trading hub, one alert per hub counting them, at most every
+  30 seconds; no chat line.
+- **Finance**: a loan installment missed (the loan defaulted), insolvency, recovery, bankruptcy, and
+  credit restored.
+
+Each category can be turned off for yourself only in *Settings → Mod settings → Per player*
+(**Notify: contracts**, **Notify: deliveries**, **Notify: finance**). Details:
+[notifications.md](notifications.md).

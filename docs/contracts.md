@@ -71,7 +71,7 @@ also lists machine rentals; each row's counterparty tooltip names the kind).
 | | |
 |---|---|
 | Unlock | the `gb-contracts` technology, which also unlocks the contract chest ([terminal.md](terminal.md)) |
-| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists concessions, outsourcing bookings and loans) open, offered or active (the rows of the contracts window), gets one; the recipe and counterparty are drawn from the force's own deterministic random state |
+| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists concessions, outsourcing bookings and loans) open, offered or active (the rows of the contracts window), gets one; the recipe and counterparty are drawn from the force's own deterministic random state. The force is told of new offers, of contracts due within 2 minutes and of each fulfilment or failure at settlement ([notifications.md](notifications.md)) |
 | Recipes | enabled, not hidden, made in an assembling machine (`crafting` or `advanced-crafting`), item ingredients only and one sure item product in a whole amount (no range, probability or extra fraction), every good with a base value, products worth more than ingredients; sorted by name before the draw |
 | Batch | enough crafts for the products to be worth `TARGET_VALUE` (1 000) credits × the force's contract scale (see Reputation), from 1 to `MAX_BATCH` (1 000) |
 | Terms | reward = the value crafting adds (products' minus ingredients' base value), at most `LABOR_SHARE` (0.3) × products' value, so buying the products and selling the ingredients does not pay at base prices; deposit = `DEPOSIT_SHARE` (0.2) and penalty = `PENALTY_SHARE` (1) × ingredients' base value; at acceptance the penalty rises to what the ingredients would sell for on the force's market then, if more, so the guarantee always exceeds what the force receives; time = recipe time × batch × `TIME_FACTOR` (4) + `MARGIN_TICKS` (5 min); the offer stands `ACCEPT_TICKS` (5 min) |
@@ -155,7 +155,8 @@ and arrears still collected; the credit line still shows the debt.
 
 A force that can no longer pay its debts gets a grace period, then goes bankrupt (#97,
 [ADR-0022](adr/0022-insolvency-and-bankruptcy.md)). Code: `scripts/core/insolvency.lua` (rules,
-pure), `scripts/insolvency.lua` (the check handler and the force's messages); the market window
+pure), `scripts/insolvency.lua` (the check handler and the force's messages, told through
+[notifications.md](notifications.md)); the market window
 shows the state ([terminal.md](terminal.md)).
 
 | | |

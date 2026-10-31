@@ -100,6 +100,10 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Machine rental**: every `rental.OFFER_TICKS`, idle rental assemblers are offered; every
   `rental.SERVICE_TICKS`, rented ones are served and released ones cleared; a settings paste onto
   one is undone at once ([contracts.md](contracts.md)).
+- **Notifications**: features tell players what happened through `notifications.notify` (offers,
+  contract settlement, loan defaults, deliveries landed, insolvency); it throttles per force, kind and
+  group, then shows each connected player whose category setting is on an alert and, for most kinds,
+  a chat line ([notifications.md](notifications.md)).
 - **Power**: every `power.SETTLE_TICKS`, each force's export substations are sold and its import
   substations refilled through the market ([terminal.md](terminal.md)).
 - **Delivery**: a purchase is paid and queued in capsules (`freight.order`); every

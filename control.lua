@@ -12,6 +12,7 @@ local insolvency = require("scripts.insolvency")
 local loans = require("scripts.loans")
 local manifold = require("scripts.manifold")
 local market_gui = require("scripts.market_gui")
+local notifications = require("scripts.notifications")
 local circuit_orders = require("scripts.circuit_orders")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
@@ -27,6 +28,7 @@ local value_overrides = require("scripts.value_overrides")
 local function init()
   forces.init()
   finance.init()
+  notifications.init()
   local dropped = planets.init()
   value_overrides.rebuild()
   hubs.init()
@@ -73,6 +75,7 @@ script.on_event(defines.events.on_forces_merged, function(event)
   concessions.on_forces_merged(event)
   price_signals.on_forces_merged(event)
   circuit_orders.on_forces_merged(event)
+  notifications.on_forces_merged(event)
 end)
 
 -- Every way an entity can appear, filtered to the mod's buildings.
@@ -209,7 +212,7 @@ if script.active_mods["factorio-test"] then
       "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
-      "tests/telecom", "tests/technologies", "tests/market_gui" },
+      "tests/telecom", "tests/technologies", "tests/market_gui", "tests/notifications" },
     { load_luassert = true }
   )
 end

@@ -9,6 +9,7 @@
 local account = require("scripts.core.account")
 local core = require("scripts.core.contracts")
 local insolvency = require("scripts.core.insolvency")
+local notifications = require("scripts.notifications")
 local reputation = require("scripts.core.reputation")
 
 local contracts = {}
@@ -171,12 +172,17 @@ end
 local function charge(force_index, state, id, contract, amount, tick)
   local service = services[contract.kind]
   if not (contract.advance or (service and service.can_serve(force_index, contract))) then return end
-  if account.available(state) < amount then return apply(state, id, core.default(contract, tick, amount)) end
+  if account.available(state) < amount then
+    local outcome = core.default(contract, tick, amount)
+    apply(state, id, outcome)
+    return notifications.contract_settled(force_index, contract, outcome)
+  end
   if contract.advance or service.serve(force_index, contract) then move(state, -amount, "contract-charge", id) end
 end
 
 --- on_nth_tick(SETTLE_TICKS): settles every open contract whose time has come, and pays or charges
---- the installments due, in id order.
+--- the installments due, in id order; the force is told of each outcome and of contracts due soon
+--- (scripts/notifications.lua).
 function contracts.on_settle_tick(event)
   for force_index, state in pairs(storage.forces) do
     if state.contracts then
@@ -188,6 +194,7 @@ function contracts.on_settle_tick(event)
         local outcome = core.settle(contract, event.tick)
         if outcome then
           apply(state, id, outcome)
+          notifications.contract_settled(force_index, contract, outcome)
         else
           local installment = core.installment(contract, event.tick)
           if installment and installment > 0 then
@@ -195,6 +202,7 @@ function contracts.on_settle_tick(event)
           elseif installment then
             charge(force_index, state, id, contract, -installment, event.tick)
           end
+          notifications.check_due(force_index, contract)
         end
       end
     end

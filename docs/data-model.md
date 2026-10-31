@@ -239,6 +239,15 @@ with its rows (`{planet, kind, name, total, slots}`, `slots` the label element).
 only. Written by `scripts/planets_gui.lua`; removed when the window closes, the player leaves,
 changes force or is removed, and every window is closed on `on_configuration_changed`.
 
+## `storage.notifications`
+
+`storage.notifications[force_index] = {[kind .. "/" .. group] = {tick, period}}` — each force's
+throttle log: when an event of each kind and group was last told and that kind's period
+([notifications.md](notifications.md)). Written by `scripts/notifications.lua` when a notification is
+told (entries whose period has passed are dropped then, so only groups still within their period
+stay); created on `on_init` and `on_configuration_changed`, a force's log on its first notification;
+the merged force's log is dropped on `on_forces_merged`. Output state only: nothing else reads it.
+
 ## `storage.players`
 
 `storage.players[player_index] = {hub, filter, matches, page, selected, elements}` — the market

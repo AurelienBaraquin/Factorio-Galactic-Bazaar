@@ -11,6 +11,7 @@ local core = require("scripts.core.freight")
 local hubs = require("scripts.hubs")
 local manifold = require("scripts.manifold")
 local market = require("scripts.market")
+local notifications = require("scripts.notifications")
 local pricing = require("scripts.pricing")
 local reputation = require("scripts.core.reputation")
 local transit = require("scripts.core.transit")
@@ -281,8 +282,10 @@ local DELIVERED_EPSILON = 1e-6
 -- own schedules, so a shipment still in flight never holds back a landed one behind it. A shipment
 -- that does not fit whole stays landed with what is left and is retried, without holding back the
 -- others either (a fluid whose manifold holds another fluid must not stop the items behind it).
+-- Returns how many shipments finished unloading, by force index.
 local function unload(hub_unit_number, queue, tick)
   local capsules = queue.capsules
+  local landed_by_force = {}
   local index = 1
   while capsules[index] do
     local capsule = capsules[index]
@@ -294,10 +297,12 @@ local function unload(hub_unit_number, queue, tick)
     end
     if landed and remaining <= DELIVERED_EPSILON then
       table.remove(capsules, index)
+      landed_by_force[capsule.force_index] = (landed_by_force[capsule.force_index] or 0) + 1
     else
       index = index + 1
     end
   end
+  return landed_by_force
 end
 
 -- Whether a queue has nothing left to unload or to space out: it can be forgotten.
@@ -309,11 +314,14 @@ local function idle(queue, tick)
   return true
 end
 
---- on_nth_tick(UNLOAD_INTERVAL): unloads landed capsules and forgets idle queues.
+--- on_nth_tick(UNLOAD_INTERVAL): unloads landed capsules, tells each force once per hub how many of
+--- its shipments landed there, and forgets idle queues.
 function freight.on_unload_tick(event)
   local queues = storage.freight.hubs
   for hub_unit_number, queue in pairs(queues) do
-    unload(hub_unit_number, queue, event.tick)
+    for force_index, count in pairs(unload(hub_unit_number, queue, event.tick)) do
+      notifications.notify(force_index, "delivery-landed", { count }, hubs.get(hub_unit_number))
+    end
     if idle(queue, event.tick) then queues[hub_unit_number] = nil end
   end
 end

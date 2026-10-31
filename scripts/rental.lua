@@ -8,6 +8,7 @@ local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local notifications = require("scripts.notifications")
 local offers = require("scripts.core.contract_offers")
 
 local rental = {}
@@ -137,8 +138,8 @@ function rental.candidates(entity)
   return list
 end
 
---- Offers one machine for rent: a recipe it can craft where it stands, drawn from its force's state.
---- Returns the contract id, or nil.
+--- Offers one machine for rent: a recipe it can craft where it stands, drawn from its force's state;
+--- the force is told, the alert pointing at the machine. Returns the contract id, or nil.
 function rental.make_offer(module)
   local entity = module.entity
   local force = entity.force
@@ -148,7 +149,10 @@ function rental.make_offer(module)
   local crafts = offers.rental_crafts(recipe.energy, prototype.get_crafting_speed(entity.quality))
   local spec = offers.rental(recipe, storage.base_values, incoming.draw(force.index), crafts)
   local id = spec and contracts.offer(force.index, spec)
-  if id then module.contract, module.recipe, module.crafts, module.provided = id, recipe.name, crafts, {} end
+  if id then
+    module.contract, module.recipe, module.crafts, module.provided = id, recipe.name, crafts, {}
+    notifications.contract(force.index, "contract-offer", contracts.get(force.index, id), entity)
+  end
   return id
 end
 

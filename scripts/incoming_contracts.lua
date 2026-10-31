@@ -10,6 +10,7 @@ local core = require("scripts.core.contracts")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local notifications = require("scripts.notifications")
 local offers = require("scripts.core.contract_offers")
 local random = require("scripts.core.random")
 local reputation = require("scripts.core.reputation")
@@ -177,13 +178,15 @@ local function has_hub(force)
   return false
 end
 
---- Makes one offer to a force from a recipe it can craft, sized by its reputation; returns its id,
---- or nil.
+--- Makes one offer to a force from a recipe it can craft, sized by its reputation, and tells the
+--- force; returns its id, or nil.
 function incoming.make_offer(force)
   local recipe = offers.pick(incoming.candidates(force), incoming.draw(force.index))
   local scale = reputation.contract_scale(storage.forces[force.index].reputation)
   local spec = recipe and offers.offer(recipe, storage.base_values, incoming.draw(force.index), scale)
-  return spec and contracts.offer(force.index, spec)
+  local id = spec and contracts.offer(force.index, spec)
+  if id then notifications.contract(force.index, "contract-offer", contracts.get(force.index, id)) end
+  return id
 end
 
 -- Whether a force has researched contracts.
