@@ -1,4 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.33
+Date: 2026-10-31
+  Features:
+    - Logistics tab in the Galactic Bazaar window: every trading hub of your force with its power, status and
+      delivery queues; for the hub selected, a camera, its delivery tier, the shipments waiting for launch, in
+      flight or landed (goods, tier, landing time and time left, purchase, contract or planet of origin, unit
+      cost, share lost in transit) and the buildings attached to it with their status.
+    - Tooltips explain each delivery tier (delay, launch interval, capacity, fee, queue limit), why a shipment
+      waits (no room in the import chests, no manifold for the fluid, teleporter without power) and losses in
+      transit.
+  Changes:
+    - Goods shipped from an NPC planet now record the planet and the share lost in transit; shipments already
+      queued in an existing save show the contract's planet without the loss.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.32
 Date: 2026-10-31
   Features:

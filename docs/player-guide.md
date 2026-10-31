@@ -26,6 +26,14 @@ Its tabs:
   researched; and why it is worth its base value: the recipe (or mining, pumping...) that makes it
   cheapest, each ingredient and its value, the time it takes, a value set by another mod, and what
   each higher quality is worth.
+- **Logistics**: every trading hub of your force, with its power, its status and how full each
+  delivery tier's queue is. Select one to see it on a camera, the tier it delivers by (hover it for
+  the delay, launch interval, capacity, fee and queue limit), the shipments bought, sent by a
+  contract or shipped from a planet that are waiting for their launch, in flight or landed — what
+  they carry, when they land, where they come from, what you paid per unit and, from a planet, the
+  share lost on the way — and the buildings attached to it with their status. Hover a shipment's
+  state to see why it waits (no room in the import chests, a teleporter without power); click a
+  building's icon to show it on the camera.
 - **Contracts**: offers, contracts under way and your loans.
 - **Planets**: once **Planetary concessions** is researched, the NPC planets and their slots.
 

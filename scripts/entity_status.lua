@@ -11,7 +11,9 @@
 --
 -- State lives in storage.entity_status: the list (`units` and `kinds`, parallel arrays, and `index`
 -- {[unit_number] = position}), the `cursor`, the hubs' module counts (`counts`, last cycle's;
--- `pending`, this cycle's), the status each building shows (`shown`: {[unit_number] = descriptor},
+-- `pending`, this cycle's), the hubs' modules by unit number (`members`, last cycle's; `joining`, this
+-- cycle's: {[hub unit_number] = {[unit_number] = true}}, a hint re-checked on read), the status each
+-- building shows (`shown`: {[unit_number] = descriptor},
 -- false for the game's own status), the cycle's costly reads (`facts`: {[field] = {[hub or force
 -- index] = value}}) and the alerts drawn (`alerts`: {[unit_number] = {alert, force_index, sprite,
 -- text}}, render object ids). Every handler creates it when a save predates it.
@@ -214,7 +216,8 @@ local KINDS = {
   },
 }
 local KIND_BY_NAME = {}
-for _, kind in ipairs(KINDS) do KIND_BY_NAME[kind.name] = kind end
+local KIND_RANK = {}
+for rank, kind in ipairs(KINDS) do KIND_BY_NAME[kind.name], KIND_RANK[kind.name] = kind, rank end
 
 local DIODES = {
   [core.GREEN] = defines.entity_status_diode.green,
@@ -267,13 +270,26 @@ local function remove(state, unit_number)
   end
 end
 
+-- Records that a module is attached to its hub (of its force) in this cycle's `joining`.
+local function join(state, module, unit_number)
+  local members = state.joining[module.hub]
+  if not members then
+    members = {}
+    state.joining[module.hub] = members
+  end
+  members[unit_number] = true
+end
+
 -- Lists every building of every registry (on init and configuration change, or once in a save that
--- predates the list); alerts of buildings no longer listed go.
+-- predates the list), and the modules of each hub; alerts of buildings no longer listed go.
 local function list_all(state)
-  state.units, state.kinds, state.index = {}, {}, {}
+  state.units, state.kinds, state.index, state.members, state.joining = {}, {}, {}, {}, {}
   for _, kind in ipairs(KINDS) do
     for unit_number, module in pairs(kind.modules()) do
-      if module.entity.valid then add(state, unit_number, kind.name) end
+      if module.entity.valid then
+        add(state, unit_number, kind.name)
+        if kind.name ~= "hub" and hub_state(module) ~= "none" then join(state, module, unit_number) end
+      end
     end
   end
   for unit_number, drawn in pairs(state.alerts) do
@@ -287,7 +303,11 @@ end
 -- The state, created (and the buildings listed) when the save predates it.
 local function state_of()
   local state = storage.entity_status
-  if state and state.index then return state end
+  if state and state.index then
+    -- A save from 0.1.32 or older lacks the hubs' modules until its configuration change lists them.
+    if not state.joining then state.members, state.joining = {}, {} end
+    return state
+  end
   state = state or {}
   state.alerts, state.counts, state.pending, state.shown = state.alerts or {}, state.counts or {}, {}, {}
   state.facts = {}
@@ -354,6 +374,7 @@ function entity_status.on_pass_tick(event)
   for _ = 1, core.visits(#state.units, entity_status.PASSES, entity_status.MAX_VISITS) do
     if state.cursor > #state.units then
       state.cursor, state.counts, state.pending, state.facts = 1, state.pending, {}, {}
+      state.members, state.joining = state.joining, {}
       work.facts = state.facts
     end
     local index = state.cursor
@@ -366,7 +387,10 @@ function entity_status.on_pass_tick(event)
     if module then
       state.cursor = index + 1
       local hub = refresh(state, kind, module, event.tick, work)
-      if hub and hub ~= "none" then state.pending[module.hub] = (state.pending[module.hub] or 0) + 1 end
+      if hub and hub ~= "none" then
+        state.pending[module.hub] = (state.pending[module.hub] or 0) + 1
+        join(state, module, unit_number)
+      end
     else
       remove(state, unit_number)
     end
@@ -382,7 +406,8 @@ function entity_status.on_built(entity)
     local module = kind.modules()[unit_number]
     if module then
       add(state, unit_number, kind.name)
-      refresh(state, kind, module, game.tick, { facts = {}, costly = 0 })
+      local hub = refresh(state, kind, module, game.tick, { facts = {}, costly = 0 })
+      if hub and hub ~= "none" then join(state, module, unit_number) end
       return
     end
   end
@@ -391,6 +416,37 @@ end
 --- on_object_destroyed: a destroyed building leaves the list, with its alert.
 function entity_status.forget(unit_number)
   remove(state_of(), unit_number)
+end
+
+--- The status a building shows, as last written: a descriptor, false for the game's own, nil before
+--- its first refresh (read only).
+function entity_status.shown(unit_number)
+  return state_of().shown[unit_number]
+end
+
+--- The buildings of force `force_index` attached to a hub, for the Logistics tab: {{rank (their
+--- kind's order), name, unit_number, entity, descriptor (see `shown`)}...}, unordered. Reads the
+--- modules the last and the current cycle found attached to that hub (a module attached since shows
+--- once a pass or its construction refreshes it), each checked again: listed, still attached to the
+--- hub, valid and of the force.
+function entity_status.modules_of(hub_unit_number, force_index)
+  local state = state_of()
+  local found, seen = {}, {}
+  for _, cycle in ipairs({ state.members, state.joining }) do
+    for unit_number in pairs(cycle[hub_unit_number] or {}) do
+      local position = state.index[unit_number]
+      local kind = position and KIND_BY_NAME[state.kinds[position]]
+      local module = kind and kind.modules()[unit_number]
+      local entity = module and module.entity
+      if not seen[unit_number] and module and module.hub == hub_unit_number and entity.valid
+        and entity.force_index == force_index then
+        seen[unit_number] = true
+        found[#found + 1] = { rank = KIND_RANK[kind.name], name = entity.name, unit_number = unit_number,
+          entity = entity, descriptor = state.shown[unit_number] }
+      end
+    end
+  end
+  return found
 end
 
 return entity_status

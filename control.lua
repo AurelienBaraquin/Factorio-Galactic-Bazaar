@@ -26,6 +26,7 @@ local value_overrides = require("scripts.value_overrides")
 -- The tabs of the Galactic Bazaar window register themselves with it when loaded, in this order.
 require("scripts.overview_gui")
 require("scripts.market_gui")
+require("scripts.logistics_gui")
 require("scripts.contracts_gui")
 require("scripts.planets_gui")
 
@@ -213,7 +214,7 @@ if script.active_mods["factorio-test"] then
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
       "tests/telecom", "tests/technologies", "tests/market_gui", "tests/item_detail", "tests/notifications",
-      "tests/entity_status", "tests/bazaar_gui" },
+      "tests/entity_status", "tests/bazaar_gui", "tests/logistics_gui" },
     { load_luassert = true }
   )
 end
