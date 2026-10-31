@@ -11,9 +11,16 @@ local function exists(kind, name)
   return prototypes.recipe_category[name] ~= nil
 end
 
---- on_init and on_configuration_changed: builds the catalog for the loaded game.
+--- on_init and on_configuration_changed: builds the catalog for the loaded game and drops the
+--- reservations of specialties no longer in it. Returns the dropped reservations of each force
+--- ({[force_index] = {reservation...}}), for the services that back them to withdraw.
 function planets.init()
   storage.planets = core.available_catalog(core.CATALOG, exists)
+  local dropped = {}
+  for force_index, state in pairs(storage.forces) do
+    if state.reservations then dropped[force_index] = core.drop_unknown(storage.planets, state.reservations) end
+  end
+  return dropped
 end
 
 --- The catalog of NPC planets: {{name, distance, specialties = {{kind, name, slots}...}}...}.
@@ -34,12 +41,20 @@ function planets.free(force_index, planet_name, kind, name)
   return core.free(storage.planets, reservations, planet_name, kind, name, game.tick)
 end
 
---- Reserves slots of a planet's specialty for a force until `until_tick`. Returns the reservation,
---- or nil and a reason (see scripts/core/planets.lua, or no-force).
-function planets.reserve(force_index, planet_name, kind, name, slots, until_tick)
+--- Reserves slots of a planet's specialty for a force until `until_tick`, for contract
+--- `contract_id` (optional). Returns the reservation, or nil and a reason (see
+--- scripts/core/planets.lua, or no-force).
+function planets.reserve(force_index, planet_name, kind, name, slots, until_tick, contract_id)
   local reservations = reservations_of(force_index)
   if not reservations then return nil, "no-force" end
-  return core.reserve(storage.planets, reservations, planet_name, kind, name, slots, game.tick, until_tick)
+  return core.reserve(storage.planets, reservations, planet_name, kind, name, slots, game.tick, until_tick,
+    contract_id)
+end
+
+--- Frees early the slots a force reserved for contract `contract_id`.
+function planets.release(force_index, contract_id)
+  local reservations = reservations_of(force_index)
+  if reservations then core.release(reservations, contract_id) end
 end
 
 return planets

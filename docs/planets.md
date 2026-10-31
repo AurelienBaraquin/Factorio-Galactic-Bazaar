@@ -25,12 +25,15 @@ recipe category exists; a planet left without a specialty is dropped. The result
 
 ## Reservations
 
-Each force reserves slots of a specialty until an end tick (`planets.reserve(force, planet, kind,
-name, slots, until_tick)`); they are free again from that tick. A reservation is refused when the
+Each force reserves slots of a specialty until an end tick, for the contract they back
+(`planets.reserve(force, planet, kind, name, slots, until_tick, contract_id)`); they are free again
+from that tick, or earlier when the contract releases them (`planets.release(force, contract_id)`). A reservation is refused when the
 specialty has fewer free slots (`no-capacity`), the planet or specialty is unknown
 (`unknown-planet`, `unknown-specialty`), the slots are not a positive whole number
 (`invalid-slots`) or the end is not a finite tick after now (`invalid-duration`). Ended reservations
-are dropped when a reservation is made. Capacity is per force: one force's reservations never take
+are dropped when a reservation is made. On configuration change, reservations of a specialty no
+longer in the catalog are dropped; `planets.init` returns them per force, for the services that
+back them to withdraw their contracts. Capacity is per force: one force's reservations never take
 another's slots. On a force merge, the source's reservations carry over (they back its contracts),
 so the destination may hold more slots than a specialty has until they end.
 
@@ -38,5 +41,7 @@ so the destination may hold more slots than a specialty has until they end.
 
 A **Planets** button in the market window opens a read-only window: each planet's specialties, its
 distance and the slots free for the player's force out of the total, refreshed every second
-(`planets_gui.REFRESH_TICKS`). It closes with its button, when the player leaves, changes force or
-is removed, and on configuration change.
+(`planets_gui.REFRESH_TICKS`). Like the game's windows it becomes the player's opened window,
+replacing the market window. It closes with its button, E or Esc, when the player leaves, changes
+force or is removed, and on configuration change. A planet or category without a locale key shows
+its internal name.

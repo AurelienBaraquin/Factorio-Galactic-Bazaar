@@ -172,7 +172,10 @@ script.on_event(defines.events.on_gui_click, function(event)
   planets_gui.on_gui_click(event)
 end)
 script.on_event(defines.events.on_gui_text_changed, market_gui.on_gui_text_changed)
-script.on_event(defines.events.on_gui_closed, market_gui.on_gui_closed)
+script.on_event(defines.events.on_gui_closed, function(event)
+  market_gui.on_gui_closed(event)
+  planets_gui.on_gui_closed(event)
+end)
 script.on_event({
   defines.events.on_player_left_game, defines.events.on_player_changed_force, defines.events.on_player_removed,
 }, function(event)

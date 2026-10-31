@@ -52,7 +52,32 @@ describe("planets.reserve", function()
     assert.are.equal("invalid-slots", reason("a", "resource", "iron-ore", 0, 0, 10))
     assert.are.equal("invalid-duration", reason("a", "resource", "iron-ore", 1, 10, 10))
     assert.are.equal("invalid-duration", reason("a", "resource", "iron-ore", 1, 0, math.huge))
+    assert.are.equal("invalid-duration", reason("a", "resource", "iron-ore", 1, 0, 0 / 0))
     assert.are.same({}, reservations)
+  end)
+end)
+
+describe("planets.release and drop_unknown", function()
+  it("frees a contract's slots before their end", function()
+    local reservations = {}
+    planets.reserve(catalog, reservations, "a", "resource", "iron-ore", 3, 0, 100, 7)
+    planets.reserve(catalog, reservations, "a", "resource", "iron-ore", 1, 0, 100, 8)
+    planets.release(reservations, 7)
+    assert.are.equal(3, planets.free(catalog, reservations, "a", "resource", "iron-ore", 0))
+    assert.are.equal(8, reservations[1].contract)
+  end)
+
+  it("drops and returns reservations of specialties gone from the catalog", function()
+    local reservations = {}
+    planets.reserve(catalog, reservations, "a", "resource", "iron-ore", 1, 0, 100, 1)
+    planets.reserve(catalog, reservations, "a", "crafting", "smelting", 1, 0, 100, 2)
+    local smaller = {
+      { name = "a", distance = 1, specialties = { { kind = "crafting", name = "smelting", slots = 2 } } },
+    }
+    local dropped = planets.drop_unknown(smaller, reservations)
+    assert.are.same({ 1 }, { dropped[1].contract })
+    assert.are.same({ 2 }, { reservations[1].contract })
+    assert.are.equal(1, #reservations)
   end)
 end)
 

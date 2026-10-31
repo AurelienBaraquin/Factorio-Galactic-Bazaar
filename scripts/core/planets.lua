@@ -59,16 +59,40 @@ function planets.find(catalog, name, kind, specialty_name)
   return nil, nil
 end
 
---- Drops the reservations that ended at or before `tick`.
-function planets.prune(reservations, tick)
-  local index = 1
-  while reservations[index] do
-    if reservations[index].until_tick <= tick then
-      table.remove(reservations, index)
+-- Keeps in place the reservations for which `keep(reservation)` is true, in order; returns the
+-- dropped ones.
+local function filter(reservations, keep)
+  local dropped, kept = {}, 0
+  for index = 1, #reservations do
+    local reservation = reservations[index]
+    reservations[index] = nil
+    if keep(reservation) then
+      kept = kept + 1
+      reservations[kept] = reservation
     else
-      index = index + 1
+      dropped[#dropped + 1] = reservation
     end
   end
+  return dropped
+end
+
+--- Drops the reservations that ended at or before `tick`.
+function planets.prune(reservations, tick)
+  filter(reservations, function(reservation) return reservation.until_tick > tick end)
+end
+
+--- Ends early the reservations of contract `contract_id` (it was settled, abandoned or withdrawn).
+function planets.release(reservations, contract_id)
+  filter(reservations, function(reservation) return reservation.contract ~= contract_id end)
+end
+
+--- Drops the reservations whose specialty is no longer in the catalog (a mod change); returns them,
+--- so that the services they back can withdraw their contracts.
+function planets.drop_unknown(catalog, reservations)
+  return filter(reservations, function(reservation)
+    local _, specialty = planets.find(catalog, reservation.planet, reservation.kind, reservation.name)
+    return specialty ~= nil
+  end)
 end
 
 --- Slots of a planet's specialty held by `reservations` at `tick`.
@@ -90,20 +114,23 @@ function planets.free(catalog, reservations, planet_name, kind, name, tick)
   return math.max(0, specialty.slots - planets.used(reservations, planet_name, kind, name, tick))
 end
 
---- Reserves `slots` slots of a planet's specialty from `tick` until `until_tick`. Returns the new
---- reservation, appended to `reservations`; or nil and a reason (unknown-planet, unknown-specialty,
---- invalid-slots, invalid-duration, no-capacity).
-function planets.reserve(catalog, reservations, planet_name, kind, name, slots, tick, until_tick)
+--- Reserves `slots` slots of a planet's specialty from `tick` until `until_tick` for contract
+--- `contract_id` (optional), which `release` frees early. Returns the new reservation, appended to
+--- `reservations`; or nil and a reason (unknown-planet, unknown-specialty, invalid-slots,
+--- invalid-duration, no-capacity).
+function planets.reserve(catalog, reservations, planet_name, kind, name, slots, tick, until_tick, contract_id)
   local planet, specialty = planets.find(catalog, planet_name, kind, name)
   if not planet then return nil, "unknown-planet" end
   if not specialty then return nil, "unknown-specialty" end
   if type(slots) ~= "number" or slots < 1 or slots % 1 ~= 0 then return nil, "invalid-slots" end
-  if type(until_tick) ~= "number" or until_tick <= tick or until_tick == math.huge then
+  if type(until_tick) ~= "number" or until_tick ~= until_tick or until_tick <= tick or until_tick == math.huge then
     return nil, "invalid-duration"
   end
   planets.prune(reservations, tick)
   if planets.free(catalog, reservations, planet_name, kind, name, tick) < slots then return nil, "no-capacity" end
-  local reservation = { planet = planet_name, kind = kind, name = name, slots = slots, until_tick = until_tick }
+  local reservation = {
+    planet = planet_name, kind = kind, name = name, slots = slots, until_tick = until_tick, contract = contract_id,
+  }
   reservations[#reservations + 1] = reservation
   return reservation
 end

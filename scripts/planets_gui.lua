@@ -17,8 +17,10 @@ end
 
 -- How a specialty reads: an item icon for a resource, the category's name for crafting.
 local function specialty_caption(specialty)
-  if specialty.kind == "resource" then return "[item=" .. specialty.name .. "]" end
-  return { "gb-planets.category-" .. specialty.name }
+  if specialty.kind == "resource" then
+    return { "", "[item=" .. specialty.name .. "] ", { "item-name." .. specialty.name } }
+  end
+  return { "?", { "gb-planets.category-" .. specialty.name }, specialty.name }
 end
 
 local function refresh(player, data)
@@ -40,7 +42,7 @@ local function build(player)
   end
   for _, planet in ipairs(planets.catalog()) do
     for _, specialty in ipairs(planet.specialties) do
-      list.add({ type = "label", caption = { "gb-planets.name-" .. planet.name } })
+      list.add({ type = "label", caption = { "?", { "gb-planets.name-" .. planet.name }, planet.name } })
       list.add({ type = "label", caption = { "gb-planets.distance", planet.distance } })
       list.add({ type = "label", caption = specialty_caption(specialty) })
       elements.rows[#elements.rows + 1] = {
@@ -59,6 +61,8 @@ function planets_gui.open(player)
   local data = { elements = build(player) }
   storage.planets_gui[player.index] = data
   refresh(player, data)
+  -- Like the game's windows: E or Esc closes it, and it replaces the market window.
+  player.opened = data.elements.window
 end
 
 function planets_gui.close(player_index)
@@ -72,6 +76,14 @@ function planets_gui.on_gui_click(event)
   local element = event.element
   if not (element and element.valid and element.get_mod() == script.mod_name) then return end
   if element.tags.gb_action == "planets-close" then planets_gui.close(event.player_index) end
+end
+
+--- on_gui_closed: E, Esc or another window closes this one.
+function planets_gui.on_gui_closed(event)
+  local element = event.element
+  if element and element.valid and element.name == WINDOW and element.get_mod() == script.mod_name then
+    planets_gui.close(event.player_index)
+  end
 end
 
 --- on_nth_tick(REFRESH_TICKS): refreshes the open windows of connected players.

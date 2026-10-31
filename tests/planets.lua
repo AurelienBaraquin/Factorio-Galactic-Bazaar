@@ -64,8 +64,24 @@ describe("NPC planets", function()
     assert.are.equal(10, #rows)
     assert.are.same({ "gb-planets.slots", 3, 4 },
       { coal.slots.caption[1], tonumber(coal.slots.caption[2]), tonumber(coal.slots.caption[3]) })
+    assert.are.equal(player.gui.screen.gb_planets, player.opened)
+    assert.is_nil(player.gui.screen.gb_market)
     planets_gui.on_gui_click({ element = find(player.gui.screen.gb_planets, "planets-close"), player_index = 1 })
     assert.is_nil(player.gui.screen.gb_planets)
+    planets_gui.open(player)
+    player.opened = nil
+    assert.is_nil(player.gui.screen.gb_planets)
+  end)
+
+  test("reservations of a specialty gone from the catalog are dropped on configuration change", function()
+    planets.reserve(force_index(), "carbo", "resource", "coal", 1, game.tick + 600, 41)
+    table.insert(state().reservations, { planet = "gone", kind = "resource", name = "coal", slots = 1,
+      until_tick = game.tick + 600, contract = 42 })
+    local dropped = planets.init()[force_index()]
+    assert.are.same({ 42 }, { dropped[1].contract })
+    assert.are.equal(1, #state().reservations)
+    planets.release(force_index(), 41)
+    assert.are.equal(4, planets.free(force_index(), "carbo", "resource", "coal"))
   end)
 
   test("keeps reservations across a save and reload", function()

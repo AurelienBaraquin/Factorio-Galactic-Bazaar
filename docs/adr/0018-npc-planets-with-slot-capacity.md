@@ -29,8 +29,11 @@ force, names each planet, its distance (in transit units, used by #84) and its s
 resource it extracts (`resource`, an item) or a crafting category it serves (`crafting`), each with
 a number of slots. The adapter keeps only the specialties whose item or category exists in the
 loaded game. Each force's reservations live in its state (`storage.forces[i].reservations`); a
-reservation names a planet, a specialty, a number of slots and an end tick, and is refused when the
-specialty has fewer free slots. Expired reservations are pruned when read. Services that reserve
+reservation names a planet, a specialty, a number of slots, an end tick and the contract it backs,
+and is refused when the specialty has fewer free slots; the contract frees it early when it ends
+first. Expired reservations are dropped when a reservation is made. On configuration change, the
+reservations of a specialty no longer in the catalog are dropped and handed to the services that
+back them, which withdraw those contracts like contracts whose goods vanished. Services that reserve
 slots (#85, #86) are contracts of the model of ADR-0015; this ADR only fixes where capacity lives.
 On a force merge the source's reservations carry over with its contracts.
 

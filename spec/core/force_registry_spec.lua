@@ -68,9 +68,11 @@ describe("force_registry.merge", function()
   it("carries the source's open contracts and reputation debt into the destination", function()
     local forces = { [1] = new_state(), [2] = new_state() }
     forces[2].contracts.open[9] = { id = 9 }
+    forces[2].reservations[1] = { planet = "a", contract = 9 }
     forces[1].reputation, forces[2].reputation = 1, -2
     force_registry.merge(forces, 2, 1)
     assert.are.same({ id = 9 }, forces[1].contracts.open[9])
+    assert.are.same({ { planet = "a", contract = 9 } }, forces[1].reservations)
     assert.are.equal(-1, forces[1].reputation)
   end)
 end)
@@ -81,6 +83,7 @@ describe("force_registry.ensure on a state saved before contracts", function()
     force_registry.ensure(forces, 1)
     assert.are.same({ open = {}, history = {} }, forces[1].contracts)
     assert.are.equal(0, forces[1].reputation)
+    assert.are.same({}, forces[1].reservations)
   end)
 
   it("brings a reputation saved without bounds within them", function()
