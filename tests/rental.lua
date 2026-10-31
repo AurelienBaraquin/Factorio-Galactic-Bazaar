@@ -1,5 +1,6 @@
 -- In-game tests of machine capacity rental (scripts/rental.lua, #78): offers for idle machines,
 -- acceptance, the machine working only for the counterparty, installments and release.
+local test_helpers = require("tests.helpers")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local incoming = require("scripts.incoming_contracts")
@@ -42,7 +43,7 @@ describe("capacity rental", function()
       balance = state().balance, reputation = state().reputation, history = #state().contracts.history,
       researched = force().technologies[rental.TECHNOLOGY].researched,
     }
-    state().balance = 1e6
+    test_helpers.set_balance(state(), 1e6)
     state().contracts.open = {}
     place("gb-hub", 0)
     machine = place(rental.NAME, 5)
@@ -53,8 +54,8 @@ describe("capacity rental", function()
     end
     local saved = storage.gb_test_rental
     if saved then
-      state().balance, state().reputation = saved.balance, saved.reputation
-      state().overdraft_low = state().balance
+      test_helpers.set_balance(state(), saved.balance)
+      state().reputation = saved.reputation
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       force().technologies[rental.TECHNOLOGY].researched = saved.researched
@@ -107,7 +108,7 @@ describe("capacity rental", function()
   end)
 
   test("acceptance from a zero balance puts the guarantee on overdraft", function()
-    state().balance = 0
+    test_helpers.set_balance(state(), 0)
     local id = rent(machine, 100)
     assert.is_true(rental.accept(force().index, id))
     assert.is_true(state().balance <= -150)

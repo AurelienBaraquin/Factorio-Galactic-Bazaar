@@ -1,5 +1,6 @@
 -- In-game tests of teleporters (scripts/teleporter.lua, #66): the teleporter tier while powered, and
 -- shipments held without power.
+local test_helpers = require("tests.helpers")
 local freight = require("scripts.freight")
 local teleporter = require("scripts.teleporter")
 
@@ -22,7 +23,7 @@ describe("teleporter", function()
     created = {}
     -- In storage, so that it survives the reload of the last test.
     storage.gb_test_teleporter_balance = player_state().balance
-    player_state().balance = 1e6
+    test_helpers.set_balance(player_state(), 1e6)
     player_state().markets["item/" .. GEAR] = nil
     hub = place("gb-hub", 0)
     hub.energy = hub.electric_buffer_size
@@ -36,7 +37,7 @@ describe("teleporter", function()
       end
     end
     if storage.gb_test_teleporter_balance then
-      player_state().balance = storage.gb_test_teleporter_balance
+      test_helpers.set_balance(player_state(), storage.gb_test_teleporter_balance)
       storage.gb_test_teleporter_balance = nil
     end
     player_state().markets["item/" .. GEAR] = nil

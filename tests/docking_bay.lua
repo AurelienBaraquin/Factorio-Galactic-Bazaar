@@ -1,5 +1,6 @@
 -- In-game tests of docking bays (scripts/docking_bay.lua, #65): the cargo shuttle tier while a bay
 -- holds fuel, fuel burnt per shipment, and the capsule when fuel runs short.
+local test_helpers = require("tests.helpers")
 local docking_bay = require("scripts.docking_bay")
 local freight = require("scripts.freight")
 local market_gui = require("scripts.market_gui")
@@ -31,7 +32,7 @@ describe("docking bay", function()
     surface = game.surfaces[1]
     created = {}
     saved_balance = player_state().balance
-    player_state().balance = 1e6
+    test_helpers.set_balance(player_state(), 1e6)
     player_state().markets["item/" .. GEAR] = nil
     hub = place("gb-hub", 0)
     hub.energy = hub.electric_buffer_size
@@ -44,7 +45,7 @@ describe("docking bay", function()
         entity.destroy()
       end
     end
-    if saved_balance then player_state().balance = saved_balance end
+    if saved_balance then test_helpers.set_balance(player_state(), saved_balance) end
     player_state().markets["item/" .. GEAR] = nil
   end)
 

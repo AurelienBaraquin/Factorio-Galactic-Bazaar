@@ -1,5 +1,6 @@
 -- In-game tests of mining concessions (scripts/concessions.lua, #85): leasing a planet's slot, the
 -- charge per period shipped, defaults, the end of the term and the lease button of the planets window.
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
@@ -56,7 +57,7 @@ describe("mining concessions", function()
     }
     technology(concessions.CONCESSION_TECHNOLOGY).researched = true
     technology(concessions.OUTSOURCING_TECHNOLOGY).researched = true
-    state().balance = 1e6
+    test_helpers.set_balance(state(), 1e6)
     state().contracts.open = {}
     state().reservations = {}
     hub = place("gb-hub", 3, 0)
@@ -75,8 +76,8 @@ describe("mining concessions", function()
     end
     local saved = storage.gb_test_concessions
     if saved then
-      state().balance, state().reputation = saved.balance, saved.reputation
-      state().overdraft_low = state().balance
+      test_helpers.set_balance(state(), saved.balance)
+      state().reputation = saved.reputation
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       state().reservations = saved.reservations
@@ -137,7 +138,7 @@ describe("mining concessions", function()
   end)
 
   test("a force with no credits leases on overdraft, and its charge is paid, not defaulted", function()
-    state().balance = 0
+    test_helpers.set_balance(state(), 0)
     local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
     assert.is_truthy(id)
     local contract = contracts.get(force_index(), id)
@@ -160,7 +161,7 @@ describe("mining concessions", function()
 
   test("a force that cannot pay defaults, and the slot is released", function()
     local id = concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore")
-    state().balance = -account.overdraft_limit(state())
+    test_helpers.set_balance(state(), -account.overdraft_limit(state()))
     local reputation, arrears = state().reputation, state().arrears
     run_period(id)
     assert.is_nil(contracts.get(force_index(), id))
@@ -189,10 +190,10 @@ describe("mining concessions", function()
       { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "copper-ore") })
     assert.are.same({ nil, "unknown-specialty" },
       { concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "coal") })
-    state().balance = -account.overdraft_limit(state())
+    test_helpers.set_balance(state(), -account.overdraft_limit(state()))
     assert.are.same({ nil, "insufficient-funds" },
       { concessions.lease(force_index(), hub.unit_number, "carbo", "coal") })
-    state().balance = 1e6
+    test_helpers.set_balance(state(), 1e6)
     for _ = 1, contracts.MAX_LISTED - #contracts.listed(force_index()) do
       concessions.lease(force_index(), hub.unit_number, "ferrum-prime", "iron-ore")
       concessions.lease(force_index(), hub.unit_number, "carbo", "stone")
@@ -229,7 +230,7 @@ describe("mining concessions", function()
 
   test("leases follow a merged force", function()
     local source = game.create_force("gb-test-concessions")
-    storage.forces[source.index].balance = 1e6
+    test_helpers.set_balance(storage.forces[source.index], 1e6)
     source.technologies[concessions.CONCESSION_TECHNOLOGY].researched = true
     local id = concessions.lease(source.index, hub.unit_number, "carbo", "coal")
     game.merge_forces(source, "player")
@@ -267,7 +268,7 @@ describe("mining concessions", function()
 
   test("a booking the force cannot pay defaults without leaving arrears", function()
     local id = concessions.book(force_index(), hub.unit_number, "fabrica-nova", "crafting", "iron-gear-wheel")
-    state().balance = -account.overdraft_limit(state())
+    test_helpers.set_balance(state(), -account.overdraft_limit(state()))
     local arrears = state().arrears
     run_period(id)
     assert.is_nil(contracts.get(force_index(), id))

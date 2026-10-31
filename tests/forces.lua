@@ -1,3 +1,4 @@
+local test_helpers = require("tests.helpers")
 -- In-game tests of the per-force economy state (scripts/forces.lua, ADR-0001).
 
 local function count(t)
@@ -28,12 +29,12 @@ describe("storage.forces", function()
     local balance_before = player_state.balance
     local source = game.create_force("gb-test-merged")
     local source_index = source.index
-    storage.forces[source_index].balance = 25
+    test_helpers.set_balance(storage.forces[source_index], 25)
     game.merge_forces(source, "player")
     after_ticks(1, function()
       assert.is_nil(storage.forces[source_index])
       assert.are.equal(balance_before + 25, storage.forces[game.forces.player.index].balance)
-      player_state.balance = balance_before
+      test_helpers.set_balance(player_state, balance_before)
     end)
   end)
 

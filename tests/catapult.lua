@@ -1,5 +1,6 @@
 -- In-game tests of electromagnetic catapults (scripts/catapult.lua, #67): bulk sales one shot at a
 -- time, the energy each shot draws, and the hidden capacitor's lifecycle.
+local test_helpers = require("tests.helpers")
 local catapult = require("scripts.catapult")
 
 local surface, created
@@ -21,7 +22,7 @@ describe("electromagnetic catapult", function()
     surface = game.surfaces[1]
     created = {}
     storage.gb_test_catapult_balance = player_state().balance
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
     for _, name in ipairs({ "iron-plate", "copper-plate" }) do player_state().markets["item/" .. name] = nil end
     hub = place("gb-hub", 0)
     hub.energy = hub.electric_buffer_size
@@ -31,7 +32,7 @@ describe("electromagnetic catapult", function()
       if entity.valid then entity.destroy() end
     end
     if storage.gb_test_catapult_balance then
-      player_state().balance = storage.gb_test_catapult_balance
+      test_helpers.set_balance(player_state(), storage.gb_test_catapult_balance)
       storage.gb_test_catapult_balance = nil
     end
     for _, name in ipairs({ "iron-plate", "copper-plate" }) do player_state().markets["item/" .. name] = nil end

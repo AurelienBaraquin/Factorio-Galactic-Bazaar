@@ -2,6 +2,7 @@
 -- the credit research while existing loans are still repaid, the overdraft limit raised by each level
 -- from the research events and scaled by reputation, force and technology-effect resets, the
 -- self-heal at the interest tick, saves made before the levels, and persistence.
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
@@ -37,7 +38,8 @@ describe("financial engineering research", function()
       technology(name).researched = false
     end
     storage.gb_test_finance = saved
-    state().balance, state().arrears, state().overdraft_low, state().reputation = 0, 0, 0, 0
+    test_helpers.set_balance(state(), 0)
+    state().arrears, state().reputation = 0, 0
     state().contracts.open = {}
   end)
   after_each(function()
@@ -47,9 +49,8 @@ describe("financial engineering research", function()
     local saved = storage.gb_test_finance
     if saved then
       for _, name in ipairs(BRANCH) do technology(name).researched = saved.researched[name] end
-      state().balance, state().arrears, state().overdraft_low = saved.balance, saved.arrears, saved.balance
-      -- The insolvency check's low-water mark too, or the restored force would look insolvent.
-      state().solvency_low = saved.balance
+      test_helpers.set_balance(state(), saved.balance)
+      state().arrears = saved.arrears
       state().reputation = saved.reputation
       storage.gb_test_finance = nil
     end
@@ -83,7 +84,7 @@ describe("financial engineering research", function()
     contracts.on_settle_tick({ tick = game.tick + loans_core.PERIOD_TICKS })
     assert.are.equal(core.ACTIVE, contracts.get(player_force().index, id).state)
     assert.is_true(math.abs(5000 - charge - state().balance) < 1e-6)
-    state().balance = 10000
+    test_helpers.set_balance(state(), 10000)
     assert.are.equal(core.FULFILLED, contracts.abandon(player_force().index, id).state)
     state().arrears = 100
     loans.on_collect_tick({ tick = game.tick })
@@ -98,7 +99,7 @@ describe("financial engineering research", function()
     assert.are.equal(account.OVERDRAFT_LEVEL_LIMITS[1], account.overdraft_limit(state()))
     technology(finance.OVERDRAFT_TECHNOLOGIES[2]).researched = true
     assert.are.equal(account.OVERDRAFT_LEVEL_LIMITS[2], account.overdraft_limit(state()))
-    state().balance = -account.OVERDRAFT_LEVEL_LIMITS[1]
+    test_helpers.set_balance(state(), -account.OVERDRAFT_LEVEL_LIMITS[1])
     assert.is_true(account.apply(state(), -1, { tick = game.tick, kind = "gb-test" }))
     technology(finance.OVERDRAFT_TECHNOLOGIES[2]).researched = false
     assert.are.equal(1, state().overdraft_level)
@@ -114,7 +115,7 @@ describe("financial engineering research", function()
 
   test("heal a stale level at the interest tick, before interest is charged", function()
     state().overdraft_level = 2
-    state().balance, state().overdraft_low = -20000, -20000
+    test_helpers.set_balance(state(), -20000)
     forces.on_interest_tick({ tick = game.tick })
     assert.are.equal(0, state().overdraft_level)
     local charged = account.BASE_OVERDRAFT_LIMIT * account.INTEREST_RATE

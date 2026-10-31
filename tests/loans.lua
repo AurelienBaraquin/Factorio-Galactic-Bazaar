@@ -2,6 +2,7 @@
 -- term at the contract settlement, the rate and cap by reputation, repaying instead of abandoning,
 -- default and arrears, the overdraft's part, force merge, the contracts window's credit line and
 -- persistence. The forces borrowing have researched credit (#98; its gating: tests/finance.lua).
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
@@ -52,8 +53,8 @@ describe("loans", function()
       history = #state().contracts.history, credit = credit(game.forces.player).researched,
     }
     credit(game.forces.player).researched = true
-    state().balance, state().reputation, state().arrears = 0, 0, 0
-    state().overdraft_low = 0
+    test_helpers.set_balance(state(), 0)
+    state().reputation, state().arrears = 0, 0
     state().contracts.open = {}
   end)
   after_each(function()
@@ -64,8 +65,8 @@ describe("loans", function()
     storage.gb_test_loan_hubs = nil
     local saved = storage.gb_test_loans
     if saved then
-      state().balance, state().reputation, state().arrears = saved.balance, saved.reputation, saved.arrears
-      state().overdraft_low = saved.balance
+      test_helpers.set_balance(state(), saved.balance)
+      state().reputation, state().arrears = saved.reputation, saved.arrears
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       credit(game.forces.player).researched = saved.credit
@@ -75,7 +76,7 @@ describe("loans", function()
   end)
 
   test("pay the principal at once and take principal plus interest back over the term", function()
-    state().balance = 1000
+    test_helpers.set_balance(state(), 1000)
     local id = loans.borrow(force_index(), 1)
     local loan = contracts.get(force_index(), id)
     assert.are.equal(core.ACTIVE, loan.state)
@@ -112,11 +113,11 @@ describe("loans", function()
 
   test("repay a loan in full instead of abandoning it, never for free", function()
     local id = loans.borrow(force_index(), 1)
-    state().balance = funds(1000)
+    test_helpers.set_balance(state(), funds(1000))
     assert.are.same({ nil, "insufficient-funds" }, { contracts.abandon(force_index(), id) })
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
     assert.are.equal(funds(1000), state().balance)
-    state().balance = 6000
+    test_helpers.set_balance(state(), 6000)
     assert.are.equal(core.FULFILLED, contracts.abandon(force_index(), id).state)
     assert.is_true(near(500, state().balance))
     assert.is_nil(contracts.get(force_index(), id))
@@ -146,7 +147,7 @@ describe("loans", function()
   test("default a loan whose installment is not paid: what is left stays owed as arrears", function()
     local id = loans.borrow(force_index(), 1)
     local charge = contracts.get(force_index(), id).charge
-    state().balance = funds(charge - 1)
+    test_helpers.set_balance(state(), funds(charge - 1))
     contracts.on_settle_tick({ tick = game.tick + loans_core.PERIOD_TICKS })
     assert.is_nil(contracts.get(force_index(), id))
     assert.are.equal(funds(charge - 1), state().balance)
@@ -161,12 +162,13 @@ describe("loans", function()
   end)
 
   test("collect arrears from the available funds down to the overdraft limit, then from income", function()
-    state().balance, state().arrears = 0, 50000
+    test_helpers.set_balance(state(), 0)
+    state().arrears = 50000
     loans.on_collect_tick({ tick = game.tick })
     assert.are.equal(funds(0), state().balance)
     assert.are.equal(50000 + funds(0), state().arrears)
     local owed = state().arrears
-    state().balance = state().balance + 1000
+    test_helpers.set_balance(state(), state().balance + 1000)
     loans.on_collect_tick({ tick = game.tick })
     assert.are.equal(funds(0), state().balance)
     assert.are.equal(owed - 1000, state().arrears)
@@ -175,7 +177,7 @@ describe("loans", function()
   test("pay an installment from the overdraft, which then pays interest, down to the last credit", function()
     local id = loans.borrow(force_index(), 1)
     local charge = contracts.get(force_index(), id).charge
-    state().balance, state().overdraft_low = 0, 0
+    test_helpers.set_balance(state(), 0)
     settle(game.tick + loans_core.PERIOD_TICKS)
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
     assert.is_true(near(-charge, state().balance))
@@ -186,21 +188,21 @@ describe("loans", function()
       if entry.kind == account.INTEREST_KIND then interest = entry end
     end
     assert.is_true(interest ~= nil and interest.amount < 0)
-    state().balance = funds(charge)
+    test_helpers.set_balance(state(), funds(charge))
     contracts.on_settle_tick({ tick = game.tick + 2 * loans_core.PERIOD_TICKS })
     assert.are.equal(core.ACTIVE, contracts.get(force_index(), id).state)
     assert.is_true(near(funds(0), state().balance))
   end)
 
   test("lend nothing to a force beyond its overdraft limit, and say so on the Borrow buttons", function()
-    state().balance = funds(-1)
+    test_helpers.set_balance(state(), funds(-1))
     for _, offer in ipairs(loans.offers(force_index())) do assert.are.equal("overdrawn", offer.refusal) end
     assert.are.same({ nil, "overdrawn" }, { loans.borrow(force_index(), 1) })
     assert.are.equal(funds(-1), state().balance)
     local player = game.get_player(1)
     contracts_gui.open(player, place_hub(3).unit_number)
     assert.is_false(find(player.gui.screen.gb_contracts, "loan-borrow", "tier", 1).enabled)
-    state().balance = funds(0)
+    test_helpers.set_balance(state(), funds(0))
     assert.is_truthy(loans.borrow(force_index(), 1))
   end)
 
@@ -253,7 +255,7 @@ describe("loans", function()
     assert.are.equal(5000, state().balance)
     local loan = contracts.listed(force_index())[1]
     assert.are.equal("loan", loan.kind)
-    state().balance = 6000
+    test_helpers.set_balance(state(), 6000)
     contracts_gui.on_gui_click({ element = find(window, "contract-abandon", "id", loan.id), player_index = 1 })
     assert.is_nil(contracts.get(force_index(), loan.id))
   end)

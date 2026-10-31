@@ -1,4 +1,5 @@
 -- In-game tests of the per-force market (scripts/market.lua): quotes, atomic trades, persistence.
+local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local market = require("scripts.market")
 
@@ -12,8 +13,7 @@ describe("market", function()
   end)
   after_each(function()
     if saved_balance then
-      player_state().balance = saved_balance
-      player_state().overdraft_low = saved_balance
+      test_helpers.set_balance(player_state(), saved_balance)
     end
     player_state().markets["item/iron-gear-wheel"] = nil
   end)
@@ -34,7 +34,7 @@ describe("market", function()
 
   test("refuses a purchase the force cannot pay, changing nothing", function()
     local floor = -account.overdraft_limit(player_state())
-    player_state().balance = floor
+    test_helpers.set_balance(player_state(), floor)
     local before = market.quote(game.forces.player.index, "item", "iron-gear-wheel").mid
     local ok, reason = market.buy(game.forces.player.index, "item", "iron-gear-wheel", 10)
     assert.is_false(ok)
@@ -44,7 +44,7 @@ describe("market", function()
   end)
 
   test("debits the account and raises the price on a purchase", function()
-    player_state().balance = 1e6
+    test_helpers.set_balance(player_state(), 1e6)
     local before = market.quote(game.forces.player.index, "item", "iron-gear-wheel").mid
     local ok, cost = market.buy(game.forces.player.index, "item", "iron-gear-wheel", 1000)
     assert.is_true(ok)
@@ -54,7 +54,7 @@ describe("market", function()
   end)
 
   test("credits the account and lowers the price on a sale", function()
-    player_state().balance = 0
+    test_helpers.set_balance(player_state(), 0)
     local before = market.quote(game.forces.player.index, "item", "iron-gear-wheel").mid
     local ok, revenue = market.sell(game.forces.player.index, "item", "iron-gear-wheel", 1000)
     assert.is_true(ok and revenue > 0)

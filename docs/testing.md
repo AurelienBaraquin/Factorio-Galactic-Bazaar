@@ -64,9 +64,11 @@ graph and base values built from the real prototypes (`tests/recipe_graph.lua`,
 player (`tests/market_gui.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
 re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
-between tests, so a test that restores a force's balance by assignment also resets its low-water
-marks (`overdraft_low`, `solvency_low`) to it, or the interest or insolvency check would act on the
-balance the test left behind. `control.lua` registers them only when the `factorio-test` mod is
+between tests, so a test never assigns a force's balance directly: it calls
+`test_helpers.set_balance(state, balance)` from `tests/helpers.lua`, which also resets the low-water
+marks (`overdraft_low`, `solvency_low`) and drops any insolvency or recovery in progress, or the
+interest or insolvency check would act on the balance the test left behind. Name the module's local
+`test_helpers`: `helpers` is the game's own global (`helpers.create_profiler`). `control.lua` registers them only when the `factorio-test` mod is
 active, so they are inert in a normal game. CLI configuration: the `factorio-test` key of
 `package.json`.
 
