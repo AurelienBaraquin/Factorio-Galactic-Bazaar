@@ -145,7 +145,7 @@ gives the hub's tier. An order is scheduled, charged and bounded with the tier a
 shipment records it. Each tier launches on its own schedule and has its own queue bound
 (`freight.queued(hub, tier)`), and unloading takes every landed shipment, so tiers never hold each
 other back. The Market tab's status line shows the tier and its queue; a purchase from it is
-refused (`tier-changed`, and the preview refreshed) when the tier changed since the tab showed it, or when the preview was computed for another hub or with no tier. The rows below describe the capsule; the
+refused (`tier-changed`, and the preview refreshed) when the tier changed since the tab showed it, or when the preview was computed for another hub; when no tier can take the quantity, the preview names the reason (`queue-full`, `not-tradeable`) and a purchase is refused with it. The rows below describe the capsule; the
 other tiers differ only by their parameters.
 
 | Payment | at order time: the market cost plus `fee_rate` (5 %) of it, scaled by the force's reputation (×0.5 to ×1.5, [contracts.md](contracts.md)), journaled as a `buy` and a `freight` entry; refused whole if the available funds (balance plus overdraft) do not cover both. Each capsule records the force that paid and the market price paid per unit |

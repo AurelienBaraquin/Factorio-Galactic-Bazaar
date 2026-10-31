@@ -149,7 +149,8 @@ describe("docking bay", function()
     data.selected = "item/" .. GEAR
     local per_shuttle = prototypes.item[GEAR].stack_size * freight.TIERS.shuttle.capacity_stacks
     data.elements.quantity.text = tostring(2 * per_shuttle)
-    bazaar_gui.on_gui_input({ element = data.elements.quantity, player_index = player.index })
+    bazaar_gui.on_gui_input({ element = data.elements.quantity, player_index = player.index,
+      name = defines.events.on_gui_text_changed })
     assert.are.equal("capsule", data.tier)
     bazaar_gui.on_gui_input({ element = find(player.gui.screen.gb_bazaar, "buy"), player_index = player.index })
     local queued = freight.queued(near.unit_number, "capsule")

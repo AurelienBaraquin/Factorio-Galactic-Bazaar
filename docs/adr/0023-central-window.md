@@ -58,7 +58,8 @@ as before. Owner decisions (coordinator, review of #114): every action that comm
 that hub — Decline and Abandon of every contract kind included, like Accept and Repay — and nothing
 trades from remote view (`controller_type` `remote`; a hub clicked there opens the Market tab
 without a hub). A purchase is refused (`tier-changed`) unless its preview was computed for the same
-hub with a tier. Every GUI input event of this mod's elements reaches the tab actions, with the
+hub and its tier still ships it; a preview with no tier shows the reason and the order then fails
+with it. Every GUI input event of this mod's elements reaches the tab actions, with the
 element; tab names and orders are unique. The handlers create `storage.bazaar_gui` when a save
 from before it runs events before its configuration change, and an input on a window of such a
 save destroys that window. The Overview's figures are computed by a

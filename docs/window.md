@@ -32,7 +32,10 @@ every action; a destroyed hub is unbound at once (`on_hub_removed`); a tab's ref
 the window just resolved (`bazaar_gui.bound_hub`) instead of searching again. Each tab keeps its
 own checks (power, import chest, funds…). A purchase from the Market tab is also refused
 (`tier-changed`, and the preview refreshed) unless the preview shown was computed for that same
-hub with a delivery tier, so the player has always seen the fee.
+hub and the tier it named still ships the order, so the player has always seen the fee. When no
+tier could take the order (a full queue, an item without stack size), the preview shows that reason
+instead of a fee, and the order is sent expecting no tier (`"none"`): it is refused with the real
+reason, or as `tier-changed` if a tier opened up since.
 
 ## Tabs
 
@@ -64,7 +67,7 @@ bazaar_gui.register_tab({
   order = 50,                  -- unique position among the tabs, lowest first
   build = function(player, container, view, window) --[[ fill container, set view.elements ]] end,
   refresh = function(player, view, window) --[[ update view.elements in place ]] end,
-  actions = { ["statement-page"] = function(player, view, tags, window, element) end },  -- optional
+  actions = { ["statement-page"] = function(player, view, tags, window, element, event) end },  -- optional
   available = function(player) return true end,                                -- optional
   locked_tooltip = function(player) return { "..." } end,                     -- optional
 })
@@ -76,9 +79,10 @@ keeps there must be serialisable or a GUI element. Names and orders are unique a
 (registration asserts it). Elements that trigger an action carry the tag `gb_action` with a name
 registered by exactly one tab; every GUI input event (`bazaar_gui.GUI_EVENTS`: click, text changed,
 confirmed, element chosen, checkbox, selection, slider; `control.lua` routes them all to
-`bazaar_gui.on_gui_input`) of such an element runs it, with the element that raised it, while the
-window is open and that tab is built; an action that cares which event fired checks the element's
-type. An action that trades or commits the force calls `bazaar_gui.hub(player, window)` and refuses
+`bazaar_gui.on_gui_input`) of such an element runs it, with the element that raised it and the
+event, while the window is open and that tab is built; an action that should follow only one kind
+of event checks `event.name` (a click in a text field also raises `on_gui_click`: the Market tab's
+search and quantity act only on `on_gui_text_changed` and `on_gui_confirmed`). An action that trades or commits the force calls `bazaar_gui.hub(player, window)` and refuses
 with `bazaar_gui.no_hub_message(player)` without a hub. `bazaar_gui.open(player, name, hub)` opens the window on a tab (and binds a
 hub within reach), `bazaar_gui.view(player_index, name)` returns a built tab's view and
 `bazaar_gui.refresh(player)` refreshes the shown tab now. A panel of an existing tab (the item

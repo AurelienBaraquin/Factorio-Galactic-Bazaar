@@ -170,15 +170,15 @@ An assembling machine is `data.raw["assembling-machine"]["assembling-machine-1"]
 data:extend({
   {
     type = "custom-input",
-    name = "gb-toggle-market",
+    name = "gb-toggle-bazaar",
     key_sequence = "CONTROL + SHIFT + M",   -- REQUIRED
     consuming = "none",                     -- default
     action = "lua",                         -- default: raises an event with the same name
     -- include_selected_prototype = true,   -- event gets the hovered prototype
   },
 })
--- runtime: script.on_event("gb-toggle-market", function(e) ... end)
--- locale: [controls] gb-toggle-market=Toggle Galactic Bazaar
+-- runtime: script.on_event("gb-toggle-bazaar", function(e) ... end)
+-- locale: [controls] gb-toggle-bazaar=Toggle Galactic Bazaar
 ```
 
 ## Mod data (pass data-stage results to runtime)

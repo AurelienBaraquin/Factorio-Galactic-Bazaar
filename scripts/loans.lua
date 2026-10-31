@@ -24,7 +24,7 @@ function loans.debt(force_index)
 end
 
 -- Why a force may borrow nothing now, whatever the tier, or nil: it has not researched credit, the
--- contracts window is full, the force is insolvent or refused credit after a bankruptcy (ADR-0022), or
+-- Contracts tab is full, the force is insolvent or refused credit after a bankruptcy (ADR-0022), or
 -- its balance is beyond its overdraft limit (no available funds: acceptance refuses even a zero
 -- guarantee, contracts.can_accept).
 local function refusal_for_all(force_index, state)

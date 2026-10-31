@@ -37,7 +37,8 @@ end
 -- Types a quantity in the Market tab, as the player would (the preview follows).
 local function type_quantity(view, text)
   view.elements.quantity.text = text
-  bazaar_gui.on_gui_input({ element = view.elements.quantity, player_index = player.index })
+  bazaar_gui.on_gui_input({ element = view.elements.quantity, player_index = player.index,
+    name = defines.events.on_gui_text_changed })
 end
 
 local function click(action)

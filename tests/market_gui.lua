@@ -36,7 +36,8 @@ end
 local function type_text(action, text)
   local field = find(window(), action)
   field.text = text
-  bazaar_gui.on_gui_input({ element = field, player_index = player.index })
+  bazaar_gui.on_gui_input({ element = field, player_index = player.index,
+    name = defines.events.on_gui_text_changed })
 end
 local function force_state() return storage.forces[player.force_index] end
 local function shown_items()
@@ -281,6 +282,31 @@ describe("market tab", function()
     assert.are.equal(1, freight.queued(hub.unit_number))
   end)
 
+  test("keeps the page when the player clicks in the search field", function()
+    open()
+    click("next-page")
+    click("search")
+    assert.are.equal(2, data().page)
+    type_text("search", "")
+    assert.are.equal(1, data().page)
+  end)
+
+  test("names why no tier can take an order, shows no fee and refuses it with that reason", function()
+    place("gb-import-chest", 5, 0)
+    open()
+    type_text("search", "iron gear")
+    click("select")
+    local per_capsule = prototypes.item["iron-gear-wheel"].stack_size * freight.TIERS.capsule.capacity_stacks
+    type_text("quantity", tostring(per_capsule * freight.TIERS.capsule.max_capsules + 1))
+    assert.is_nil(data().tier)
+    assert.are.same({ "gb-gui.refused-queue-full" }, data().elements.preview.caption[3])
+    click("buy")
+    assert.are.same({ 0, 1e6 }, { freight.queued(hub.unit_number), force_state().balance })
+    type_text("quantity", "20")
+    click("buy")
+    assert.are.equal(1, freight.queued(hub.unit_number))
+  end)
+
   test("forgets its hub when the hub is destroyed, and stays open", function()
     open()
     hub.destroy()
@@ -309,16 +335,19 @@ describe("market tab", function()
     assert.are.equal(1e6, force_state().balance)
   end)
 
-  test("is closed on a save and reload, without leaving state behind", function()
+  test("keeps the window on its hub across a save and reload", function()
     open()
     storage.gb_test_hub = hub.unit_number
   end).after_reload_mods(function()
     local entry = storage.bazaar_gui[1]
-    assert.is_true(entry == nil or (entry.elements.window.valid and entry.hub == storage.gb_test_hub))
+    local kept = { entry.elements.window.valid, entry.tab, entry.hub }
     bazaar_gui.close(1)
     -- The reload emptied `created`: the hub is removed here, or later windows would bind it.
     local leftover = hubs.get(storage.gb_test_hub)
     if leftover then leftover.destroy() end
+    local expected = storage.gb_test_hub
     storage.gb_test_hub = nil
+    -- Asserted after the clean-up, so that a failure leaves nothing behind for later tests.
+    assert.are.same({ true, "market", expected }, kept)
   end)
 end)

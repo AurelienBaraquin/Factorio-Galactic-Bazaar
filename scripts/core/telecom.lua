@@ -1,6 +1,6 @@
 -- Telecommunications levels (ADR-0012). Pure Lua.
 --
--- A force's research level sets how fresh the prices it sees are: the market window's list and the
+-- A force's research level sets how fresh the prices it sees are: the Market tab's list and the
 -- price combinators show prices at most PERIOD_TICKS[level] old. Level 2 also shows price history
 -- and trends. Trades always execute at the live price.
 local telecom = {}

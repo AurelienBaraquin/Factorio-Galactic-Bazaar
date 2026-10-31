@@ -52,10 +52,11 @@ local tabs, tab_by_name, action_tab = {}, {}, {}
 ---   tab is shown, keeping in `view` (the tab's state in storage, a table it owns) the elements and
 ---   state it needs; `view.elements` must be set.
 --- - `refresh(player, view, window)`: updates the built content in place.
---- - `actions` (optional): {[gb_action] = function(player, view, tags, window, element)}, run when an
----   element of this mod tagged with that `gb_action` raises one of `GUI_EVENTS` (click, text changed,
----   confirmed, element chosen, checkbox, selection, slider), `element` being that element; names are
----   unique across tabs. An action that cares which event fired checks the element's type.
+--- - `actions` (optional): {[gb_action] = function(player, view, tags, window, element, event)}, run
+---   when an element of this mod tagged with that `gb_action` raises one of `GUI_EVENTS` (click, text
+---   changed, confirmed, element chosen, checkbox, selection, slider), `element` being that element and
+---   `event` the event; names are unique across tabs. An action that should only follow one kind of
+---   event checks `event.name` (a click in a text field also raises on_gui_click).
 --- - `available(player)` (optional): whether the tab can be shown; when false it is disabled, with
 ---   the tooltip `locked_tooltip(player)`.
 --- `window` is the player's window state: `hub` (the bound hub's unit number, or nil), `tab`, `views`.
@@ -316,7 +317,7 @@ local function dispatch(event)
   local data = name and window_of(event.player_index)
   local view = data and data.views[name]
   if not (view and view.elements) then return end
-  tab_by_name[name].actions[action](player, view, element.tags, data, element)
+  tab_by_name[name].actions[action](player, view, element.tags, data, element, event)
 end
 
 --- Every event of `GUI_EVENTS`.

@@ -25,7 +25,8 @@ Every tab can be read anywhere, even from remote view, but buying, selling, acce
 abandoning a contract, borrowing, repaying and leasing need a trading hub of your force **within
 reach of your character**, never from remote view: the window uses the hub you clicked, or else the
 nearest one within reach, and the Market tab says when there is none. If a purchase's preview was
-shown for another hub, or without a hub, the purchase is refused once and the preview updated, so
+shown for another hub, or without a hub, the purchase is refused once and the preview updated (when
+no delivery can take the quantity, the preview says why: a full queue, for instance), so
 that you always see the freight fee before paying.
 
 ## Building status

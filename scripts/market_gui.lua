@@ -132,10 +132,12 @@ local function refresh_detail(player, view, window)
     return
   end
   -- The tier this quantity would ship by from the window's hub: a purchase ships by it, or is refused
-  -- (tier-changed) if that changed since it was shown. Without a hub, the orbital capsule's.
-  local planned = freight.tier_for(window.hub, item, quantity, kind)
+  -- (tier-changed) if that changed since it was shown. Without a hub, the orbital capsule's fee is
+  -- shown; when the hub has no tier that can take the order (a full queue...), the reason is.
+  local planned, no_tier = freight.tier_for(window.hub, item, quantity, kind)
   view.tier, view.tier_hub = planned and planned.name, window.hub
   local cost, fee = freight.preview(player.force_index, item, quantity, kind, window.hub)
+  if window.hub and not planned then cost = nil end
   -- What selling from the inventory would bring: the market price of the units, scaled by the
   -- freshness of the stacks the sale would take (ADR-0013). Fluids are sold by export manifolds.
   local revenue = kind == "item" and market.preview(player.force_index, kind, item, "sell", quantity)
@@ -144,6 +146,7 @@ local function refresh_detail(player, view, window)
   elements.preview.caption = { "gb-gui.preview", quantity,
     cost and { "gb-gui.cost-with-freight", catalog.format_credits(cost + fee), catalog.format_credits(fee),
       { "gb-gui.tier-" .. (planned or freight.tier(window.hub)).name } }
+      or no_tier and { "gb-gui.refused-" .. no_tier }
       or { "gb-gui.unavailable" },
     revenue and catalog.format_credits(revenue) or { "gb-gui.unavailable" } }
 end
@@ -255,7 +258,14 @@ function actions.select(player, view, tags, window)
   refresh_detail(player, view, window)
 end
 
-function actions.search(player, view)
+-- The search and quantity fields act on their text only: a click in a field also raises on_gui_click,
+-- which must not reset the page.
+local function is_text_event(event)
+  return event.name == defines.events.on_gui_text_changed or event.name == defines.events.on_gui_confirmed
+end
+
+function actions.search(player, view, _, _, _, event)
+  if not is_text_event(event) then return end
   view.filter = view.elements.search.text
   view.matches = catalog.search(tradeable_keys(), view.filter)
   view.page = 1
@@ -272,7 +282,8 @@ actions["next-page"] = function(player, view)
   refresh_list(player, view)
 end
 
-function actions.quantity(player, view, _, window)
+function actions.quantity(player, view, _, window, _, event)
+  if not is_text_event(event) then return end
   refresh_detail(player, view, window)
 end
 
@@ -281,16 +292,21 @@ function actions.buy(player, view, _, window)
   if not (key and quantity) then return end
   local hub = trading_hub(player, window)
   if not hub then return end
-  -- The preview shown must have been computed for this hub, with a tier: otherwise the player has
-  -- not seen the fee, and the refreshed preview shows it before they try again.
-  if not view.tier or view.tier_hub ~= hub.unit_number then
+  -- The preview shown must have been computed for this hub: otherwise the player has not seen the
+  -- fee, and the refreshed preview shows it before they try again. A preview without a tier expects
+  -- "none": the order then gives the real reason (queue-full...), and a tier that opened up since
+  -- does not match, so its fee is shown first.
+  if view.tier_hub ~= hub.unit_number then
     notify(player, { "gb-gui.refused-tier-changed" })
     return refresh(player, view, window)
   end
   local kind, name = split(key)
   local ok, cost, fee, arrival = freight.order(player.force_index, hub.unit_number, name, quantity, nil, nil, kind,
-    view.tier)
-  if not ok then return notify(player, { "gb-gui.refused-" .. cost }) end
+    view.tier or "none")
+  if not ok then
+    notify(player, { "gb-gui.refused-" .. cost })
+    return refresh(player, view, window)
+  end
   notify(player, { "gb-gui.ordered", quantity, label(key), catalog.format_credits(cost),
     catalog.format_credits(fee), math.ceil((arrival - game.tick) / 60) })
   refresh(player, view, window)

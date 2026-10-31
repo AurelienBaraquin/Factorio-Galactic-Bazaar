@@ -11,7 +11,7 @@ cargo.KINDS = { ["gb-export-chest"] = "export", ["gb-import-chest"] = "import" }
 cargo.HUB_RANGE = 10
 -- An export chest sells while each unit fetches at least this fraction of its base value.
 cargo.DEFAULT_MIN_PRICE_RATIO = 0.5
--- The market window sells while each unit fetches at least this fraction of its base value, so
+-- The Market tab sells while each unit fetches at least this fraction of its base value, so
 -- nearly spoiled stock cannot be dumped to push a price down for almost nothing (ADR-0013).
 cargo.WINDOW_MIN_PRICE_RATIO = 0.05
 -- Ticks over which a force's automatic sales of one item share one journal entry.

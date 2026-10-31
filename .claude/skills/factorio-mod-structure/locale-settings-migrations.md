@@ -35,7 +35,7 @@ gb-pricing-mode-recipe=From recipes
 gb-pricing-mode-flat=Flat
 
 [controls]
-gb-toggle-market=Toggle Galactic Bazaar
+gb-toggle-bazaar=Toggle Galactic Bazaar
 
 [gb-gui]
 balance=Balance: __1__ __plural_for_parameter__1__{1=credit|rest=credits}__
@@ -54,7 +54,7 @@ balance=Solde : __1__ __plural_for_parameter__1__{0,1=crédit|rest=crédits}__
   under `controls`. Custom sections are fine (`{"gb-gui.balance", 42}`).
 - Missing key → "Unknown key: ..." shown in game.
 - Parameters `__1__`, `__2__`; built-ins `__ITEM__iron-plate__`, `__ENTITY__name__`, `__FLUID__name__`,
-  `__CONTROL__gb-toggle-market__` (shows the player's binding).
+  `__CONTROL__gb-toggle-bazaar__` (shows the player's binding).
 - Plurals: `__plural_for_parameter__<n>__{<forms>}__`; forms `1`, `2,3,4`, `ends in 11`, `decimal`,
   `rest`; first match wins; negatives use the absolute value.
 - Concatenation: `{"", {"item-name.iron-plate"}, ": ", 60}`. Fallback: `{"?", {"gb-gui.x"}, "default"}`
