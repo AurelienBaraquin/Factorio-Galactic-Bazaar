@@ -191,8 +191,9 @@ leaves, changes force or is removed, and every window is closed on `on_configura
 
 ## `storage.planets`
 
-`{{name, distance, specialties = {{kind, name, slots}...}}...}` — the NPC planet catalog limited
-to the loaded game, shared by all forces ([planets.md](planets.md)). Written by
+`{{name, distance, real, specialties = {{kind, name, slots}...}}...}` — the NPC planet catalog
+(abstract planets, then the real planets of the loaded game, `real` true) limited to the loaded
+game, shared by all forces ([planets.md](planets.md)). Written by
 `scripts/planets.lua` on `on_init` and `on_configuration_changed` only.
 
 ## `storage.concessions`

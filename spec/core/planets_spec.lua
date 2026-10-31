@@ -88,3 +88,24 @@ describe("planets.merge", function()
     assert.are.same(source.reservations, destination.reservations)
   end)
 end)
+
+describe("planets: real planets", function()
+  it("measures the distance on the star map in transit units, at least 1", function()
+    local home = { distance = 15, orientation = 0.275 }
+    assert.are.equal(1, planets.distance_units(home, home))
+    local origin = { distance = 0, orientation = 0 }
+    assert.are.equal(2, planets.distance_units(origin, { distance = 15, orientation = 0.5 }))
+    local near, far = { distance = 10, orientation = 0 }, { distance = 30, orientation = 0.5 }
+    assert.are.equal(4, planets.distance_units(near, far))
+  end)
+
+  it("makes an entry with resource and crafting slots, kept by the catalog filter", function()
+    local entry = planets.real_planet("vulcanus", 2, { "tungsten-ore" }, { "metallurgy" })
+    local ore, metallurgy = entry.specialties[1], entry.specialties[2]
+    assert.are.same({ "resource", "tungsten-ore", planets.REAL_RESOURCE_SLOTS }, { ore.kind, ore.name, ore.slots })
+    assert.are.same({ "crafting", "metallurgy", planets.REAL_CRAFTING_SLOTS },
+      { metallurgy.kind, metallurgy.name, metallurgy.slots })
+    local kept = planets.available_catalog({ entry }, function() return true end)
+    assert.is_true(kept[1].real)
+  end)
+end)

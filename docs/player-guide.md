@@ -125,7 +125,8 @@ one is offered for rent in the **Contracts** window (hover the counterparty to s
 
 The **Planets** button of the market window lists the planets of the galaxy: what each extracts or
 crafts, how far it is, and how many of its slots are free for your force. Each force has its own
-slots, and its transit terms: how much longer goods from it take to land, and the most of a
+slots, and its transit terms (with Space Age, Vulcanus, Fulgora, Gleba and Aquilo are listed too,
+with their own ores and their signature craft: metallurgy, electromagnetics, organic, cryogenics): how much longer goods from it take to land, and the most of a
 shipment that can be lost on the way (farther planets risk more).
 
 ### Mining concessions

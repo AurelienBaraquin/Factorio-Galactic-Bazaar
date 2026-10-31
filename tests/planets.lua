@@ -30,11 +30,32 @@ describe("NPC planets", function()
     end
   end)
 
-  test("the catalog keeps every abstract planet and specialty of a vanilla game", function()
-    local count = 0
-    for _, planet in ipairs(planets.catalog()) do count = count + #planet.specialties end
-    assert.are.equal(4, #planets.catalog())
+  test("the catalog keeps every abstract planet and specialty", function()
+    local abstract, count = 0, 0
+    for _, planet in ipairs(planets.catalog()) do
+      if not planet.real then abstract, count = abstract + 1, count + #planet.specialties end
+    end
+    assert.are.equal(4, abstract)
     assert.are.equal(10, count)
+  end)
+
+  test("real planets join the catalog with Space Age, with their resources and signature category", function()
+    local real = {}
+    for _, planet in ipairs(planets.catalog()) do
+      if planet.real then
+        local names = {}
+        for _, specialty in ipairs(planet.specialties) do
+          names[#names + 1] = specialty.kind .. ":" .. specialty.name
+        end
+        real[planet.name] = table.concat(names, ",")
+        assert.is_true(planet.distance >= 1)
+      end
+    end
+    if not script.active_mods["space-age"] then return assert.is_nil(next(real)) end
+    assert.are.equal("resource:calcite,resource:coal,resource:tungsten-ore,crafting:metallurgy", real.vulcanus)
+    assert.are.equal("resource:scrap,crafting:electromagnetics", real.fulgora)
+    assert.are.equal("resource:stone,crafting:organic", real.gleba)
+    assert.are.equal("crafting:cryogenics", real.aquilo)
   end)
 
   test("a force reserves slots, which other forces do not lose", function()
@@ -62,7 +83,9 @@ describe("NPC planets", function()
     for _, row in ipairs(rows) do
       if row.planet == "carbo" and row.name == "coal" then coal = row end
     end
-    assert.are.equal(10, #rows)
+    local specialties = 0
+    for _, planet in ipairs(planets.catalog()) do specialties = specialties + #planet.specialties end
+    assert.are.equal(specialties, #rows)
     assert.are.same({ "gb-planets.slots", 3, 4 },
       { coal.slots.caption[1], tonumber(coal.slots.caption[2]), tonumber(coal.slots.caption[3]) })
     assert.are.equal(player.gui.screen.gb_planets, player.opened)

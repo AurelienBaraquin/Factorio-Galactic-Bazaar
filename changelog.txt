@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.23
+Date: 2026-10-31
+  Features:
+    - With Space Age (or another mod's planets), the real planets join the NPC planets: their ores and their signature craft, at their distance on the star map.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.22
 Date: 2026-10-31
   Features:

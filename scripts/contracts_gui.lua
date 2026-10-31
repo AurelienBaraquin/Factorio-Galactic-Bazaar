@@ -8,6 +8,7 @@ local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local hubs = require("scripts.hubs")
 local incoming = require("scripts.incoming_contracts")
+local planets = require("scripts.planets")
 local rental = require("scripts.rental")
 
 local contracts_gui = {}
@@ -55,7 +56,7 @@ local function refresh(player, data)
     if contract then
       local offered = contract.state == core.OFFERED
       row.who.caption = (contract.kind == "concession" or contract.kind == "outsourcing")
-        and { "?", { "gb-planets.name-" .. contract.counterparty }, contract.counterparty } or contract.counterparty
+        and planets.caption(contract.counterparty) or contract.counterparty
       row.who.tooltip = { "gb-contracts.kind-" .. contract.kind }
       row.provides.caption = goods_text(contract.provides)
       row.requires.caption = goods_text(contract.requires, not offered and contract.delivered or nil)
