@@ -247,6 +247,27 @@ describe("insolvency.bankrupt", function()
     assert.are.equal(0, account.charge_interest(state, 1001))
   end)
 
+  it("takes the researched overdraft away too, whatever the reputation", function()
+    local state = new_state()
+    state.overdraft_level, state.reputation = #account.OVERDRAFT_LEVEL_LIMITS, reputation.MAX
+    state.credit_ban_until = 5000
+    assert.are.equal(0, account.overdraft_limit(state))
+  end)
+
+  it("gives back a researched overdraft shrunk by the minimum reputation, without a new insolvency", function()
+    local state = new_state(-30000)
+    state.overdraft_level, state.reputation = #account.OVERDRAFT_LEVEL_LIMITS, reputation.MAX
+    insolvency.bankrupt(state, 1000)
+    state.balance = state.bankruptcy_debt
+    local events = insolvency.check(state, 1000 + insolvency.BAN_TICKS)
+    assert.are.same({ "credit-restored" }, names(events))
+    local top = account.OVERDRAFT_LEVEL_LIMITS[#account.OVERDRAFT_LEVEL_LIMITS]
+    local scale = reputation.contract_scale(reputation.MIN)
+    assert.are.equal(account.BASE_OVERDRAFT_LIMIT + (top - account.BASE_OVERDRAFT_LIMIT) * scale,
+      account.overdraft_limit(state))
+    assert.are.same({}, insolvency.check(state, 1060 + insolvency.BAN_TICKS))
+  end)
+
   it("gives credit back when the ban ends with no debt left", function()
     local state = new_state()
     insolvency.bankrupt(state, 1000)

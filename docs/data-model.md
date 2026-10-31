@@ -50,7 +50,7 @@ Invariants (kept by `scripts/forces.lua`, logic in `scripts/core/force_registry.
   created, states of vanished forces dropped);
 - when forces merge (`on_forces_merging`), the source state is folded into the destination and
   removed: balances and arrears add up, journals are joined in tick order and trimmed, the
-  destination keeps its own markets and the stricter insolvency of the two (earliest insolvency,
+  destination keeps its own markets and overdraft level (set by its research) and the stricter insolvency of the two (earliest insolvency,
   latest credit ban, most bankruptcies), and bankruptcy debts add up. A new field must
   define how two values combine, in `force_registry.merge`;
 - `force_registry.ensure` fills in any field a state lacks, so a save from an older version is

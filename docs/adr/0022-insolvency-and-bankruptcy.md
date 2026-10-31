@@ -71,9 +71,12 @@ force in force index order:
   minute), so sales, exports and contract rewards repay it. Reputation falls to the minimum (−20).
   Credit is refused (`credit_ban_until`) until **both** `BAN_TICKS` (60 minutes, doubled with each
   bankruptcy up to 8 hours, `bankruptcies` counts them) have passed **and** `bankruptcy_debt` is 0.
-  Meanwhile `account.overdraft_limit` is 0 (no overdraft, no interest) and loans are refused
-  (`credit-ban`); contracts that need no credit can still be taken. The force is told what ended and
-  what it owes, and again when credit returns.
+  Meanwhile `account.overdraft_limit` is 0 (no overdraft, no interest), whatever the force's overdraft
+  research, and loans are refused (`credit-ban`); contracts that need no credit can still be taken.
+  The force is told what ended and what it owes, and again when credit returns. Credit returns with
+  the reputation the bankruptcy left (−20, unless contracts raised it), which halves a researched
+  overdraft's extra over the base (#98); the balance is 0 then (the debt took every positive
+  credit), so the smaller limit starts no new insolvency.
 - **What a bankruptcy leaves**: leases release their planet slots through the concessions sweep,
   rented machines are released by the rental service (both already react to a contract that is no
   longer active); goods already paid — capsules in flight, planet shipments in transit, an incoming

@@ -48,6 +48,8 @@ describe("financial engineering research", function()
     if saved then
       for _, name in ipairs(BRANCH) do technology(name).researched = saved.researched[name] end
       state().balance, state().arrears, state().overdraft_low = saved.balance, saved.arrears, saved.balance
+      -- The insolvency check's low-water mark too, or the restored force would look insolvent.
+      state().solvency_low = saved.balance
       state().reputation = saved.reputation
       storage.gb_test_finance = nil
     end

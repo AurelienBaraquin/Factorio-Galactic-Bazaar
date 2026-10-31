@@ -1,13 +1,15 @@
 -- In-game tests of insolvency and bankruptcy (scripts/insolvency.lua, #97, ADR-0022): becoming
 -- insolvent and recovering, what is refused meanwhile and what is not, bankruptcy and its effects on
 -- contracts, leases, debt, reputation and credit, the handler control.lua registers, force merge, the
--- market window's status and persistence.
+-- market window's status and persistence. The player force has researched credit (#98), so that loans
+-- are refused for the reasons tested here.
 local account = require("scripts.core.account")
 local concessions = require("scripts.concessions")
 local contracts = require("scripts.contracts")
 local contracts_gui = require("scripts.contracts_gui")
 local core = require("scripts.core.contracts")
 local core_insolvency = require("scripts.core.insolvency")
+local finance = require("scripts.finance")
 local insolvency = require("scripts.insolvency")
 local loans = require("scripts.loans")
 local market = require("scripts.market")
@@ -23,8 +25,9 @@ local function funds(available) return available - account.overdraft_limit(state
 -- Runs the insolvency check at `tick` (now by default).
 local function check(tick) insolvency.on_check_tick({ tick = tick or game.tick }) end
 
-local FIELDS = { "balance", "reputation", "arrears", "overdraft_low", "solvency_low", "insolvent_since",
-  "credit_ban_until", "bankruptcies", "bankruptcy_debt", "recovering_since" }
+-- Restored after each test. The insolvency fields are not: they are cleared instead, so that no test
+-- leaves the player force insolvent or banned for the files that run after this one.
+local FIELDS = { "balance", "reputation", "arrears", "bankruptcies" }
 
 -- Places `name` `dx` tiles east of the test player; destroyed after each test.
 local function place(name, dx)
@@ -58,10 +61,12 @@ describe("insolvency", function()
   before_each(function()
     -- In storage, so that it survives the reload of the last test.
     local saved = { history = #state().contracts.history, entities = {},
-      researched = technology(concessions.CONCESSION_TECHNOLOGY).researched }
+      researched = technology(concessions.CONCESSION_TECHNOLOGY).researched,
+      credit = technology(finance.CREDIT_TECHNOLOGY).researched }
     for _, field in ipairs(FIELDS) do saved[field] = state()[field] end
     storage.gb_test_insolvency = saved
     storage.gb_test_insolvency_entities = {}
+    technology(finance.CREDIT_TECHNOLOGY).researched = true
     state().balance, state().reputation, state().arrears = 0, 0, 0
     state().overdraft_low, state().solvency_low = 0, 0
     state().insolvent_since, state().credit_ban_until, state().bankruptcies = nil, nil, 0
@@ -82,11 +87,15 @@ describe("insolvency", function()
     local saved = storage.gb_test_insolvency
     if saved then
       for _, field in ipairs(FIELDS) do state()[field] = saved[field] end
+      state().overdraft_low, state().solvency_low = state().balance, state().balance
       local history = state().contracts.history
       while #history > saved.history do table.remove(history) end
       technology(concessions.CONCESSION_TECHNOLOGY).researched = saved.researched
+      technology(finance.CREDIT_TECHNOLOGY).researched = saved.credit
       storage.gb_test_insolvency = nil
     end
+    state().insolvent_since, state().recovering_since, state().credit_ban_until = nil, nil, nil
+    state().bankruptcy_debt = 0
     state().contracts.open = {}
     state().markets["item/iron-gear-wheel"] = nil
     storage.concessions = {}

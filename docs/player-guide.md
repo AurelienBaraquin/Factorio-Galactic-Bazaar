@@ -163,7 +163,8 @@ shows **Insolvent: bankruptcy in m:ss**.
     the debt takes whatever your balance holds above 0, so your sales repay it;
   - your reputation falls to −20;
   - you get **no credit**: no loan and an overdraft limit of 0, for **60 minutes and until the debt is
-    repaid**. Each new bankruptcy doubles that time, up to 8 hours.
+    repaid**. Each new bankruptcy doubles that time, up to 8 hours. When credit returns, a researched
+    overdraft gives only half its extra at reputation −20, until your reputation recovers.
 - The market window shows **Bankrupt: no credit for m:ss, X of debt to repay**; you are told when
   credit returns.
 - What was already paid still arrives: capsules in flight, shipments from planets in transit.
