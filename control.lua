@@ -200,7 +200,7 @@ end)
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/overdraft", "tests/contracts", "tests/loans", "tests/finance","tests/incoming_contracts",
+    { "tests/forces", "tests/overdraft", "tests/contracts", "tests/loans", "tests/finance", "tests/incoming_contracts",
       "tests/rental", "tests/planets",
       "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",

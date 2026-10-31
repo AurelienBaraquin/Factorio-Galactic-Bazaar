@@ -117,15 +117,21 @@ Its effects are script-side (`nothing` effects with a description):
 | Technology | After | Cost | Effect |
 |---|---|---|---|
 | `gb-credit` | `gb-contracts` | 150 × red, green | borrowing (`finance.CREDIT_TECHNOLOGY`): without it `loans.borrow` refuses with `not-researched` and the Borrow buttons are disabled, their tooltip naming the technology |
-| `gb-overdraft-1` | `gb-credit` | 200 × red, green | overdraft limit 25 000 credits (from `account.BASE_OVERDRAFT_LIMIT`, 10 000) |
-| `gb-overdraft-2` | `gb-overdraft-1`, chemical science | 300 × red, green, blue | overdraft limit 100 000 credits |
+| `gb-overdraft-1` | `gb-credit` | 200 × red, green | overdraft limit 25 000 credits (from `account.BASE_OVERDRAFT_LIMIT`, 10 000) at reputation 0 or above |
+| `gb-overdraft-2` | `gb-overdraft-1`, chemical science | 300 × red, green, blue | overdraft limit 100 000 credits at reputation 0 or above |
 
 The limits are `account.OVERDRAFT_LEVEL_LIMITS`, one per technology of
-`finance.OVERDRAFT_TECHNOLOGIES`. The pure account cannot read research, so `scripts/finance.lua`
+`finance.OVERDRAFT_TECHNOLOGIES`. A level's extra over the base follows reputation
+([ADR-0020](adr/0020-overdraft-and-debit-interest.md), amendment): `BASE + (level limit − BASE) ×
+min(1, reputation.contract_scale(reputation))`, half the extra from −5 down (17 500 and 55 000),
+the full extra from 0 up; the base is never scaled. The pure account cannot read research, so `scripts/finance.lua`
 records each force's level, the highest overdraft technology researched, in
 `storage.forces[i].overdraft_level`: on `on_research_finished` and `on_research_reversed` of these
-technologies, on `on_force_reset` and `on_technology_effects_reset`, and on init and configuration
-change for every force. Un-researching a level lowers the limit at once: a balance below the new
+technologies, on `on_force_reset` and `on_technology_effects_reset`, on init and configuration
+change for every force, and for every force before each overdraft interest charge (once a minute), so
+research changed without a per-technology event (`research_all_technologies`,
+`reset_technologies`, `copy_from`) is picked up within a minute. Un-researching a level or losing
+reputation lowers the limit at once: a balance below the new
 limit spends nothing until it comes back, and pays interest on its debt up to the new limit.
 Without the credit research, loans already taken are still repaid (installments, the Repay button)
 and arrears still collected; the credit line still shows the debt.

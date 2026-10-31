@@ -69,7 +69,7 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
 │   ├── [financial engineering branch]
 │   │   └── gb-credit (red, green) ── loans
 │   │       └── gb-overdraft-1 (red, green) ── overdraft limit 25 000
-│   │           └── gb-overdraft-2 (red, green, blue) ── overdraft limit 100 000
+│   │           └── gb-overdraft-2 (red, green, blue, after chemical science) ── overdraft limit 100 000
 │   └── gb-planetary-concessions (red, green) ── Planets window, mining concessions
 │       └── gb-outsourcing (red, green, blue) ── crafting slot bookings
 └── [space logistics branch]

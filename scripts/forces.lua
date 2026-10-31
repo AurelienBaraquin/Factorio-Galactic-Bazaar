@@ -1,6 +1,7 @@
 -- Keeps storage.forces in step with the game's forces (ADR-0001): one economy state per force, and
 -- charges overdraft interest to those in debt every INTEREST_TICKS (ADR-0020).
 local account = require("scripts.core.account")
+local finance = require("scripts.finance")
 local force_registry = require("scripts.core.force_registry")
 
 local forces = {}
@@ -29,8 +30,12 @@ function forces.on_forces_merging(event)
   force_registry.merge(storage.forces, event.source.index, event.destination.index)
 end
 
---- on_nth_tick(INTEREST_TICKS): every force with a negative balance pays a period of interest.
+--- on_nth_tick(INTEREST_TICKS): every force with a negative balance pays a period of interest, on the
+--- limit of its overdraft level recorded again first (research can change without a per-technology
+--- event: research_all_technologies, reset_technologies, copy_from), so a stale level heals within a
+--- minute.
 function forces.on_interest_tick(event)
+  finance.init()
   force_registry.charge_interest(storage.forces, event.tick)
 end
 

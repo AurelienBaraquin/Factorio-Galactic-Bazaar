@@ -42,7 +42,8 @@ end
 --- Each field added to the force state must define here how two values combine. Markets and feed:
 --- the destination keeps its own; the source's are dropped with it. Contracts: the source's open
 --- contracts carry on in the destination's book; only a reputation debt follows. Reservations of NPC
---- planet slots carry over with the contracts they back. Loan arrears add up.
+--- planet slots carry over with the contracts they back. Loan arrears add up. Overdraft level: the
+--- destination keeps its own (set by its research).
 function force_registry.merge(forces, source_index, destination_index)
   local destination = force_registry.ensure(forces, destination_index)
   local source = forces[source_index]

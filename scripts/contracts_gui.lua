@@ -50,8 +50,9 @@ local function minutes(ticks)
   return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
--- Why a loan action is refused, as a localised string; the credit technology's name is its parameter
--- (used by `not-researched`, ignored by the other reasons).
+-- Why a loan action (Borrow, or any refused abandon: a loan's Repay included) is refused, as a
+-- localised string; the credit technology's name is its parameter (used by `not-researched`, ignored
+-- by the other reasons).
 local function loan_refusal(reason)
   return { "gb-loans.refused-" .. reason, prototypes.technology[finance.CREDIT_TECHNOLOGY].localised_name }
 end

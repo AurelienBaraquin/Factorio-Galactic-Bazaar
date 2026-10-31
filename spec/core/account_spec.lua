@@ -154,6 +154,26 @@ describe("account overdraft research levels", function()
     end
   end)
 
+  it("scales a level's extra over the base by reputation, never above the full extra", function()
+    local base = account.BASE_OVERDRAFT_LIMIT
+    for level, limit in ipairs(account.OVERDRAFT_LEVEL_LIMITS) do
+      local expected = { [-20] = base + (limit - base) * 0.5, [0] = limit, [20] = limit }
+      for score, wanted in pairs(expected) do
+        local state = at_level(0, level)
+        state.reputation = score
+        assert.are.equal(wanted, account.overdraft_limit(state))
+      end
+    end
+  end)
+
+  it("never scales the base limit by reputation", function()
+    for _, score in ipairs({ -20, 0, 20 }) do
+      local state = at_level(0, 0)
+      state.reputation = score
+      assert.are.equal(account.BASE_OVERDRAFT_LIMIT, account.overdraft_limit(state))
+    end
+  end)
+
   it("holds the highest limit beyond the last level", function()
     local levels = #account.OVERDRAFT_LEVEL_LIMITS
     assert.are.equal(account.OVERDRAFT_LEVEL_LIMITS[levels], account.overdraft_limit(at_level(0, levels + 3)))

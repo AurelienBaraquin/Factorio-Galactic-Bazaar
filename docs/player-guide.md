@@ -17,7 +17,8 @@ the last ones get new prices a little later: about 0.1 s per combinator.
 Your force may spend below zero: purchases, contract guarantees, lease deposits and charges, power
 imports and orders all go through as long as they keep the balance above minus the **overdraft
 limit**: 10 000 credits, raised to 25 000 by the **Overdraft 1** research and to 100 000 by
-**Overdraft 2**. The market window shows the overdraft you have left next to the balance.
+**Overdraft 2** (with a reputation of 0 or more; from −5 down, a level gives only half of what it
+adds to 10 000). The market window shows the overdraft you have left next to the balance.
 Each minute your balance went below zero, it pays **0.5 % interest** on the lowest it reached in
 that minute (counted up to the limit, so at most 50 credits a minute at 10 000), even if that takes
 it past the limit; past the limit, nothing more can be bought until sales bring the balance back.

@@ -1,8 +1,10 @@
 -- Financial engineering research (#98): `gb-credit` unlocks borrowing (scripts/loans.lua reads it),
 -- and each `gb-overdraft-n` raises the force's overdraft limit. The pure account
 -- (scripts/core/account.lua) cannot read research, so the level, the highest overdraft technology
--- researched, is recorded in storage.forces[i].overdraft_level whenever research changes and on
--- on_init and on_configuration_changed.
+-- researched, is recorded in storage.forces[i].overdraft_level whenever research changes, on on_init
+-- and on_configuration_changed, and before every overdraft interest charge (a self-heal, since some
+-- research changes raise no per-technology event). The limit also follows reputation
+-- (account.overdraft_limit).
 local finance = {}
 
 finance.CREDIT_TECHNOLOGY = "gb-credit"
@@ -33,8 +35,10 @@ function finance.sync(force)
   if state then state.overdraft_level = finance.overdraft_level(force) end
 end
 
---- on_init and on_configuration_changed, after forces.init: records every force's level (saves made
---- before the levels existed have none, and a mod change may have changed research).
+--- on_init and on_configuration_changed, after forces.init, and every interest tick: records every
+--- force's level (saves made before the levels existed have none, a mod change may have changed
+--- research, and research_all_technologies, reset_technologies or copy_from raise no event per
+--- technology).
 function finance.init()
   for _, force in pairs(game.forces) do finance.sync(force) end
 end
