@@ -211,4 +211,38 @@ data:extend({
       time = 15,
     },
   },
+  -- Outsourcing branch (#88): NPC planets and their mining concessions, then slot booking in their
+  -- foundries and assemblers. Effects are script-side: the scripts read these technologies.
+  {
+    type = "technology",
+    name = "gb-planetary-concessions",
+    icons = data.raw.item["gb-import-chest"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-contracts" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-planetary-concessions" } },
+    },
+    unit = {
+      count = 200,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 30,
+    },
+  },
+  {
+    type = "technology",
+    name = "gb-outsourcing",
+    icons = data.raw.item["gb-rental-assembler"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-planetary-concessions", "chemical-science-pack" },
+    effects = {
+      { type = "nothing", effect_description = { "technology-effect.gb-outsourcing" } },
+    },
+    unit = {
+      count = 300,
+      ingredients = {
+        { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 },
+      },
+      time = 30,
+    },
+  },
 })

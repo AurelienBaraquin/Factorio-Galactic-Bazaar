@@ -30,11 +30,15 @@ local function specialty_caption(specialty)
 end
 
 local function refresh(player, data)
+  local can_book = concessions.researched(player.force, concessions.OUTSOURCING_TECHNOLOGY)
   for _, row in ipairs(data.elements.rows) do
     local free = planets.free(player.force_index, row.planet, row.kind, row.name) or 0
     row.slots.caption = { "gb-planets.slots", free, row.total }
     if row.lease then row.lease.enabled = free > 0 end
-    if row.book then row.book.enabled = free > 0 end
+    if row.book then
+      row.book.enabled = can_book and free > 0
+      row.book.tooltip = can_book and { "gb-planets.book-terms" } or { "gb-planets.book-locked" }
+    end
   end
 end
 

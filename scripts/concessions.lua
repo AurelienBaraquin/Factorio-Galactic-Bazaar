@@ -16,6 +16,15 @@ local planets = require("scripts.planets")
 local concessions = {}
 
 concessions.SWEEP_TICKS = 60
+-- Research that unlocks leasing an ore slot, and booking a crafting slot (#88).
+concessions.CONCESSION_TECHNOLOGY = "gb-planetary-concessions"
+concessions.OUTSOURCING_TECHNOLOGY = "gb-outsourcing"
+
+--- Whether a force has researched `technology`.
+function concessions.researched(force, technology)
+  local found = force.technologies[technology]
+  return found ~= nil and found.researched
+end
 
 local function leases() return storage.concessions end
 
@@ -59,9 +68,12 @@ end
 
 --- Leases one slot of `resource` on `planet_name` for a force, delivered to a hub of its force.
 --- Either the lease is made whole (contract accepted, slot reserved) or nothing changes. Returns the
---- contract id, or nil and a reason (unknown-specialty, no-capacity, not-tradeable, no-import-chest,
---- too-many-contracts, insufficient-funds).
+--- contract id, or nil and a reason (not-researched, unknown-specialty, no-capacity, not-tradeable,
+--- no-import-chest, too-many-contracts, insufficient-funds).
 function concessions.lease(force_index, hub_unit_number, planet_name, resource)
+  if not concessions.researched(game.forces[force_index], concessions.CONCESSION_TECHNOLOGY) then
+    return nil, "not-researched"
+  end
   local free, refusal = free_slot(force_index, planet_name, "resource", resource)
   if not free then return nil, refusal end
   local spec = concessions.terms(planet_name, resource, 1)
@@ -92,6 +104,9 @@ end
 --- (#86). Made whole or not at all. Returns the contract id, or nil and a reason (those of `lease`,
 --- no-recipe, recipe-locked, wrong-category, wrong-planet, not-craftable, too-slow).
 function concessions.book(force_index, hub_unit_number, planet_name, category, recipe_name)
+  if not concessions.researched(game.forces[force_index], concessions.OUTSOURCING_TECHNOLOGY) then
+    return nil, "not-researched"
+  end
   local free, refusal = free_slot(force_index, planet_name, "crafting", category)
   if not free then return nil, refusal end
   local recipe, reason = bookable(game.forces[force_index], planet_name, category, recipe_name)
