@@ -6,6 +6,19 @@ Places outside the map where a force will extract resources and have goods craft
 `scripts/planets_gui.lua`, transit `scripts/core/transit.lua`, mining concessions and outsourced
 production `scripts/concessions.lua`.
 
+## Research
+
+The outsourcing branch (#88, `prototypes/technologies.lua`, [terminal.md](terminal.md)):
+
+| Technology | After | Cost | Unlocks |
+|---|---|---|---|
+| `gb-planetary-concessions` | `gb-contracts` | 200 × red, green | the Planets button of the market window and mining concessions |
+| `gb-outsourcing` | `gb-planetary-concessions`, chemical science | 300 × red, green, blue | booking crafting slots (the Book buttons stay disabled before, with a tooltip saying so) |
+
+Their effects are script-side (`concessions.CONCESSION_TECHNOLOGY`, `OUTSOURCING_TECHNOLOGY`):
+`lease` and `book` refuse with `not-researched` without them. Transit and reservations need no
+research of their own.
+
 ## Catalog
 
 The abstract planets are the same for every force (`planets.CATALOG`); real planets follow. A slot is one mining drill or one machine of crafting
@@ -100,7 +113,7 @@ priced by `scripts/core/contract_offers.lua`:
 | Shipments | every `CONCESSION_PERIOD_TICKS` (5 min) on the lease's schedule — six periods, the last at the end of the term — `UNITS_PER_SLOT_MINUTE` (30) units a minute of the period, 150 per slot, shipped by transit to the lease's hub |
 | Charge | the units shipped × their base value × `CONCESSION_PRICE` (1), fixed at the lease: between the market's sell and buy prices while the market is near its base value (a force that stores the ore can still sell it higher when the market drifts up); taken only for a period shipped: a period whose hub or import chest is gone is skipped before the balance is checked, one whose shipment is refused (a full queue) is not charged |
 | Guarantee | one period's charge, held from the lease; back at the end of the term |
-| Refusals | `unknown-specialty`, `no-capacity`, `not-tradeable` (no base value), `no-import-chest`, `too-many-contracts` (the contracts window already lists `contracts.MAX_LISTED`, 8), `insufficient-funds`; a lease is made whole or not at all |
+| Refusals | `not-researched`, `unknown-specialty`, `no-capacity`, `not-tradeable` (no base value), `no-import-chest`, `too-many-contracts` (the contracts window already lists `contracts.MAX_LISTED`, 8), `insufficient-funds`; a lease is made whole or not at all |
 | Hub removed | ore in flight was paid for: it is sold back for the force like a purchase (each capsule carries the price paid per arriving unit) |
 | End | a charge the balance cannot cover, or an abandon from the contracts window, defaults the lease (guarantee kept, reputation −1); every `SWEEP_TICKS` (60), leases whose contract ended release their slot. On configuration change, a lease whose specialty is gone is voided (guarantee back), one whose ore is gone withdrawn like any listed contract |
 
