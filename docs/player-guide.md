@@ -225,11 +225,13 @@ building on the map) and, for most of them, prints a line in the chat:
 
 - **Contracts**: a new offer (incoming or rental), a contract due within 2 minutes with goods still to
   deliver, a contract fulfilled or failed.
-- **Deliveries**: shipments landed at a trading hub, one alert per hub counting them, at most every
-  30 seconds; no chat line.
+- **Deliveries**: shipments landed at a trading hub, one alert per hub at most every 30 seconds,
+  counting every shipment since the last one; no chat line. A shipment waiting for room in your
+  import chests is counted once it is unloaded.
 - **Finance**: a loan installment missed (the loan defaulted), insolvency, recovery, bankruptcy, and
   credit restored.
 
 Each category can be turned off for yourself only in *Settings → Mod settings → Per player*
-(**Notify: contracts**, **Notify: deliveries**, **Notify: finance**). Details:
+(**Notify: contracts**, **Notify: deliveries**, **Notify: finance**). The insolvency and bankruptcy
+messages are always printed in the chat; the finance setting hides only their alerts. Details:
 [notifications.md](notifications.md).

@@ -10,15 +10,29 @@ local core = require("scripts.core.notifications")
 
 local notifications = {}
 
---- on_init and on_configuration_changed: creates the throttle logs.
-function notifications.init()
+-- The throttle logs, created when missing: a save made before notifications has none until
+-- on_configuration_changed, which a save of the same mod version never runs. Called from events only.
+local function logs()
   storage.notifications = storage.notifications or {}
+  return storage.notifications
 end
 
---- on_forces_merged: the merged force's throttle log goes, so that a force created later under its
+--- on_init and on_configuration_changed: creates the throttle logs.
+function notifications.init()
+  logs()
+end
+
+--- on_forces_merged: the merged force's throttle log is folded into the destination's, so that what
+--- one of them was told is not told again; the source's goes, so that a force created later under its
 --- index starts afresh.
 function notifications.on_forces_merged(event)
-  storage.notifications[event.source_index] = nil
+  local all = logs()
+  local source = all[event.source_index]
+  if not source then return end
+  local destination = event.destination.index
+  all[destination] = all[destination] or {}
+  core.merge(all[destination], source)
+  all[event.source_index] = nil
 end
 
 -- The force and the players a target (a LuaForce, a LuaPlayer or a force index) designates.
@@ -58,54 +72,66 @@ end
 --- key of scripts/core/notifications.lua's KINDS): an alert with the message "gb-notify.<kind>" and,
 --- for kinds that have one, a chat line, both given `params` (the locale parameters, an array). The
 --- event is throttled by kind and group for the force: `params.group` when given, otherwise the
---- entity's unit number, otherwise the force. The alert points at `entity` (optional) or the nearest hub
---- of the player's force. Players who turned the kind's category off see nothing. Returns how many players
---- were told.
+--- entity's unit number, otherwise the force. `params.count` (optional) is how many things the event
+--- stands for: a throttled event's count is carried to the next one told for its group, and the total
+--- is added as the last parameter. The alert points at `entity` (optional) or the nearest hub of the
+--- player's force. Players who turned the kind's category off see nothing, but the chat line of a
+--- `chat_always` kind. Returns how many players were told.
 function notifications.notify(target, kind, params, entity)
   local spec = core.KINDS[kind]
   local force, players = resolve(target)
   if not force then return 0 end
   params = params or {}
   local group = params.group or (entity and entity.valid and entity.unit_number) or "force"
-  local logs = storage.notifications
-  logs[force.index] = logs[force.index] or {}
-  if not core.admit(logs[force.index], kind, group, game.tick) then return 0 end
+  local all = logs()
+  all[force.index] = all[force.index] or {}
+  local admitted, total = core.admit(all[force.index], kind, group, game.tick, params.count)
+  if not admitted then return 0 end
+  local list = { table.unpack(params) }
+  if total then list[#list + 1] = total end
   local setting = core.CATEGORIES[spec.category]
-  local message = { "gb-notify." .. kind, table.unpack(params) }
-  local chat = spec.chat and { spec.chat, table.unpack(params) }
+  local message = { "gb-notify." .. kind, table.unpack(list) }
+  local chat = spec.chat and { spec.chat, table.unpack(list) }
   local told = 0
   for _, player in ipairs(players) do
-    if player.mod_settings[setting].value then
-      local at = alert_entity(player, entity)
-      if at then player.add_custom_alert(at, spec.icon, message, true) end
-      if chat then player.print(chat, { color = spec.color }) end
-      if at or chat then told = told + 1 end
-    end
+    local shown = player.mod_settings[setting].value
+    local at = shown and alert_entity(player, entity)
+    if at then player.add_custom_alert(at, spec.icon, message, true) end
+    local printed = chat and (shown or spec.chat_always)
+    if printed then player.print(chat, { color = spec.color }) end
+    if at or printed then told = told + 1 end
   end
   return told
 end
 
--- The goods a contract still needs, as rich text: "[item=iron-gear-wheel] 4".
+-- The goods a contract still needs, as rich text: "[item=iron-gear-wheel] 4", with the quality when
+-- it is not normal ("[item=iron-gear-wheel,quality=rare] 4").
 local function owed_text(contract)
   local parts = {}
+  local remaining = contracts_core.remaining(contract)
   for _, goods in ipairs(contract.requires) do
-    local owed = contracts_core.remaining(contract)[contracts_core.key(goods)]
-    if owed > 0 then parts[#parts + 1] = "[" .. goods.kind .. "=" .. goods.name .. "] " .. math.ceil(owed) end
+    local owed = remaining[contracts_core.key(goods)]
+    if owed > 0 then
+      local quality = goods.quality and goods.quality ~= "normal" and ",quality=" .. goods.quality or ""
+      parts[#parts + 1] = "[" .. goods.kind .. "=" .. goods.name .. quality .. "] " .. math.ceil(owed)
+    end
   end
   return table.concat(parts, "  ")
 end
 
 --- Tells a force of an event of `kind` about `contract`, with the parameters every contract message
 --- may use: __1__ the kind of contract, __2__ the time left (to accept an offer, or to its deadline),
---- __3__ the goods still owed, __4__ its guarantee. Offers are grouped by kind of contract, other
---- events by contract. Returns how many players were told.
-function notifications.contract(force_index, kind, contract, entity)
+--- __3__ the goods still owed, __4__ its guarantee; for an offer, __5__ how many offers it stands for
+--- (`count`, 1 by default). Offers are grouped by kind of contract, other events by contract. Returns
+--- how many players were told.
+function notifications.contract(force_index, kind, contract, entity, count)
   local tick = game.tick
   local ends = contract.state == contracts_core.OFFERED and contract.accept_by or contract.due_tick or tick
   return notifications.notify(force_index, kind, {
     { "gb-notify.kind-" .. contract.kind }, catalog.format_duration(ends - tick), owed_text(contract),
     catalog.format_credits(contracts_core.guarantee(contract)),
     group = kind == "contract-offer" and contract.kind or contract.id,
+    count = kind == "contract-offer" and (count or 1) or nil,
   }, entity)
 end
 

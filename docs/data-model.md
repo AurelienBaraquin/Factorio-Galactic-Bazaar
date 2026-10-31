@@ -241,12 +241,14 @@ changes force or is removed, and every window is closed on `on_configuration_cha
 
 ## `storage.notifications`
 
-`storage.notifications[force_index] = {[kind .. "/" .. group] = {tick, period}}` — each force's
-throttle log: when an event of each kind and group was last told and that kind's period
-([notifications.md](notifications.md)). Written by `scripts/notifications.lua` when a notification is
-told (entries whose period has passed are dropped then, so only groups still within their period
-stay); created on `on_init` and `on_configuration_changed`, a force's log on its first notification;
-the merged force's log is dropped on `on_forces_merged`. Output state only: nothing else reads it.
+`storage.notifications[force_index] = {[kind .. "/" .. group] = {tick, period, pending}}` — each
+force's throttle log: when an event of each kind and group was last told, that kind's period, and the
+count of throttled events not yet told (`pending`, nil when none) ([notifications.md](notifications.md)).
+Written by `scripts/notifications.lua` at each notification (entries whose period has passed and with
+nothing pending are dropped then); created on `on_init`, `on_configuration_changed` and, for a save
+that lacks it, at the first notification; a force's log on its first notification; the merged force's
+log is folded into the destination's and dropped on `on_forces_merged`. Output state only: nothing
+else reads it.
 
 ## `storage.players`
 

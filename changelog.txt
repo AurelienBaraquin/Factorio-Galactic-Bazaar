@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.29
+Date: 2026-10-31
+  Features:
+    - In-game alerts, with a chat line for most, for new contract offers, contracts due within 2 minutes, contracts fulfilled or failed, loan defaults, deliveries landed at a hub, insolvency, recovery, bankruptcy and credit restored.
+    - Alerts are grouped so they do not spam: offers once a minute per kind, a due contract once, deliveries one alert per hub at most every 30 seconds counting every shipment since the last one.
+    - Per-player mod settings turn the contracts, deliveries and finance notifications off.
+  Changes:
+    - Insolvency messages are now alerts plus chat lines; the insolvency and bankruptcy chat lines are always shown.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.28
 Date: 2026-10-31
   Features:

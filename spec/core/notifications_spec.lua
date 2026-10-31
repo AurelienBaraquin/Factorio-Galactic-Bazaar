@@ -55,6 +55,48 @@ describe("notifications", function()
     assert.are.equal(1, kept)
   end)
 
+  it("carries the counts of throttled events to the next admitted one", function()
+    local log = {}
+    local period = notifications.KINDS["delivery-landed"].period
+    assert.are.same({ true, 2 }, { notifications.admit(log, "delivery-landed", 7, 0, 2) })
+    assert.is_false(notifications.admit(log, "delivery-landed", 7, 60, 3))
+    assert.is_false(notifications.admit(log, "delivery-landed", 7, 120, 1))
+    assert.are.same({ true, 5 }, { notifications.admit(log, "delivery-landed", 7, period, 1) })
+    assert.are.same({ true, 4 }, { notifications.admit(log, "delivery-landed", 7, 2 * period, 4) })
+  end)
+
+  it("keeps a group with a count still to tell beyond its period", function()
+    local log = {}
+    local period = notifications.KINDS["delivery-landed"].period
+    notifications.admit(log, "delivery-landed", 7, 0, 1)
+    notifications.admit(log, "delivery-landed", 7, 60, 2)
+    notifications.admit(log, "delivery-landed", 8, 10 * period, 1)
+    assert.are.same({ true, 3 }, { notifications.admit(log, "delivery-landed", 7, 10 * period, 1) })
+  end)
+
+  it("merges a force's log into another: the latest tick and both counts still to tell", function()
+    local destination, source = {}, {}
+    notifications.admit(destination, "delivery-landed", 7, 0, 1)
+    notifications.admit(destination, "delivery-landed", 7, 60, 2)
+    notifications.admit(source, "delivery-landed", 7, 100, 1)
+    notifications.admit(source, "delivery-landed", 7, 160, 4)
+    notifications.admit(source, "contract-due", 12, 100)
+    notifications.merge(destination, source)
+    assert.is_false(notifications.admit(destination, "contract-due", 12, 200))
+    local period = notifications.KINDS["delivery-landed"].period
+    assert.is_false(notifications.admit(destination, "delivery-landed", 7, 99 + period, 0))
+    assert.are.same({ true, 7 }, { notifications.admit(destination, "delivery-landed", 7, 100 + period, 1) })
+  end)
+
+  it("prints the insolvency and bankruptcy chat lines whatever the setting, and only those", function()
+    local always = {}
+    for kind, spec in pairs(notifications.KINDS) do
+      if spec.chat_always then always[#always + 1] = kind end
+    end
+    table.sort(always)
+    assert.are.same({ "bankrupt", "insolvent" }, always)
+  end)
+
   it("refuses an unknown kind", function()
     assert.has_error(function() notifications.admit({}, "nope", 1, 0) end)
   end)

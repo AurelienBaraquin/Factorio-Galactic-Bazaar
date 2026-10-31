@@ -315,12 +315,12 @@ local function idle(queue, tick)
 end
 
 --- on_nth_tick(UNLOAD_INTERVAL): unloads landed capsules, tells each force once per hub how many of
---- its shipments landed there, and forgets idle queues.
+--- its shipments finished landing there (throttled, the count carried), and forgets idle queues.
 function freight.on_unload_tick(event)
   local queues = storage.freight.hubs
   for hub_unit_number, queue in pairs(queues) do
     for force_index, count in pairs(unload(hub_unit_number, queue, event.tick)) do
-      notifications.notify(force_index, "delivery-landed", { count }, hubs.get(hub_unit_number))
+      notifications.notify(force_index, "delivery-landed", { count = count }, hubs.get(hub_unit_number))
     end
     if idle(queue, event.tick) then queues[hub_unit_number] = nil end
   end

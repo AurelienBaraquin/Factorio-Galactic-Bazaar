@@ -1,7 +1,8 @@
 -- In-game tests of notifications (scripts/notifications.lua, #107): each kind raises its alert once,
 -- from the feature that tells it (offers, contract settlement, deliveries, loans, insolvency); a
--- player's category setting turned off suppresses it; throttling groups deliveries per hub and tells a
--- contract due soon once; the throttle log survives a reload and goes with a merged force.
+-- player's category setting turned off suppresses it (but the insolvency and bankruptcy chat lines);
+-- throttling groups deliveries per hub with true counts and tells a contract due soon once; the throttle
+-- log is created when a save lacks it, survives a reload and is folded into the destination on merge.
 local test_helpers = require("tests.helpers")
 local account = require("scripts.core.account")
 local contracts = require("scripts.contracts")
@@ -24,6 +25,8 @@ local function setting(category) return core.CATEGORIES[category] end
 -- The balance at which the player force has `available` funds left, overdraft included.
 local function funds(available) return available - account.overdraft_limit(state()) end
 local function check() insolvency.on_check_tick({ tick = game.tick }) end
+-- A force index no force has, standing for a merged force.
+local MERGED = 9999
 
 -- Restored after each test.
 local FIELDS = { "balance", "reputation", "arrears", "bankruptcies" }
@@ -104,10 +107,12 @@ describe("notifications", function()
     state().bankruptcy_debt = 0
     state().contracts.open = {}
     storage.notifications[force().index] = nil
+    storage.notifications[game.forces.enemy.index] = nil
+    storage.notifications[MERGED] = nil
     clear_alerts()
   end)
 
-  test("every kind has an icon the game knows, a message in the locale and a per-user setting", function()
+  test("every kind has an icon the game knows, and every category a per-user setting", function()
     for kind, spec in pairs(core.KINDS) do
       local known = spec.icon.type == "item" and prototypes.item[spec.icon.name]
         or prototypes.virtual_signal[spec.icon.name]
@@ -133,13 +138,30 @@ describe("notifications", function()
     assert.are.equal(1, #alerts("contract-offer"))
   end)
 
-  test("a new rental offer is told, pointing at the machine", function()
+  test("rental offers of one pass are told once, counting the machines, pointing at the first", function()
     place("gb-hub", 0)
-    local machine = place(rental.NAME, 5)
-    assert.is_truthy(rental.make_offer(storage.rentals.machines[machine.unit_number]))
+    force().technologies[rental.TECHNOLOGY].researched = true
+    local first = place(rental.NAME, 5)
+    local second = place(rental.NAME, 9)
+    rental.on_offer_tick()
+    assert.is_truthy(storage.rentals.machines[first.unit_number].contract)
+    assert.is_truthy(storage.rentals.machines[second.unit_number].contract)
     local found = alerts("contract-offer")
     assert.are.equal(1, #found)
-    assert.are.equal(machine, found[1].target)
+    assert.are.equal(first, found[1].target)
+    assert.are.equal("2", found[1].message[6]) -- the game hands parameters back as text
+  end)
+
+  test("the goods owed show their quality when it is not normal", function()
+    place("gb-hub", 0)
+    local id = contracts.offer(force().index, {
+      kind = "incoming", counterparty = "test", provides = {},
+      requires = { { kind = "item", name = "iron-gear-wheel", quality = "rare", count = 10 } },
+      reward = 1, deposit = 0, penalty = 0, duration_ticks = 600, accept_ticks = 600,
+    })
+    assert.is_true(contracts.accept(force().index, id))
+    notifications.contract(force().index, "contract-due", contracts.get(force().index, id))
+    assert.are.equal("[item=iron-gear-wheel,quality=rare] 10", alerts("contract-due")[1].message[4])
   end)
 
   test("offers of one kind are told once a minute", function()
@@ -192,7 +214,7 @@ describe("notifications", function()
     assert.are.equal(0, #alerts("contract-failed"))
   end)
 
-  test("shipments landing at a hub in one pass are told in one alert, then not again within the period",
+  test("shipments landing at a hub in one pass are told in one alert, later ones counted in the next",
     function()
       local hub = place("gb-hub", 0)
       place("gb-import-chest", 3)
@@ -206,11 +228,22 @@ describe("notifications", function()
       assert.are.equal(hub, found[1].target)
       assert.are.equal("2", found[1].message[2]) -- the game hands parameters back as text
       clear_alerts()
+      for _ = 1, 2 do
+        assert.is_true(freight.ship(force().index, hub.unit_number, goods))
+        for _, capsule in ipairs(freight.capsules(hub.unit_number)) do capsule.arrival = game.tick end
+        freight.on_unload_tick({ tick = game.tick })
+        assert.are.equal(0, #freight.capsules(hub.unit_number))
+        assert.are.equal(0, #alerts("delivery-landed"))
+      end
+      -- The period passes: the next landing is told with the four shipments held back.
+      local entry = storage.notifications[force().index]["delivery-landed/" .. hub.unit_number]
+      entry.tick = game.tick - entry.period
       assert.is_true(freight.ship(force().index, hub.unit_number, { goods[1] }))
       for _, capsule in ipairs(freight.capsules(hub.unit_number)) do capsule.arrival = game.tick end
       freight.on_unload_tick({ tick = game.tick })
-      assert.are.equal(0, #freight.capsules(hub.unit_number))
-      assert.are.equal(0, #alerts("delivery-landed"))
+      found = alerts("delivery-landed")
+      assert.are.equal(1, #found)
+      assert.are.equal("5", found[1].message[2])
     end)
 
   test("insolvency, recovery, bankruptcy and credit restored are each told", function()
@@ -235,27 +268,69 @@ describe("notifications", function()
 
   test("a category turned off by the player shows nothing of its kinds", function()
     place("gb-hub", 0)
+    player().mod_settings[setting("deliveries")] = { value = false }
+    assert.are.equal(0, notifications.notify(force(), "delivery-landed", { count = 1 }))
+    assert.are.equal(0, #alerts("delivery-landed"))
+    player().mod_settings[setting("finance")] = { value = false }
+    assert.are.equal(0, notifications.notify(force(), "recovered", {}))
+    assert.are.equal(0, notifications.notify(force(), "credit-restored", {}))
+    assert.are.equal(0, notifications.notify(force(), "loan-defaulted", { "1" }))
+    assert.are.equal(0, #alerts("recovered") + #alerts("credit-restored") + #alerts("loan-defaulted"))
+    assert.are.equal(1, notifications.notify(force(), "contract-failed", { "x", "0:00", "", "0" }))
+  end)
+
+  test("the insolvency and bankruptcy chat lines are printed even with finance off, without alert", function()
+    place("gb-hub", 0)
     player().mod_settings[setting("finance")] = { value = false }
     test_helpers.set_balance(state(), funds(-100))
     check()
     assert.is_true(core_insolvency.insolvent(state()))
     assert.are.equal(0, #alerts("insolvent"))
-    player().mod_settings[setting("deliveries")] = { value = false }
-    assert.are.equal(0, notifications.notify(force(), "delivery-landed", { 1 }))
-    assert.are.equal(1, notifications.notify(force(), "contract-failed", { "x", "0:00", "", "0" }))
+    assert.are.equal(1, notifications.notify(force(), "insolvent", { "0", 10 }))
+    assert.are.equal(1, notifications.notify(force(), "bankrupt", { 0, "0", -20, 60, "25" }))
+    assert.are.equal(0, #alerts("insolvent") + #alerts("bankrupt"))
   end)
 
-  test("a merged force's throttle log goes", function()
-    storage.notifications[force().index] = {}
-    notifications.notify(force(), "delivery-landed", { 1, group = 1 })
-    assert.is_truthy(next(storage.notifications[force().index]))
-    notifications.on_forces_merged({ source_index = force().index })
-    assert.is_nil(storage.notifications[force().index])
+  test("a force with no connected player uses up the throttle and tells nobody", function()
+    local enemy = game.forces.enemy
+    assert.are.equal(0, #enemy.connected_players)
+    assert.are.equal(0, notifications.notify(enemy, "delivery-landed", { count = 1, group = 5 }))
+    assert.is_truthy(storage.notifications[enemy.index]["delivery-landed/5"])
+  end)
+
+  test("a save without throttle logs gets them at the first notification", function()
+    local saved = storage.notifications
+    storage.notifications = nil
+    local ok, told = pcall(notifications.notify, force(), "recovered", {})
+    local created = storage.notifications
+    storage.notifications = saved
+    assert.is_true(ok, told)
+    assert.are.equal(1, told)
+    assert.is_truthy(created)
+    storage.notifications = nil
+    notifications.on_forces_merged({ source_index = MERGED, destination = force() })
+    assert.is_truthy(storage.notifications)
+    storage.notifications = saved
+  end)
+
+  test("a merged force's throttle log is folded into the destination's", function()
+    assert.are.equal(1, notifications.notify(force(), "delivery-landed", { count = 1, group = 1 }))
+    storage.notifications[MERGED] = {
+      ["contract-due/77"] = { tick = game.tick, period = 3600 },
+      ["delivery-landed/1"] = { tick = game.tick, period = 1800, pending = 2 },
+    }
+    notifications.on_forces_merged({ source_index = MERGED, destination = force() })
+    assert.is_nil(storage.notifications[MERGED])
+    local log = storage.notifications[force().index]
+    assert.is_truthy(log["contract-due/77"])
+    assert.are.equal(2, log["delivery-landed/1"].pending)
+    -- Told by the merged force: not told again.
+    assert.are.equal(0, notifications.notify(force(), "contract-due", { group = 77 }))
   end)
 
   test("the throttle log survives a save and reload", function()
-    assert.are.equal(1, notifications.notify(force(), "delivery-landed", { 1, group = 42 }))
+    assert.are.equal(1, notifications.notify(force(), "delivery-landed", { count = 1, group = 42 }))
   end).after_reload_mods(function()
-    assert.are.equal(0, notifications.notify(game.forces.player, "delivery-landed", { 1, group = 42 }))
+    assert.are.equal(0, notifications.notify(game.forces.player, "delivery-landed", { count = 1, group = 42 }))
   end)
 end)

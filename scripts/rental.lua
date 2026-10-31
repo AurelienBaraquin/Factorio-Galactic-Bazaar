@@ -138,8 +138,8 @@ function rental.candidates(entity)
   return list
 end
 
---- Offers one machine for rent: a recipe it can craft where it stands, drawn from its force's state;
---- the force is told, the alert pointing at the machine. Returns the contract id, or nil.
+--- Offers one machine for rent: a recipe it can craft where it stands, drawn from its force's state.
+--- Returns the contract id, or nil.
 function rental.make_offer(module)
   local entity = module.entity
   local force = entity.force
@@ -149,10 +149,7 @@ function rental.make_offer(module)
   local crafts = offers.rental_crafts(recipe.energy, prototype.get_crafting_speed(entity.quality))
   local spec = offers.rental(recipe, storage.base_values, incoming.draw(force.index), crafts)
   local id = spec and contracts.offer(force.index, spec)
-  if id then
-    module.contract, module.recipe, module.crafts, module.provided = id, recipe.name, crafts, {}
-    notifications.contract(force.index, "contract-offer", contracts.get(force.index, id), entity)
-  end
+  if id then module.contract, module.recipe, module.crafts, module.provided = id, recipe.name, crafts, {} end
   return id
 end
 
@@ -162,7 +159,8 @@ local function researched(force)
 end
 
 --- on_nth_tick(OFFER_TICKS): each idle machine attached to a hub, of a force that researched rental
---- and has room in its contracts window, is offered for rent, in unit number order.
+--- and has room in its contracts window, is offered for rent, in unit number order; each force is told
+--- once how many of its machines were offered, the alert pointing at the first.
 function rental.on_offer_tick()
   local units = {}
   for unit_number, module in pairs(machines()) do
@@ -171,10 +169,19 @@ function rental.on_offer_tick()
     end
   end
   table.sort(units)
+  local offered = {}
   for _, unit_number in ipairs(units) do
     local module = machines()[unit_number]
     local force = module.entity.force
-    if researched(force) and #contracts.listed(force.index) < contracts.MAX_LISTED then rental.make_offer(module) end
+    local id = researched(force) and #contracts.listed(force.index) < contracts.MAX_LISTED and rental.make_offer(module)
+    if id then
+      offered[force.index] = offered[force.index] or { id = id, entity = module.entity, count = 0 }
+      offered[force.index].count = offered[force.index].count + 1
+    end
+  end
+  for force_index, first in pairs(offered) do
+    notifications.contract(force_index, "contract-offer", contracts.get(force_index, first.id), first.entity,
+      first.count)
   end
 end
 
