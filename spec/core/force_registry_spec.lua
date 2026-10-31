@@ -3,6 +3,7 @@ local force_registry = require("scripts.core.force_registry")
 local function new_state()
   return {
     balance = 0, journal = {}, markets = {}, reputation = 0, contracts = { open = {}, history = {} },
+    reservations = {},
   }
 end
 

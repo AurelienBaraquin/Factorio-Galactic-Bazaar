@@ -8,6 +8,7 @@ local contracts_gui = require("scripts.contracts_gui")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local planets_gui = require("scripts.planets_gui")
 local reputation = require("scripts.core.reputation")
 local telecom = require("scripts.telecom")
 local telecom_core = require("scripts.core.telecom")
@@ -205,6 +206,7 @@ local function build(player)
   elements.power = status.add({ type = "label" })
   elements.freight = status.add({ type = "label" })
   status.add({ type = "button", caption = { "gb-contracts.open" }, tags = { gb_action = "contracts" } })
+  status.add({ type = "button", caption = { "gb-planets.open" }, tags = { gb_action = "planets" } })
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
   controls.add({ type = "label", caption = { "gb-gui.search" } })
@@ -278,6 +280,10 @@ end
 
 function actions.contracts(player, data)
   contracts_gui.open(player, data.hub)
+end
+
+function actions.planets(player)
+  planets_gui.open(player)
 end
 
 function actions.select(player, data, tags)

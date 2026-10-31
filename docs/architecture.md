@@ -72,6 +72,8 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Incoming contracts**: every `incoming.OFFER_TICKS`, forces that researched contracts get an
   offer; every `incoming.COLLECT_TICKS`, contract chests hand over what active contracts need; every
   `contracts_gui.REFRESH_TICKS`, open contracts windows refresh ([contracts.md](contracts.md)).
+- **Planets**: on init and configuration change, `planets.init` limits the NPC planet catalog to the
+  loaded game; every `planets_gui.REFRESH_TICKS`, open planets windows refresh ([planets.md](planets.md)).
 - **Machine rental**: every `rental.OFFER_TICKS`, idle rental assemblers are offered; every
   `rental.SERVICE_TICKS`, rented ones are served and released ones cleared; a settings paste onto
   one is undone at once ([contracts.md](contracts.md)).

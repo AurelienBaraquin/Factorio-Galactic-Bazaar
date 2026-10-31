@@ -15,11 +15,14 @@ local contracts_gui = require("scripts.contracts_gui")
 local power = require("scripts.power")
 local teleporter = require("scripts.teleporter")
 local price_signals = require("scripts.price_signals")
+local planets = require("scripts.planets")
+local planets_gui = require("scripts.planets_gui")
 local rental = require("scripts.rental")
 local value_overrides = require("scripts.value_overrides")
 
 local function init()
   forces.init()
+  planets.init()
   value_overrides.rebuild()
   hubs.init()
   cargo.init()
@@ -35,6 +38,7 @@ local function init()
   incoming.init()
   rental.init()
   contracts_gui.init()
+  planets_gui.init()
 end
 
 remote.add_interface("galactic-bazaar", value_overrides.REMOTE)
@@ -147,6 +151,7 @@ every(incoming.COLLECT_TICKS, incoming.on_collect_tick)
 every(rental.OFFER_TICKS, rental.on_offer_tick)
 every(rental.SERVICE_TICKS, rental.on_service_tick)
 every(contracts_gui.REFRESH_TICKS, contracts_gui.on_refresh_tick)
+every(planets_gui.REFRESH_TICKS, planets_gui.on_refresh_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 for ticks, handlers in pairs(periodic) do
@@ -164,6 +169,7 @@ end)
 script.on_event(defines.events.on_gui_click, function(event)
   market_gui.on_gui_click(event)
   contracts_gui.on_gui_click(event)
+  planets_gui.on_gui_click(event)
 end)
 script.on_event(defines.events.on_gui_text_changed, market_gui.on_gui_text_changed)
 script.on_event(defines.events.on_gui_closed, market_gui.on_gui_closed)
@@ -172,14 +178,16 @@ script.on_event({
 }, function(event)
   market_gui.on_player_event(event)
   contracts_gui.on_player_event(event)
+  planets_gui.on_player_event(event)
 end)
 
 if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
-    { "tests/forces", "tests/contracts", "tests/incoming_contracts", "tests/rental", "tests/recipe_graph",
-      "tests/pricing", "tests/overrides", "tests/quality", "tests/market", "tests/hubs", "tests/cargo",
-      "tests/catapult", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter", "tests/power",
-      "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/technologies", "tests/market_gui" },
+    { "tests/forces", "tests/contracts", "tests/incoming_contracts", "tests/rental", "tests/planets",
+      "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality", "tests/market", "tests/hubs",
+      "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight", "tests/docking_bay", "tests/teleporter",
+      "tests/power", "tests/price_signals", "tests/circuit_orders", "tests/telecom", "tests/technologies",
+      "tests/market_gui" },
     { load_luassert = true }
   )
 end

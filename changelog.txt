@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.19
+Date: 2026-10-31
+  Features:
+    - NPC planets: four planets with specialties and a finite number of slots per force, listed in a Planets window opened from the market window.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.18
 Date: 2026-10-31
   Features:
