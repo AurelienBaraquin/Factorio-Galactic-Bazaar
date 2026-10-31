@@ -66,7 +66,8 @@ The Overview tab shows the score and its effects on fees, contract sizes and loa
 Counterparties offer each force to craft for them (#76): they provide a batch of a recipe's
 ingredients, the force hands back its products. Code: `scripts/incoming_contracts.lua` (runtime),
 `scripts/core/contract_offers.lua` (pricing, pure), `scripts/contracts_gui.lua` (the Contracts tab of the Galactic Bazaar window, [window.md](window.md), which
-also lists machine rentals; each row's counterparty tooltip names the kind). Every button of the
+also lists machine rentals; each row's counterparty tooltip names the kind, and every other cell's
+tooltip gives the rule behind it for that kind and state, [window.md](window.md#explanations)). Every button of the
 tab — Accept, Decline, Abandon, Repay, Borrow — needs a hub of the force within reach (the
 window's), or nothing happens and the player is told why; an active contract's Decline cell stays in
 place, empty and disabled.

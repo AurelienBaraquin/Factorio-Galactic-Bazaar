@@ -5,7 +5,8 @@
 -- (scripts/item_detail_gui.lua). Prices can be read anywhere;
 -- buying and selling need the window's hub within reach. Interface state is the tab's view in
 -- storage.bazaar_gui; economy state stays per force. Every action is re-validated, since GUI events
--- are player input.
+-- are player input. Every part has a tooltip with its rule: set when the tab is built, or written when
+-- what it shows changed for those that follow the force's state (`view.tooltips`).
 local bazaar_gui = require("scripts.bazaar_gui")
 local cargo = require("scripts.cargo")
 local account = require("scripts.core.account")
@@ -13,9 +14,13 @@ local catalog = require("scripts.core.catalog")
 local freight = require("scripts.freight")
 local insolvency = require("scripts.core.insolvency")
 local item_detail_gui = require("scripts.item_detail_gui")
+local logistics_gui = require("scripts.logistics_gui")
 local market = require("scripts.market")
+local market_model = require("scripts.core.market")
+local npc_market = require("scripts.core.npc_market")
 local reputation = require("scripts.core.reputation")
 local telecom = require("scripts.telecom")
+local telecom_core = require("scripts.core.telecom")
 
 local market_gui = {}
 
@@ -39,6 +44,16 @@ local function tradeable_keys()
   for _, name in ipairs(storage.tradeable_items) do keys[#keys + 1] = "item/" .. name end
   for _, name in ipairs(storage.tradeable_fluids) do keys[#keys + 1] = "fluid/" .. name end
   return keys
+end
+
+local function percent(share)
+  return string.format("%.4g", share * 100)
+end
+
+--- What a reputation score changes, as a tooltip: freight fees and contract sizes against the usual.
+function market_gui.reputation_tooltip(score)
+  return { "gb-gui.reputation-effects", percent(reputation.fee_factor(score)),
+    percent(reputation.contract_scale(score)) }
 end
 
 local function refresh_status(player, view, window)
@@ -65,9 +80,12 @@ local function refresh_status(player, view, window)
     elements.solvency.tooltip = { "gb-gui.credit-ban-terms" }
   end
   elements.reputation.caption = { "gb-gui.reputation", state.reputation }
-  elements.reputation.tooltip = { "gb-gui.reputation-effects",
-    string.format("%.4g", reputation.fee_factor(state.reputation) * 100),
-    string.format("%.4g", reputation.contract_scale(state.reputation) * 100) }
+  -- Tooltips that follow the force's state are written only when what they show changed.
+  local tooltips = view.tooltips
+  if tooltips.reputation ~= state.reputation then
+    tooltips.reputation = state.reputation
+    elements.reputation.tooltip = market_gui.reputation_tooltip(state.reputation)
+  end
   local hub = bazaar_gui.bound_hub(window)
   elements.power.caption = not hub and bazaar_gui.no_hub_message(player)
     or hub.energy > 0 and { "gb-gui.hub-powered" } or { "gb-gui.hub-unpowered" }
@@ -76,6 +94,11 @@ local function refresh_status(player, view, window)
     local tier = freight.tier(window.hub)
     elements.freight.caption = { "gb-gui.delivery", { "gb-gui.tier-" .. tier.name },
       freight.queued(window.hub, tier.name), tier.max_capsules }
+    local shown = tier.name .. " " .. state.reputation
+    if tooltips.freight ~= shown then
+      tooltips.freight = shown
+      elements.freight.tooltip = logistics_gui.tier_tooltip(tier, player.force_index)
+    end
   end
 end
 
@@ -170,12 +193,29 @@ local function add_cell(list, column, element)
   return cell
 end
 
+-- The rule behind each column, as the tooltip of its header and of its cells (the name cells keep
+-- the item's whole name); set once, when the tab is built.
+local function column_tooltips()
+  local periods = telecom_core.PERIOD_TICKS
+  local half_spread = percent(market_model.DEFAULTS.spread / 2)
+  local item = { "gb-gui.column-item-tooltip" }
+  return {
+    icon = item,
+    name = item,
+    buy = { "gb-gui.column-buy-tooltip", half_spread, periods[0] / 60, periods[1] / 60, periods[2] / 60 },
+    sell = { "gb-gui.column-sell-tooltip", half_spread, periods[0] / 60, periods[1] / 60, periods[2] / 60 },
+    trend = { "gb-gui.column-trend-tooltip", npc_market.DEFAULTS.history_size,
+      npc_market.DEFAULTS.step_ticks / 3600, percent(catalog.FLAT_TREND) },
+  }
+end
+
 local function add_list(body, elements)
   local list = body.add({ type = "table", column_count = #COLUMNS })
+  local tooltips = column_tooltips()
   for i, column in ipairs(COLUMNS) do
     if column.align then list.style.column_alignments[i] = column.align end
     local header = add_cell(list, column, { type = "label", style = "bold_label",
-      caption = column.header and { "gb-gui.column-" .. column.header } or "" })
+      caption = column.header and { "gb-gui.column-" .. column.header } or "", tooltip = tooltips[column.key] })
     if column.key == "trend" then elements.trend_header = header end
   end
   elements.rows = {}
@@ -183,6 +223,7 @@ local function add_list(body, elements)
     local row = {}
     for _, column in ipairs(COLUMNS) do
       local element = column.key == "icon" and { type = "sprite-button", style = "slot_button" } or { type = "label" }
+      if column.key ~= "name" then element.tooltip = tooltips[column.key] end
       row[column.key] = add_cell(list, column, element)
     end
     elements.rows[i] = row
@@ -193,20 +234,22 @@ local function build(_, container, view)
   local body = container.add({ type = "frame", style = "inside_shallow_frame_with_padding", direction = "vertical" })
   local status = body.add({ type = "flow", direction = "horizontal" })
   local elements = {}
-  elements.balance = status.add({ type = "label", style = "bold_label" })
+  elements.balance = status.add({ type = "label", style = "bold_label", tooltip = { "gb-overview.balance-tooltip" } })
   elements.overdraft = status.add({ type = "label", tooltip = { "gb-gui.overdraft-terms",
-    string.format("%.4g", account.INTEREST_RATE * 100), account.INTEREST_TICKS / 3600 } })
+    percent(account.INTEREST_RATE), account.INTEREST_TICKS / 3600 } })
   elements.solvency = status.add({ type = "label", style = "bold_label" })
   elements.solvency.style.font_color = { r = 1, g = 0.4, b = 0.3 }
   elements.reputation = status.add({ type = "label" })
-  elements.power = status.add({ type = "label" })
+  elements.power = status.add({ type = "label", tooltip = { "gb-gui.hub-tooltip" } })
   elements.freight = status.add({ type = "label" })
+  view.tooltips = {}
 
   local controls = body.add({ type = "flow", direction = "horizontal" })
-  controls.add({ type = "label", caption = { "gb-gui.search" } })
-  elements.search = controls.add({ type = "textfield", tags = { gb_action = "search" } })
+  local search_tooltip = { "gb-gui.search-tooltip" }
+  controls.add({ type = "label", caption = { "gb-gui.search" }, tooltip = search_tooltip })
+  elements.search = controls.add({ type = "textfield", tooltip = search_tooltip, tags = { gb_action = "search" } })
   controls.add({ type = "button", caption = "<", tags = { gb_action = "previous-page" } })
-  elements.page = controls.add({ type = "label" })
+  elements.page = controls.add({ type = "label", tooltip = { "gb-gui.page-tooltip", catalog.PAGE_SIZE } })
   controls.add({ type = "button", caption = ">", tags = { gb_action = "next-page" } })
 
   -- The list, and the selected item's detail beside it.
@@ -220,12 +263,15 @@ local function build(_, container, view)
   elements.detail_icon = heading.add({ type = "sprite" })
   elements.detail_name = heading.add({ type = "label", style = "bold_label" })
   local actions = detail.add({ type = "flow", direction = "horizontal" })
-  actions.add({ type = "label", caption = { "gb-gui.quantity" } })
-  elements.quantity = actions.add({ type = "textfield", text = "1", numeric = true,
+  local quantity_tooltip = { "gb-gui.quantity-tooltip", string.format("%d", catalog.MAX_QUANTITY) }
+  actions.add({ type = "label", caption = { "gb-gui.quantity" }, tooltip = quantity_tooltip })
+  elements.quantity = actions.add({ type = "textfield", text = "1", numeric = true, tooltip = quantity_tooltip,
     tags = { gb_action = "quantity" } })
-  actions.add({ type = "button", caption = { "gb-gui.buy" }, style = "green_button", tags = { gb_action = "buy" } })
-  actions.add({ type = "button", caption = { "gb-gui.sell" }, style = "red_button", tags = { gb_action = "sell" } })
-  elements.preview = detail.add({ type = "label" })
+  actions.add({ type = "button", caption = { "gb-gui.buy" }, style = "green_button", tooltip = { "gb-gui.buy-tooltip" },
+    tags = { gb_action = "buy" } })
+  actions.add({ type = "button", caption = { "gb-gui.sell" }, style = "red_button",
+    tooltip = { "gb-gui.sell-tooltip", percent(cargo.WINDOW_MIN_PRICE_RATIO) }, tags = { gb_action = "sell" } })
+  elements.preview = detail.add({ type = "label", tooltip = { "gb-gui.preview-tooltip" } })
   elements.preview.style.single_line = false
   elements.preview.style.maximal_width = item_detail_gui.TEXT_WIDTH
   item_detail_gui.build(detail, elements)

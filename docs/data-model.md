@@ -259,13 +259,17 @@ status is written again) and drops the alerts of buildings no longer listed.
 player who has it open ([window.md](window.md)): the unit number of the hub it trades through (nil
 while no hub of the force is within reach), the tab shown, each tab's state once it has been shown
 (`views[name]`, owned by the tab: its `elements` and, for the Market tab, `{filter, matches, page,
-selected, tier, tier_hub}`, `tier_hub` the hub the preview's tier was computed for, and in
+selected, tier, tier_hub, tooltips}`, `tier_hub` the hub the preview's tier was computed for,
+`tooltips` what the reputation and delivery tooltips last showed (`{reputation, freight}`, the score
+and "tier score"), so that they are written only when that changes, and in
 `elements.info` the item detail's elements with the marks of what it shows, `{key, value, known,
 buy, level}`, so that a refresh rewrites only what changed, [terminal.md](terminal.md#item-detail); for the
 Logistics tab, `{hub, focus, hubs_page, shipments_page, modules_page, drawn, visible, modules}`: the
 hub selected, the module the camera shows, each list's page, what each row last showed, how many
 rows of each list are shown, and the selected hub's modules as last listed with their entities,
-[terminal.md](terminal.md#logistics-tab); for the Statement tab, `{filter, period, page, shown}`,
+[terminal.md](terminal.md#logistics-tab); for the Contracts tab, `{shown = {reputation, rows}}`, the
+score its reputation tooltip last showed and, per row, the contract id and state its tooltips were
+written for; for the Statement tab, `{filter, period, page, shown}`,
 `shown` the plain values its elements show, so that only changed ones are written) and references to the window's own elements (`{window, pane, tabs = {[name] =
 {tab, content, index}}}`). Interface state only: no economy value lives here (ADR-0001). Written by
 `scripts/bazaar_gui.lua` and the tabs (`scripts/overview_gui.lua`, `scripts/market_gui.lua` with

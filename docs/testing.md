@@ -44,6 +44,15 @@ Specs live in `spec/`, mirror the module path and end in `_spec.lua`
 `.busted` (runs `spec/`, resolves `require("scripts.core.x")` from the repository root, as
 Factorio does).
 
+One spec checks files rather than logic: `spec/locale_spec.lua` reads `locale/en` and `locale/fr`
+and fails when a key is repeated (Factorio refuses to load the mod), when a key uses other parameters
+(`__1__`...) in French than in English, when the two languages do not
+define the same keys, when a `"section.key"` literal of `control.lua`, `data.lua`, `settings.lua`,
+`scripts/` or `prototypes/` names a key English lacks, or when a Tips and tricks entry of
+`prototypes/tips_and_tricks.lua` (loaded with and without Space Age and quality) has no name or
+description. Keys built at run time are not seen; the headless game cannot check them either, since
+it translates nothing without a connected client.
+
 What is deliberately not unit-tested: code outside `scripts/core/`, which calls the game API.
 It is covered by the in-game tests below.
 
@@ -72,7 +81,10 @@ building, a save from before the tab, its refresh cost and a reload (`tests/logi
 subjects and labels of every kind of entry, the category filter, period totals from the ledger,
 pagination, the contract kind recorded by a real loan, a save without the window's state, the
 ledger or entry categories, and its refresh cost on a full journal and ledger
-(`tests/statement_gui.lua`), and that state survives a save and reload
+(`tests/statement_gui.lua`), the built-in explanations: the Tips and tricks entries (the Space Age
+and quality ones only with them), the tooltips of the Market, Contracts, Planets and Logistics tabs,
+those that follow the force's state written only when it changes, and their caches across a reload
+(`tests/explanations.lua`), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
 re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
 between tests, so a test never assigns a force's balance directly: it calls

@@ -53,6 +53,19 @@ shown for another hub, or without a hub, the purchase is refused once and the pr
 no delivery can take the quantity, the preview says why: a full queue, for instance), so
 that you always see the freight fee before paying.
 
+## In-game help
+
+Hover a figure, column header or button of the window: its tooltip says what it is and the rule
+behind it, with your own figures where they matter (your fee factor, the delivery tier's terms, a
+planet's transit, a contract's guarantee...). The game's **Tips and tricks** window has a
+**Galactic Bazaar** section, suggested once Galactic Bazaar is researched: one entry for the
+window, the trading hub and its buildings, prices, deliveries, credits and the overdraft,
+insolvency and bankruptcy, research and price freshness, alerts and statuses, and then, as you
+research them, power trading, the circuit network, crafting contracts, reputation, machine rental,
+NPC planets, outsourced production and loans; with quality, how qualities are valued; with Space
+Age, what changes with it. The descriptions of the mod's buildings and researches give their
+figures (range, power, throughput, fees).
+
 ## Building status
 
 Every building of the mod carries a status, next to a coloured light: green when it works,

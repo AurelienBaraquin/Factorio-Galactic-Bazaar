@@ -34,6 +34,13 @@ its figures computed by `scripts/core/item_detail.lua` (pure).
 | Sell | items only (fluids are sold by export manifolds); needs a powered hub; sells plain normal-quality stacks of the item from the player's main inventory (`cargo.sell_stacks`, floor `cargo.WINDOW_MIN_PRICE_RATIO` = 0.05 of the base value), each unit at its price times its freshness, the preview scaled by the average freshness of the stacks it would take (`cargo.sale_freshness`) ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)); other qualities stay in the inventory until the window can pick a quality |
 | Refresh | while shown, once a second, by the window ([window.md](window.md)); a hub gone, foreign or out of reach is no longer the window's, which stays open. Measured on 2.1.24: 0.32 to 0.66 ms per refresh without a selected item (208 items in vanilla, 296 with Space Age), 0.45 to 0.62 ms with a selected item, its preview and its [item detail](#item-detail) (averages of 10 or 20, vanilla and Space Age, run alone; one run measured 0.93 ms, costlier with nothing to rewrite than with the price changed, which points to a garbage collection), within the window's budget of 0.7 ms ([window.md](window.md#refresh-and-budget)) |
 
+Each of these parts also has a tooltip with its rule (#111, [window.md](window.md#explanations)): the
+balance, the hub line (which hub the window trades through), the delivery line (the tier's terms
+for the force, as in the Logistics tab), each column header and its cells (buy and sell: mid price
+plus or minus half the spread, the price freshness by telecommunications level; trend: over the
+NPC history, flat within `catalog.FLAT_TREND`), the search field and page (how words match, items a page), the quantity field, Buy, Sell (its floor) and the
+preview.
+
 Every action re-checks the hub (exists, same force, within reach, powered), the item and the
 quantity, since GUI events are player input; only elements created by this mod trigger actions.
 Results are printed to the player. The tab's layout has only been checked by tests, not by eye.

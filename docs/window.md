@@ -102,6 +102,39 @@ label, a category (`statement.LABELS`, `statement.LABEL_CATEGORY`) and its local
 (`gb-statement.kind-<label>` and `-tooltip`, English and French); `spec/core/statement_spec.lua`
 checks every label has a category.
 
+## Explanations
+
+The window's figures, column headers and buttons listed here have a tooltip stating the rule behind
+them, with live figures where they are cheap (#111): the Overview's lines (the fee, contract size and loan
+formulas take their factors from `scripts/core/reputation.lua` and `scripts/core/loans.lua`), the
+Market tab's balance, hub, delivery tier (the Logistics tab's tier tooltip), search (how words
+match, `catalog.search`), page (items a page), columns and their cells
+(spread and price freshness from `scripts/core/market.lua` and `scripts/core/telecom.lua`, trend
+from the NPC history), quantity, Buy, Sell and preview, and the item detail's figures
+([terminal.md](terminal.md#item-detail)); each Contracts row's cells by kind and state (goods
+provided and required, reward or charge and guarantee, offer end or deadline, Accept, Decline,
+Abandon, a loan's principal, payoff and installments), its reputation and loan debt (the cap's range
+from the reputation factors); the Planets tab's columns and cells (distance and transit from
+`scripts/core/transit.lua`); the Logistics tab's shipment columns, each hub's power (what stops
+without it and what keeps working) and status, and each attached building's name and status (what
+the colours mean and how often statuses refresh); the Statement tab's columns, categories and kinds
+of transaction. Without a tooltip: section headings, the pager buttons, the item detail's
+breakdown lines (each line spells out its own computation) and the status texts themselves, which
+are sentences saying what the building does or waits for; the status a building shows on hover in
+the world is the game's `custom_status`, which takes no tooltip, so those texts carry their own
+explanation.
+
+Tooltips that never change are set once, when the tab is built. Those that follow the force's state
+are written only when what they show changed: the Market tab's reputation and delivery tooltips
+(the score, and the tier with the score, kept in the view's `tooltips`), the Contracts tab's
+reputation and each row's cells (the contract id and state each row's tooltips were written for, in
+the view's `shown`); a loan's Repay tooltip, which gives the payoff, the Borrow buttons and the
+Logistics tab's tier keep being written on each refresh as before. Every locale key a literal in the
+code names must exist in English and French with no key repeated (`spec/locale_spec.lua`); a key
+built at run time (`"gb-overview." .. line .. "-tooltip"`) is not checked there, so new ones are
+spelled out; the spec also checks that each key uses the same parameters (`__1__`...) in both
+languages. A new tab gives every figure it shows such a tooltip.
+
 ## Adding a tab or a panel
 
 A tab is a module that requires `scripts/bazaar_gui.lua` and, at file scope, calls:
@@ -162,7 +195,12 @@ file alone): 0.33 to 0.49 ms per refresh, and 0.51 to 0.74 ms for a refresh that
 hub's modules again (once every 5 s while the tab is shown, or when another hub is selected). Runs
 on a busier machine or within the full suite, whose heap is larger, showed averages up to 0.81 ms
 and 2.4 ms for those, which the budget does not cover; the module listing is the part to watch
-([terminal.md](terminal.md#logistics-tab)).
+([terminal.md](terminal.md#logistics-tab)). `tests/explanations.lua` measures a full Contracts tab
+(8 rows: offers, a lease and loans) and the Market tab beside it: 0.25 to 0.29 ms and 0.23 to 0.26
+ms per refresh. The tooltips (#111) changed no refresh measurably: over five runs of the measuring
+tests alone, vanilla, before and after, Overview 0.06 to 0.07 ms both, Market 0.23 to 0.28 then
+0.23 to 0.29 ms, Contracts 0.08 to 0.09 ms both (0.25 to 0.29 then 0.26 to 0.29 ms with 8 rows),
+Planets 0.06 to 0.07 ms both, Logistics 0.34 to 0.39 then 0.34 to 0.37 ms (one run at 0.64 ms).
 
 ## State
 
