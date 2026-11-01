@@ -35,7 +35,7 @@ local function goods_exist(list)
   return true
 end
 
--- Withdraws the contracts of the listed kinds (incoming and rental) whose goods no longer exist:
+-- Withdraws the contracts of the listed kinds (the Contracts tab's) whose goods no longer exist:
 -- offers are declined, active contracts voided with their guarantee back (the force is not at
 -- fault).
 local function withdraw_vanished()

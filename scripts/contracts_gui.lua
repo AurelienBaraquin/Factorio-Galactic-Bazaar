@@ -1,9 +1,10 @@
--- The Contracts tab of the Galactic Bazaar window (#76, #78, #96, scripts/bazaar_gui.lua): a force's
--- offers and active contracts from counterparties (incoming contracts, machine rentals, leases and
--- loans). Offers can be accepted (an incoming contract's ingredients are shipped to the window's hub)
--- or declined; active contracts show their progress and deadline and can be abandoned, loans repaid;
--- every one of these actions, and borrowing, needs the window's hub within reach. Its credit line
--- shows the force's debt and borrows a principal tier.
+-- The Contracts tab of the Galactic Bazaar window (#76, #78, #96, #119, scripts/bazaar_gui.lua): a
+-- force's offers and active contracts from counterparties (incoming contracts, machine rentals,
+-- warehouse rentals, leases, vaults and loans). Offers can be accepted (an incoming contract's
+-- ingredients are shipped to the window's hub) or declined; active contracts show their progress and
+-- deadline and can be abandoned, loans repaid, vaults emptied (Retrieve); every one of these actions,
+-- borrowing and renting a vault needs the window's hub within reach. Its credit line shows the
+-- force's debt and borrows a principal tier; its Rent a vault button rents one at the window's hub.
 -- Rows are built once and updated in place, so a refresh never destroys a button a player is
 -- clicking (multiplayer latency); every cell has a tooltip explaining what it shows, written when
 -- the row shows another contract or state (`view.shown`). Interface state is the tab's view in
@@ -20,6 +21,9 @@ local market_gui = require("scripts.market_gui")
 local planets = require("scripts.planets")
 local rental = require("scripts.rental")
 local reputation = require("scripts.core.reputation")
+local storage_rental = require("scripts.core.storage_rental")
+local vaults = require("scripts.vaults")
+local warehouses = require("scripts.warehouses")
 
 local contracts_gui = {}
 
@@ -68,6 +72,22 @@ local function refresh_credit(player, elements)
   end
 end
 
+-- The Rent a vault button, enabled once storage rental is researched.
+local function refresh_vault_button(player, elements)
+  local technology = player.force.technologies[vaults.TECHNOLOGY]
+  elements.rent_vault.enabled = technology ~= nil and technology.researched
+end
+
+-- What a row shows of a vault: what it holds and the stacks it takes, and its Retrieve button.
+local function refresh_vault_row(row, contract)
+  local goods = vaults.goods(contract.id)
+  row.provides.caption = #goods > 0 and goods_text(goods) or { "gb-contracts.vault-empty" }
+  row.requires.caption = { "gb-contracts.vault-stacks", vaults.stacks(contract.id), storage_rental.VAULT_SLOTS }
+  row.secondary.caption = { "gb-contracts.retrieve" }
+  row.secondary.enabled = #goods > 0
+  row.secondary.tags = { gb_action = "contract-retrieve", id = contract.id }
+end
+
 -- What a row shows of a loan, in place of goods and terms.
 local function refresh_loan_row(row, contract)
   local minutes_per_period = contract.installment_ticks / 3600
@@ -80,6 +100,19 @@ local function refresh_loan_row(row, contract)
 end
 
 local LEASES = { concession = true, outsourcing = true }
+
+-- Tooltips of the cells of a vault's row, active (it is never offered: renting accepts at once).
+local function vault_tooltips()
+  return {
+    who = { "gb-contracts.kind-storage", storage_rental.PERIOD_TICKS / 3600 },
+    provides = { "gb-contracts.provides-vault-tooltip", vaults.HUB_RANGE },
+    requires = { "gb-contracts.requires-vault-tooltip" },
+    terms = { "gb-contracts.vault-terms-tooltip", storage_rental.PERIOD_TICKS / 3600 },
+    time = { "gb-contracts.due-vault-tooltip" },
+    primary = { "gb-contracts.abandon-vault-tooltip" },
+    secondary = { "gb-contracts.retrieve-tooltip" },
+  }
+end
 
 -- The tooltips of a row's cells, explaining what each shows for this contract: {[cell] = tooltip}.
 local function row_tooltips(contract)
@@ -95,18 +128,23 @@ local function row_tooltips(contract)
       secondary = "",
     }
   end
+  if contract.kind == "storage" then return vault_tooltips() end
   local lease = LEASES[contract.kind]
+  local warehouse = contract.kind == "warehouse"
   return {
     who = { "gb-contracts.kind-" .. contract.kind },
     provides = lease and { "gb-contracts.provides-lease-tooltip" }
       or contract.kind == "rental" and { "gb-contracts.provides-rental-tooltip" }
+      or warehouse and { "gb-contracts.provides-warehouse-tooltip" }
       or { "gb-contracts.provides-incoming-tooltip" },
     requires = lease and ""
       or contract.kind == "rental" and { "gb-contracts.requires-rental-tooltip" }
+      or warehouse and { "gb-contracts.requires-warehouse-tooltip" }
       or { "gb-contracts.requires-incoming-tooltip" },
     terms = contract.charge and { "gb-contracts.charge-terms-tooltip" } or { "gb-contracts.terms-tooltip" },
     time = offered and { "gb-contracts.offer-ends-tooltip" }
-      or lease and { "gb-contracts.due-lease-tooltip" } or { "gb-contracts.due-contract-tooltip" },
+      or lease and { "gb-contracts.due-lease-tooltip" }
+      or warehouse and { "gb-contracts.due-warehouse-tooltip" } or { "gb-contracts.due-contract-tooltip" },
     primary = offered and { "gb-contracts.accept-tooltip" }
       or lease and { "gb-contracts.abandon-lease-tooltip" } or { "gb-contracts.abandon-tooltip" },
     secondary = offered and { "gb-contracts.decline-tooltip" } or "",
@@ -132,6 +170,7 @@ local function refresh(player, view)
     elements.reputation.tooltip = market_gui.reputation_tooltip(score)
   end
   refresh_credit(player, elements)
+  refresh_vault_button(player, elements)
   elements.empty.visible = #list == 0
   for i, row in ipairs(elements.rows) do
     local contract = list[i]
@@ -158,6 +197,7 @@ local function refresh(player, view)
       row.secondary.enabled = offered
       row.secondary.tags = offered and { gb_action = "contract-decline", id = contract.id } or {}
       if contract.kind == "loan" and not offered then refresh_loan_row(row, contract) end
+      if contract.kind == "storage" and not offered then refresh_vault_row(row, contract) end
     end
   end
 end
@@ -176,6 +216,11 @@ local function build(_, container, view)
     elements.borrow[tier] = credit.add({ type = "button", caption = { "gb-loans.borrow",
       catalog.format_credits(principal) }, tags = { gb_action = "loan-borrow", tier = tier } })
   end
+  elements.rent_vault = body.add({ type = "button", caption = { "gb-contracts.rent-vault", storage_rental.VAULT_SLOTS },
+    tags = { gb_action = "vault-rent" }, tooltip = { "gb-contracts.rent-vault-tooltip", storage_rental.VAULT_SLOTS,
+      storage_rental.TERM_TICKS / 3600, catalog.format_credits(storage_rental.vault_charge(storage_rental.VAULT_SLOTS)),
+      storage_rental.PERIOD_TICKS / 3600, vaults.HUB_RANGE,
+      prototypes.technology[vaults.TECHNOLOGY].localised_name } })
   elements.empty = body.add({ type = "label", caption = { "gb-contracts.none" } })
   local list = body.add({ type = "table", column_count = 7 })
   elements.rows = {}
@@ -200,6 +245,8 @@ actions["contract-accept"] = function(player, tags, hub)
   local ok, reason
   if contract and contract.kind == "rental" then
     ok, reason = rental.accept(player.force_index, tags.id)
+  elseif contract and contract.kind == "warehouse" then
+    ok, reason = warehouses.accept(player.force_index, tags.id)
   else
     ok, reason = incoming.accept(player.force_index, tags.id, hub.unit_number)
   end
@@ -213,6 +260,23 @@ end
 actions["contract-abandon"] = function(player, tags)
   local outcome, reason = contracts.abandon(player.force_index, tags.id)
   if not outcome and reason then player.print(loan_refusal(reason)) end
+end
+
+actions["contract-retrieve"] = function(player, tags)
+  local ok, left = vaults.retrieve(player.force_index, tags.id)
+  if not ok then return player.print({ "gb-contracts.vault-refused-" .. left }) end
+  player.print(left > 0 and { "gb-contracts.retrieved-part", left } or { "gb-contracts.retrieved" })
+end
+
+actions["vault-rent"] = function(player, _, hub)
+  local id, reason = vaults.rent(player.force_index, hub.unit_number)
+  if not id then
+    return player.print({ "gb-contracts.vault-refused-" .. reason,
+      prototypes.technology[vaults.TECHNOLOGY].localised_name })
+  end
+  local contract = contracts.get(player.force_index, id)
+  player.print({ "gb-contracts.vault-rented", contract.counterparty, storage_rental.VAULT_SLOTS,
+    catalog.format_credits(contract.charge), storage_rental.PERIOD_TICKS / 3600 })
 end
 
 actions["loan-borrow"] = function(player, tags)

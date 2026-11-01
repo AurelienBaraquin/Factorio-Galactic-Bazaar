@@ -13,7 +13,7 @@ version, which stays in the console once the alert is gone.
 - The game keeps one custom alert per building and player: a later alert at the same building
   replaces the earlier one. The chat line keeps every message.
 - The game removes custom alerts on its own after a short time (measured: gone within 1 200 ticks).
-- The alert points at the building given by the feature (a rental assembler for its offer, the hub a
+- The alert points at the building given by the feature (a rental assembler or rental warehouse for its offer, the hub a
   delivery landed at); otherwise at the hub of the player's force nearest to the player on the
   player's surface (on another surface, the lowest unit number); otherwise at the player's
   character. A player with none of these gets only the chat line, when the kind has one.
@@ -22,7 +22,7 @@ version, which stays in the console once the alert is gone.
 
 | Kind | Category | When | Icon | Chat | Grouping |
 |---|---|---|---|---|---|
-| `contract-offer` | contracts | an incoming offer is made (`incoming.make_offer`), or a rental offer pass offers machines (`rental.on_offer_tick`: one notification per force per pass, counting the machines offered, the alert at the first) | `signal-info` | yes: how many offers, the kind of contract and how long the offer stands | once per minute per kind of contract (incoming, rental), the count carried |
+| `contract-offer` | contracts | an incoming offer is made (`incoming.make_offer`), or a rental offer pass offers machines or warehouses (`rental.on_offer_tick`, `warehouses.on_offer_tick`: one notification per force per pass, counting the buildings offered, the alert at the first) | `signal-info` | yes: how many offers, the kind of contract and how long the offer stands | once per minute per kind of contract (incoming, rental, warehouse), the count carried |
 | `contract-due` | contracts | at a contract settlement, an active contract that requires goods is due within `DUE_SOON_TICKS` (2 min) and not complete | `signal-hourglass` | yes: time left, goods still owed, the guarantee at stake | once per contract |
 | `contract-fulfilled` | contracts | the settlement fulfils a contract | `signal-check` | yes | none (bounded by the Contracts tab's 8 rows) |
 | `contract-failed` | contracts | the settlement fails a contract (deadline passed, or a charge the force could not pay) | `signal-deny` | yes | none |

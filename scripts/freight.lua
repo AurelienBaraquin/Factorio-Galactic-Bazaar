@@ -2,11 +2,12 @@
 -- fee, then lands in the hub's import chests (items) or import manifolds (fluids) capsule by
 -- capsule. Queues live in storage.freight.hubs[hub_unit_number] = {launches = {[tier] = next free
 -- launch tick}, next_launch (the capsule's, before 0.1.10), capsules =
--- {{force_index, kind, name, count, unit_cost, arrival, tier, contract, planet, loss}, ...}}, in
+-- {{force_index, kind, name, count, unit_cost, arrival, tier, contract, planet, loss, vault}, ...}}, in
 -- ordering order; the force that paid and the market price it paid per unit are kept per capsule
 -- (ADR-0001), so cargo that can never land is settled. `kind` is "item" or "fluid" (nil in capsules
 -- queued before fluids, meaning "item"); `planet` and `loss` (the share lost in transit) only on goods
--- shipped from an NPC planet since 0.1.33.
+-- shipped from an NPC planet since 0.1.33; `vault` (a contract id) only on goods coming back from a
+-- vault since 0.1.37.
 local account = require("scripts.core.account")
 local cargo = require("scripts.cargo")
 local core = require("scripts.core.freight")
@@ -220,6 +221,25 @@ function freight.order(force_index, hub_unit_number, name, units, merge_ticks, m
   return true, paid, fee, capsules[#capsules].arrival
 end
 
+--- Units of item `name` the orbital capsule can still ship to a hub now (its queue's room), 0 for an
+--- item that does not exist.
+function freight.capsule_room(hub_unit_number, name)
+  local stack_size = CARGO.item.stack_size(name)
+  if not stack_size then return 0 end
+  local tier = core.TIERS[core.DEFAULT_TIER]
+  return core.max_order(freight.queued(hub_unit_number, tier.name), stack_size, tier)
+end
+
+-- Takes back, when their hub is removed, the capsules of goods a feature ships home for the force
+-- (a vault's, ADR-0024, marked `vault`): registered at file scope by that feature.
+local returner
+
+--- Registers, at load (file scope), the handler `fn(capsule)` that takes back a removed hub's
+--- capsules marked `vault`.
+function freight.register_returner(fn)
+  returner = fn
+end
+
 --- Ships goods a contract's counterparty provides (ADR-0015) to a hub, free for the force, by
 --- orbital capsule (the counterparty's own transport): `goods` = {{kind, name, count}...}. With
 --- `origin` = {planet, distance, shares, unit_costs}, the goods come from an NPC planet (#84): they
@@ -231,8 +251,9 @@ end
 --- would have landed) and the goods that will arrive ({{kind, name, count}...}, a good entirely lost
 --- left out); or false and a reason (no-import-chest, no-import-manifold, queue-full, not-tradeable,
 --- invalid-quantity). Capsules of goods the force did not pay for are never sold back: the goods
---- were the counterparty's.
-function freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
+--- were the counterparty's. With `vault` (a contract id), the goods are the force's own, coming back
+--- from that vault: their capsules carry it, and a removed hub's are handed to the returner.
+function freight.ship(force_index, hub_unit_number, goods, contract_id, origin, vault)
   local tier = core.TIERS[core.DEFAULT_TIER]
   local existing = storage.freight.hubs[hub_unit_number]
   local queued, launch = freight.queued(hub_unit_number, tier.name), next_launch(existing, tier.name)
@@ -259,7 +280,7 @@ function freight.ship(force_index, hub_unit_number, goods, contract_id, origin)
       local unit_cost = origin and origin.unit_costs and origin.unit_costs[index] or 0
       capsule.force_index, capsule.kind, capsule.name = force_index, entry.kind, entry.name
       capsule.unit_cost = unit_cost
-      capsule.tier, capsule.contract = tier.name, contract_id
+      capsule.tier, capsule.contract, capsule.vault = tier.name, contract_id, vault
       if origin then capsule.planet, capsule.loss = origin.planet, origin.shares[index] end
       planned[#planned + 1] = capsule
     end
@@ -335,13 +356,16 @@ function freight.on_unload_tick(event)
 end
 
 --- A hub is gone: the cargo still queued for it is sold back for the forces that paid; what the
---- market refuses (no longer tradeable, no liquidity) is refunded at the price paid.
+--- market refuses (no longer tradeable, no liquidity) is refunded at the price paid. A vault's goods
+--- go back to the vault (the registered returner).
 function freight.on_hub_removed(hub_unit_number)
   local queue = storage.freight.hubs[hub_unit_number]
   if not queue then return end
   storage.freight.hubs[hub_unit_number] = nil
   for _, capsule in ipairs(queue.capsules) do
-    if not capsule.contract or capsule.unit_cost > 0 then
+    if capsule.vault and returner then
+      returner(capsule)
+    elseif not capsule.contract or capsule.unit_cost > 0 then
       local sold = market.sell(capsule.force_index, capsule.kind or "item", capsule.name, capsule.count)
       if not sold then refund(capsule) end
     end

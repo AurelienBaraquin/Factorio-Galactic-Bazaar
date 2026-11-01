@@ -23,6 +23,8 @@ local concessions = require("scripts.concessions")
 local planets = require("scripts.planets")
 local rental = require("scripts.rental")
 local value_overrides = require("scripts.value_overrides")
+local vaults = require("scripts.vaults")
+local warehouses = require("scripts.warehouses")
 -- The tabs of the Galactic Bazaar window register themselves with it when loaded, in this order.
 require("scripts.overview_gui")
 require("scripts.market_gui")
@@ -49,6 +51,8 @@ local function init()
   circuit_orders.init()
   incoming.init()
   rental.init()
+  warehouses.init()
+  vaults.init()
   concessions.init(dropped)
   entity_status.init()
   bazaar_gui.init()
@@ -80,6 +84,8 @@ script.on_event(defines.events.on_forces_merged, function(event)
   catapult.on_forces_merged(event)
   incoming.on_forces_merged(event)
   rental.on_forces_merged(event)
+  warehouses.reattach()
+  vaults.on_forces_merged(event)
   planets.on_forces_merged(event)
   concessions.on_forces_merged(event)
   price_signals.on_forces_merged(event)
@@ -100,7 +106,8 @@ local BUILDING_FILTER = {
   { filter = "name", name = hubs.NAME }, { filter = "name", name = circuit_orders.NAME, mode = "or" },
   { filter = "name", name = docking_bay.NAME, mode = "or" }, { filter = "name", name = teleporter.NAME, mode = "or" },
   { filter = "name", name = catapult.NAME, mode = "or" }, { filter = "name", name = incoming.CHEST, mode = "or" },
-  { filter = "name", name = rental.NAME, mode = "or" },
+  { filter = "name", name = rental.NAME, mode = "or" }, { filter = "name", name = warehouses.NAME, mode = "or" },
+  { filter = "name", name = vaults.UPLINK, mode = "or" },
 }
 for _, kinds in ipairs({ cargo.KINDS, power.KINDS, price_signals.KINDS, manifold.KINDS }) do
   for name in pairs(kinds) do
@@ -120,11 +127,14 @@ local function on_built(event)
     catapult.on_hub_built(entity)
     incoming.reattach()
     rental.reattach()
+    warehouses.reattach()
+    vaults.reattach()
     price_signals.on_hub_built(entity)
     circuit_orders.on_hub_built(entity)
   elseif not (power.on_built(entity) or price_signals.on_built(entity) or circuit_orders.on_built(entity)
     or manifold.on_built(entity) or docking_bay.on_built(entity) or teleporter.on_built(entity)
-    or catapult.on_built(entity) or incoming.on_built(entity) or rental.on_built(entity)) then
+    or catapult.on_built(entity) or incoming.on_built(entity) or rental.on_built(entity)
+    or warehouses.on_built(entity) or vaults.on_built(entity)) then
     cargo.on_built(entity)
   end
   entity_status.on_built(entity)
@@ -146,6 +156,8 @@ script.on_event(defines.events.on_object_destroyed, function(event)
     catapult.on_hub_removed(event.useful_id)
     incoming.reattach()
     rental.reattach()
+    warehouses.reattach()
+    vaults.reattach()
     price_signals.on_hub_removed(event.useful_id)
     circuit_orders.on_hub_removed(event.useful_id)
     freight.on_hub_removed(event.useful_id)
@@ -153,7 +165,8 @@ script.on_event(defines.events.on_object_destroyed, function(event)
   elseif not (power.forget(event.useful_id) or price_signals.forget(event.useful_id)
     or circuit_orders.forget(event.useful_id) or manifold.forget(event.useful_id)
     or docking_bay.forget(event.useful_id) or teleporter.forget(event.useful_id)
-    or catapult.forget(event.useful_id) or incoming.forget(event.useful_id) or rental.forget(event.useful_id)) then
+    or catapult.forget(event.useful_id) or incoming.forget(event.useful_id) or rental.forget(event.useful_id)
+    or warehouses.forget(event.useful_id) or vaults.forget(event.useful_id)) then
     cargo.forget(event.useful_id)
   end
 end)
@@ -182,6 +195,10 @@ every(incoming.COLLECT_TICKS, incoming.on_collect_tick)
 every(rental.OFFER_TICKS, rental.on_offer_tick)
 every(rental.SERVICE_TICKS, rental.on_service_tick)
 every(concessions.SWEEP_TICKS, concessions.on_sweep_tick)
+every(warehouses.OFFER_TICKS, warehouses.on_offer_tick)
+every(warehouses.SERVICE_TICKS, warehouses.on_service_tick)
+every(vaults.UPLINK_TICKS, vaults.on_uplink_tick)
+every(vaults.SWEEP_TICKS, vaults.on_sweep_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 every(entity_status.PASS_TICKS, entity_status.on_pass_tick)
@@ -210,7 +227,7 @@ if script.active_mods["factorio-test"] then
   require("__factorio-test__/init")(
     { "tests/forces", "tests/overdraft", "tests/contracts", "tests/loans", "tests/finance", "tests/insolvency",
       "tests/incoming_contracts",
-      "tests/rental", "tests/planets",
+      "tests/rental", "tests/storage_rental", "tests/planets",
       "tests/concessions", "tests/recipe_graph", "tests/pricing", "tests/overrides", "tests/quality",
       "tests/market", "tests/hubs", "tests/cargo", "tests/catapult", "tests/manifold", "tests/freight",
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",

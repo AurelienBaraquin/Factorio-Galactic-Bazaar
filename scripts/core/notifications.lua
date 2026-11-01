@@ -97,9 +97,10 @@ function notifications.merge(destination, source)
 end
 
 --- Whether an active contract that requires goods is due within DUE_SOON_TICKS at `tick`, its
---- deadline not passed, with goods still owed.
+--- deadline not passed, with goods still owed; never for a custody contract, whose counterparty
+--- collects the goods itself (ADR-0024).
 function notifications.due_soon(contract, tick)
-  if contract.state ~= contracts.ACTIVE or contract.charge then return false end
+  if contract.state ~= contracts.ACTIVE or contract.charge or contract.custody then return false end
   local left = contract.due_tick - tick
   return left >= 0 and left <= notifications.DUE_SOON_TICKS and not contracts.complete(contract)
 end

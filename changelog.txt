@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.37
+Date: 2026-11-01
+  Features:
+    - Storage rental, both ways, after the Storage rental research: rent a vault of 50 stacks from a NPC
+      in the Contracts tab, fill it through vault uplinks at its hub, retrieve its goods to that hub by
+      orbital capsule at any time; they come back by themselves when the vault ends, even on a default,
+      and are never seized. What a full capsule queue cannot take waits in the vault; the Overview shows
+      what ended vaults still have to return.
+    - Rental warehouses: counterparties store goods in them for 30 minutes, take them back at the end and
+      pay a rent per stack with the guarantee back; storing earns no reputation, failing costs 1.
+    - Vaults and warehouse rentals are contracts: they appear in the Contracts tab, the Overview, the
+      Statement and the alerts; both buildings show their status, and a Tips and tricks entry explains them.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.36
 Date: 2026-11-01
   Optimizations:

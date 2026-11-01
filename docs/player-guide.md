@@ -62,7 +62,7 @@ planet's transit, a contract's guarantee...). The game's **Tips and tricks** win
 window, the trading hub and its buildings, prices, deliveries, credits and the overdraft,
 insolvency and bankruptcy, research and price freshness, alerts and statuses, and then, as you
 research them, power trading, the circuit network, crafting contracts, reputation, machine rental,
-NPC planets, outsourced production and loans; with quality, how qualities are valued; with Space
+storage rental, NPC planets, outsourced production and loans; with quality, how qualities are valued; with Space
 Age, what changes with it. The descriptions of the mod's buildings and researches give their
 figures (range, power, throughput, fees).
 
@@ -263,6 +263,48 @@ one is offered for rent in the **Contracts** tab (hover the counterparty to see 
 - On time, you get the rest of the rent and the guarantee back, and +1 reputation. Short of the
   promise at the end, or if you remove the machine, the guarantee is lost (rent already paid stays).
 
+## Storage rental
+
+Researched with **Storage rental** (after Contracts). It works both ways ([ADR-0024](adr/0024-storage-rental.md)).
+
+**Rent a vault from a NPC.** In the **Contracts** tab, near a trading hub with an import chest,
+press **Rent a vault**: 50 stacks for 30 minutes, 150 credits every 5 minutes whatever it holds, one
+period held as a guarantee.
+
+- Put goods in a **vault uplink** within 10 tiles of that hub: about once a second (more rarely
+  with more than 20 uplinks) they go into the vault, until its stacks are full. Uplinks are visited
+  two at a time, and each visit moves at most 10 stacks for the two together (a stack split between
+  two vaults counts twice). Only items of normal quality that are not spoilable, damaged, used or carrying
+  data go; the rest stays in the uplink, whose status says so.
+- **Retrieve** on the vault's row ships its goods to that hub's import chests by orbital capsule,
+  free: one capsule of up to 10 stacks of one item leaves every 10 seconds and lands 30 seconds
+  later, so 50 stacks of one item take about 70 seconds. The hub queues at most 20 capsules: what
+  does not fit stays in the vault (you are told how many stacks) for a later Retrieve. Retrieve
+  only delivers to the vault's own hub while it is rented.
+- The vault is charged every 5 minutes whatever happens to its hub: it keeps your goods either way.
+  If its hub is removed, the vault takes over a hub of yours built within 10 tiles of where it
+  stood; otherwise it can neither be filled nor retrieved until its term ends, when its goods come
+  back. Goods on their way back when their hub is removed return to the vault.
+- When the vault ends — its term, a charge you cannot pay, Abandon or a bankruptcy — its goods are
+  shipped back the same way, a queue's worth each second: they are never seized. The Overview's
+  **Vault goods returning** line shows what is still waiting. A charge you cannot pay, or Abandon,
+  fails it: the guarantee is kept and your reputation drops by 1. If its hub has no import chest,
+  another of your hubs on the same surface with one receives them (any surface, only if that
+  surface was deleted: a deleted space platform's vault goods can land on a planet).
+
+**Rent your warehouses to NPCs.** Build **rental warehouses** within 10 tiles of a trading hub; you
+cannot open them. Every 5 minutes each idle, empty one is offered in the Contracts tab: a
+counterparty stores goods your factory makes for 30 minutes.
+
+- **Accept**: the guarantee (at least what buying the goods on the market would cost, plus 10 %) is
+  held and the goods appear in the warehouse.
+- In the last second of the term the counterparty takes them back through a hub of yours within
+  10 tiles: you get the rent (2 credits per stack and 5 minutes) and the guarantee back. Storing
+  earns no reputation.
+- **Never take them out** (an inserter, mining or deconstructing the warehouse, which gives you its
+  goods): a missing unit, or no hub in range at the end, fails the contract, the guarantee is kept
+  and your reputation drops by 1.
+
 ## NPC planets
 
 Researched with **Planetary concessions** (after Contracts), the **Planets** tab lists the planets
@@ -298,7 +340,7 @@ can be booked.
 The mod raises game alerts (the icons above the minimap; hover for the message, click to see the
 building on the map) and, for most of them, prints a line in the chat:
 
-- **Contracts**: a new offer (incoming or rental), a contract due within 2 minutes with goods still to
+- **Contracts**: a new offer (incoming, machine or warehouse rental), a contract due within 2 minutes with goods still to
   deliver, a contract fulfilled or failed.
 - **Deliveries**: shipments landed at a trading hub, one alert per hub at most every 30 seconds,
   counting every shipment since the last one; no chat line. A shipment waiting for room in your

@@ -100,7 +100,7 @@ the texts are in the `[gb-status]` locale section.
 | Custom status | `LuaEntity.custom_status`: a diode (green: working, yellow: waiting or limited, red: stopped) and a text, which the game shows where it shows an entity's status; written only when it changed (`storage.entity_status.shown`). Texts hold no moving value (no age, no countdown): they state facts that stay true until the next refresh. A rented rental assembler keeps the game's own status (its crafting diagnostics); its contract's progress is in the Contracts tab |
 | Alert | while a building is stopped, an icon is drawn on it, visible to its force only: `utility/warning_icon` with no hub of its force in range ("No hub"), `utility/electricity_icon` when its hub has no power ("Hub unpowered") or when it has none itself, a hub or a teleporter ("No power"); the text shows under it in alt mode. It is redrawn when the building changes force, removed as soon as the cause goes, and with the building |
 | Attachment | a module without a hub of its force in range is red "no trading hub" (alert); with an unpowered hub, a module that trades through it (export chest and manifold, power substations, price and order combinators, catapult) is red "stopped" (alert), the others (import chest and manifold, docking bay, teleporter, contract chest, rental assembler) keep their own status, yellow, behind "its trading hub has no power" |
-| Cadence | the buildings are kept in one list (`storage.entity_status`), in step with build and destroy events and rebuilt on configuration change; every `PASS_TICKS` (10) ticks a pass refreshes the next ones, `ceil(n / 30)` of them, at most `MAX_VISITS` (8): each building once every `CYCLE_TICKS` (300, 5 s) up to 240 buildings, then every `n / 48` s (21 s with 1000). The costly reads — a hub's delivery tier and its bays' fuel, a force's contract needs and price period — are made once per hub or force and cycle (`facts`), and a pass never makes more than `MAX_COSTLY_READS` (2) of them: each kind reserves the costly reads its status may make (a docking bay 2, a hub, price combinator or contract chest 1) and the pass stops before a building whose reservation would exceed the cap. A building removed before the cursor trades places so that the one replacing it is still refreshed in the cycle. A building is also refreshed when built. Each hub's modules of its force are counted as they are refreshed and shown from the next cycle |
+| Cadence | the buildings are kept in one list (`storage.entity_status`), in step with build and destroy events and rebuilt on configuration change; every `PASS_TICKS` (10) ticks a pass refreshes the next ones, `ceil(n / 30)` of them, at most `MAX_VISITS` (8): each building once every `CYCLE_TICKS` (300, 5 s) up to 240 buildings, then every `n / 48` s (21 s with 1000). The costly reads — a hub's delivery tier and its bays' fuel, a force's contract needs and price period, the vaults rented at a hub — are made once per hub or force and cycle (`facts`), and a pass never makes more than `MAX_COSTLY_READS` (2) of them: each kind reserves the costly reads its status may make (a docking bay 2, a hub, price combinator, contract chest or vault uplink 1) and the pass stops before a building whose reservation would exceed the cap. A building removed before the cursor trades places so that the one replacing it is still refreshed in the cycle. A building is also refreshed when built. Each hub's modules of its force are counted as they are refreshed and shown from the next cycle |
 | Budget | at most 0.3 ms per pass (one pass every 10 ticks, so at most 0.03 ms per tick on average) with 1000 buildings, whatever the layout: a pass does at most 8 refreshes and 2 costly reads, its costliest case being 7 of the dearest refresh without a costly read (price combinators) and a docking bay whose hub's tier and fuel are not read yet. Measured on 2.1.24 with 20 hubs and about 1000 modules, seven runs in vanilla and Space Age on a machine shared with other test runs: average pass 0.09–0.23 ms, costliest pass 0.11–0.19 ms (`tests/entity_status.lua` logs both). With 12 refreshes per pass the costliest reached 0.39 ms, hence 8 |
 
 | Building | What its status says |
@@ -118,8 +118,10 @@ the texts are in the `[gb-status]` locale section.
 | Catapult | its capacitor's charge; charging (yellow) below a shot's 50 MJ; waiting for goods; yellow when its last shot that could fire sold nothing (below the floor, or not plain); otherwise ready, shooting at most every 2 s |
 | Contract chest | the normal-quality items its force's active incoming contracts still need, summed, oldest contract first (4 named, the rest counted); idle without any |
 | Rental assembler | idle; offered (yellow, with the contract number to find in the Contracts tab); rented: the game's own status |
+| Vault uplink | yellow without a vault of its force rented at its hub; otherwise how many vaults it sends to, yellow when its last pass left goods in it (vaults full, or goods of a quality, spoilable, damaged or carrying data) |
+| Rental warehouse | idle; offered (yellow, with the contract number); rented (with the contract number) |
 
-Facts recorded for it: an export chest's, an export manifold's and a catapult's `held`, each force's
+Facts recorded for it: an export chest's, an export manifold's, a catapult's and a vault uplink's `held`, each force's
 last power settlement (`storage.power.last`) and an order combinator's last reading (`last`)
 ([data-model.md](data-model.md)). The texts, diodes and alerts are checked by in-game tests, not by
 eye: whether the game shows a custom status on hover for containers, storage tanks, combinators and
@@ -155,6 +157,7 @@ gb-galactic-bazaar (red) ── hub, export and import chests (orbital capsule d
 ├── gb-fluid-trading (red, green) ── fluid manifolds
 ├── gb-contracts (red, green) ── contract chest, incoming contract offers
 │   ├── gb-capacity-rental (red, green, after automation 2) ── rental assembler
+│   ├── gb-storage-rental (red, green) ── vault uplink, rental warehouse, vaults and warehouse rentals
 │   ├── [financial engineering branch]
 │   │   └── gb-credit (red, green) ── loans
 │   │       └── gb-overdraft-1 (red, green) ── overdraft limit 25 000
@@ -378,3 +381,18 @@ Code: `scripts/rental.lua`; prototypes: `prototypes/rental_assembler.lua`.
 | Technology | `gb-capacity-rental` (after contracts and automation 2; 150 × red and green) |
 | Hub | attached like the other modules (`rental.HUB_RANGE`, 10 tiles); offered and served only through a hub of its force |
 | Work | idle, no recipe; rented, the counterparty's recipe, ingredients and products, served every second ([contracts.md](contracts.md)); the force provides power |
+
+## Vault uplink (`gb-vault-uplink`) and rental warehouse (`gb-rental-warehouse`)
+
+Storage rental (#119, [ADR-0024](adr/0024-storage-rental.md)). Code: `scripts/vaults.lua`,
+`scripts/warehouses.lua`; prototypes: `prototypes/storage_rental.lua`.
+
+| | |
+|---|---|
+| Prototypes | copies of the steel chest (48 slots), tinted violet (uplink) and blue (warehouse) |
+| Recipe | each: 1 steel chest, 5 electronic circuits |
+| Technology | `gb-storage-rental` (after contracts; 150 × red and green), which unlocks both |
+| Hub | attached like the other modules (`vaults.HUB_RANGE`, `warehouses.HUB_RANGE`, 10 tiles); powered or not |
+| Vault uplink | visited in turn, 2 every 6 ticks (20 a second), at most 10 stack moves per pass for the two (a stack split between two vaults counts twice): what it holds goes into the force's vaults rented at its hub ([contracts.md](contracts.md#storage-rental)); it stays open to the player and inserters |
+| Rental warehouse | not operable (set on build and on configuration change); emptied on build (a clone may carry a counterparty's goods); offered when idle and empty, holds a counterparty's goods while rented |
+| Budget | an uplink pass every `UPLINK_TICKS` (6) visits `UPLINK_BATCH` (2) uplinks and moves at most `MAX_MOVES` (10) stacks, whatever the number of uplinks and goods. Before reading an uplink it checks, once per pass for its hub's vaults, that one has a free or part-filled stack, and skips it otherwise; then it reads its contents once, skips items of a kind no vault takes or that no vault has room for, and reads the slots only for the rest. Whether an item may be stored and its stack size are cached at file scope by name, filled on first use from the prototypes only (the same on every peer, never in storage). Budget 0.3 ms per pass (0.05 ms per tick on average). Measured (`tests/storage_rental.lua`, 18 uplinks each holding 20 storable stacks of distinct items and 28 armours, 8 vaults; average of 10 runs, three runs): a pass moving 10 stacks into vaults with room, the worst case, 0.17 to 0.19 ms; a pass with full vaults 0.04 to 0.07 ms; a pass with vaults with room and uplinks holding only goods no vault takes (48 armours) 0.03 ms; ten passes (a second) 1.5 to 1.6 ms moving, 0.8 to 1.0 ms with full vaults. The warehouse service pass (every 60 ticks): 0.007 to 0.009 ms with 9 rented warehouses before maturity, 0.055 ms when the 9 are collected at maturity |

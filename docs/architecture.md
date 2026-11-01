@@ -55,7 +55,7 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   exist, re-attaches the others) and `freight.init` (settles the queues of hubs that no longer
   exist).
 - **Building events**: `control.lua` routes every way an entity can appear (filtered to the mod's
-  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, `manifold.on_built` for a fluid manifold, `docking_bay.on_built` for a docking bay, `teleporter.on_built` for a teleporter, `catapult.on_built` for a catapult, `incoming.on_built` for a contract chest, `rental.on_built` for a rental assembler, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
+  buildings) to `hubs.on_built`, `power.on_built` for a substation, `price_signals.on_built` for a price combinator, `circuit_orders.on_built` for an order combinator, `manifold.on_built` for a fluid manifold, `docking_bay.on_built` for a docking bay, `teleporter.on_built` for a teleporter, `catapult.on_built` for a catapult, `incoming.on_built` for a contract chest, `rental.on_built` for a rental assembler, `warehouses.on_built` for a rental warehouse, `vaults.on_built` for a vault uplink, or `cargo.on_built` for a chest; a new hub also re-attaches nearby
   modules. `on_object_destroyed` forgets a hub (its modules look for another) or a chest
   ([terminal.md](terminal.md)).
 - **Export**: `script.on_nth_tick(cargo.EXPORT_INTERVAL)` sells the next batch of export chests.
@@ -99,6 +99,14 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
 - **Machine rental**: every `rental.OFFER_TICKS`, idle rental assemblers are offered; every
   `rental.SERVICE_TICKS`, rented ones are served and released ones cleared; a settings paste onto
   one is undone at once ([contracts.md](contracts.md)).
+- **Storage rental**: every `warehouses.OFFER_TICKS`, idle empty rental warehouses are offered;
+  every `warehouses.SERVICE_TICKS`, rented ones give their goods back at maturity and ended ones are
+  cleared. Vaults run their charge in the contract settlement (service `storage`); every
+  `vaults.UPLINK_TICKS`, the next vault uplinks in turn send what they hold into their hub's vaults,
+  and every `vaults.SWEEP_TICKS`, active vaults whose hub is gone take over a hub built where it stood and ended vaults ship
+  their goods back; a removed hub's capsules of vault goods return to their vault
+  (`freight.register_returner`) ([contracts.md](contracts.md#storage-rental),
+  [ADR-0024](adr/0024-storage-rental.md)).
 - **Notifications**: features tell players what happened through `notifications.notify` (offers,
   contract settlement, loan defaults, deliveries landed, insolvency); it throttles per force, kind and
   group, then shows each connected player whose category setting is on an alert and, for most kinds,

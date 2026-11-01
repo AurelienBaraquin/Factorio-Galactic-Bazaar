@@ -181,6 +181,21 @@ function status.rental(facts)
   return descriptor(status.GREEN, { "gb-status.rental-idle" })
 end
 
+--- A vault uplink: {vaults (active vaults of its force rented at its hub), held (its last visit left
+--- goods no vault took)}.
+function status.vault_uplink(facts)
+  if facts.vaults == 0 then return descriptor(status.YELLOW, { "gb-status.uplink-no-vault" }) end
+  if facts.held then return descriptor(status.YELLOW, { "gb-status.uplink-held", facts.vaults }) end
+  return descriptor(status.GREEN, { "gb-status.uplink-ready", facts.vaults })
+end
+
+--- A rental warehouse: {state ("idle", "offered" or "rented"), id (its contract)}.
+function status.warehouse(facts)
+  if facts.state == "offered" then return descriptor(status.YELLOW, { "gb-status.warehouse-offered", facts.id }) end
+  if facts.state == "rented" then return descriptor(status.GREEN, { "gb-status.warehouse-rented", facts.id }) end
+  return descriptor(status.GREEN, { "gb-status.warehouse-idle" })
+end
+
 -- Whether two labels (LocalisedStrings: strings, numbers or nested arrays) are equal.
 local function same_label(a, b)
   if type(a) ~= "table" or type(b) ~= "table" then return a == b end

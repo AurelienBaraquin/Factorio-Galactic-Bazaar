@@ -1,7 +1,8 @@
 -- The Overview tab of the Galactic Bazaar window (#105, scripts/bazaar_gui.lua): the force's account
 -- (balance, overdraft used and left, interest and the next charge), its reputation and what it
 -- changes (freight fees, contract sizes, loan rate and cap), its solvency (insolvency, bankruptcy,
--- credit ban and debt) and a summary of its open contracts, leases and loans. The figures come from
+-- credit ban and debt) and a summary of its open contracts, leases and loans, with the goods ended
+-- vaults still have to ship back (scripts/vaults.lua). The figures come from
 -- scripts/core/overview.lua; every line has a tooltip that explains it. Rows are built once and
 -- updated in place. Read only: it works anywhere.
 local bazaar_gui = require("scripts.bazaar_gui")
@@ -10,13 +11,14 @@ local insolvency = require("scripts.core.insolvency")
 local loans = require("scripts.core.loans")
 local overview = require("scripts.core.overview")
 local reputation = require("scripts.core.reputation")
+local vaults = require("scripts.vaults")
 
 local overview_gui = {}
 
 -- Contract kinds summed on each commitments line.
 local GROUPS = {
-  contracts = { "incoming", "rental" },
-  leases = { "concession", "outsourcing" },
+  contracts = { "incoming", "rental", "warehouse" },
+  leases = { "concession", "outsourcing", "storage" },
 }
 
 local WARNING = { r = 1, g = 0.4, b = 0.3 }
@@ -28,7 +30,7 @@ local SECTIONS = {
   { name = "account", lines = { "balance", "overdraft", "interest", "next-interest" } },
   { name = "reputation", lines = { "score", "fees", "contract-size", "loan-terms" } },
   { name = "solvency", lines = { "state", "credit" } },
-  { name = "commitments", lines = { "offers", "contracts", "leases", "loans", "next-due" } },
+  { name = "commitments", lines = { "offers", "contracts", "leases", "loans", "next-due", "vault-returns" } },
 }
 
 local function percent(share)
@@ -147,6 +149,9 @@ local function refresh(player, view)
   refresh_reputation(values, figures)
   refresh_solvency(values, figures.solvency)
   refresh_commitments(values, figures)
+  local stacks, count = vaults.returning(player.force_index)
+  values["vault-returns"].caption = count > 0 and { "gb-overview.vault-returns-value", stacks, count }
+    or { "gb-overview.vault-returns-none" }
 end
 
 bazaar_gui.register_tab({ name = "overview", order = 10, build = build, refresh = refresh })

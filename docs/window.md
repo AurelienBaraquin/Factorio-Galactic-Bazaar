@@ -47,7 +47,7 @@ reason, or as `tier-changed` if a tier opened up since.
 | Overview | 10 | always | the figures below, one line each, with a tooltip explaining it |
 | Market | 20 | always | prices, search, buy and sell ([terminal.md](terminal.md#market-tab)) |
 | Logistics | 25 | always | the force's hubs, and for the one selected its shipments queued and in flight and its modules with their status ([terminal.md](terminal.md#logistics-tab)) |
-| Contracts | 30 | always | offers, active contracts, the credit line ([contracts.md](contracts.md)) |
+| Contracts | 30 | always | offers, active contracts, the credit line, the Rent a vault button (enabled after Storage rental) and each vault's Retrieve button ([contracts.md](contracts.md#storage-rental)) |
 | Planets | 40 | `gb-planetary-concessions` researched (disabled before, tooltip naming the research; shown again as the Overview if the research is reversed) | planets, slots, leases and bookings ([planets.md](planets.md#planets-tab)) |
 | Statement | 50 | always | the force's journal and its totals per category ([below](#statement-tab)) |
 
@@ -60,7 +60,7 @@ reason, or as `tier-changed` if a tier opened up since.
 | Account | balance; overdraft used (`max(0, -balance)`), its limit and what is left (`account.overdraft_left`); the interest rate and period; the next charge, `account.interest_due` (what a charge would take now: the rate on the lowest balance since the last charge, counted up to the limit, 0 under the minimum) and the ticks until it (charges run every `INTEREST_TICKS` from tick 0) |
 | Reputation | the score (−20 to 20), the freight fee factor, the contract size factor, the loan rate over the term and the loan debt cap ([contracts.md](contracts.md)) |
 | Solvency | `solvent`, `insolvent` (grace left before bankruptcy, the balance to keep, and while it is kept the time left before recovery) or `banned` (credit refused after a bankruptcy: time left, bankruptcy debt); the bankruptcies so far |
-| Commitments | open contracts counted by kind and state, shown as offers waiting, active contracts (incoming, rental), active leases (concession, outsourcing) and loans with the principal left and arrears; the nearest deadline of an active contract and its kind |
+| Commitments | open contracts counted by kind and state, shown as offers waiting, active contracts (incoming, rental, warehouse), active leases (concession, outsourcing, storage vault) and loans with the principal left and arrears; the nearest deadline of an active contract and its kind; the goods ended vaults still have to ship back (stacks and vaults, `vaults.returning`, read by the tab itself) |
 
 ## Statement tab
 
@@ -113,7 +113,8 @@ match, `catalog.search`), page (items a page), columns and their cells
 from the NPC history), quantity, Buy, Sell and preview, and the item detail's figures
 ([terminal.md](terminal.md#item-detail)); each Contracts row's cells by kind and state (goods
 provided and required, reward or charge and guarantee, offer end or deadline, Accept, Decline,
-Abandon, a loan's principal, payoff and installments), its reputation and loan debt (the cap's range
+Abandon, a loan's principal, payoff and installments, a vault's goods, stacks, charge and Retrieve,
+a warehouse rental's goods and maturity; the Rent a vault button's terms), its reputation and loan debt (the cap's range
 from the reputation factors); the Planets tab's columns and cells (distance and transit from
 `scripts/core/transit.lua`); the Logistics tab's shipment columns, each hub's power (what stops
 without it and what keeps working) and status, and each attached building's name and status (what
