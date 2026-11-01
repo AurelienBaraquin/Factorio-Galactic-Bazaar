@@ -1,18 +1,19 @@
 -- The docking bay (#65): a chest for chemical fuel that gives its trading hub the cargo shuttle
--- delivery tier while it holds enough fuel. Derived from the steel chest, tinted blue.
-local TINT = { 0.45, 0.65, 1, 1 }
+-- delivery tier while it holds enough fuel. Derived from the steel chest, with rendered graphics: a
+-- crate with the logistics band and a landing pad (prototypes/graphics.lua).
+local graphics = require("prototypes.graphics")
 
 local entity = table.deepcopy(data.raw["container"]["steel-chest"])
 entity.name = "gb-docking-bay"
-entity.icons = { { icon = "__base__/graphics/icons/steel-chest.png", tint = TINT } }
+entity.icons = graphics.icons("gb-docking-bay")
 entity.icon = nil
 entity.minable = { mining_time = 0.5, result = "gb-docking-bay" }
 entity.inventory_size = 10
 entity.fast_replaceable_group = nil
 entity.next_upgrade = nil
-for _, layer in pairs(entity.picture.layers or { entity.picture }) do
-  if not layer.draw_as_shadow then layer.tint = TINT end
-end
+entity.picture = graphics.sprite("gb-docking-bay")
+entity.water_reflection = nil
+entity.drawing_box_vertical_extension = graphics.vertical_extension("gb-docking-bay")
 
 data:extend({
   entity,

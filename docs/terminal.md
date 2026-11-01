@@ -8,7 +8,7 @@ The buildings through which a force trades. How modules attach is decided in
 
 | | |
 |---|---|
-| Prototype | `prototypes/hub.lua`: an `electric-energy-interface` derived from the base game's, 2×2, tinted accumulator sprite, `gui_mode = "none"` (its interface is the mod's own) |
+| Prototype | `prototypes/hub.lua`: an `electric-energy-interface` derived from the base game's, 2×2, rendered graphics ([visual-identity.md](visual-identity.md)): a terminal whose rooftop dish sweeps (animation, always running), `gui_mode = "none"` (its interface is the mod's own) |
 | Power | draws 100 kW constantly (`secondary-input`, 200 kJ buffer) |
 | Recipe | 20 electronic circuits, 10 steel plates, 10 iron gear wheels, 10 s; unlocked by the technology below |
 | Placement | item subgroup `galactic-bazaar` in the Logistics tab |
@@ -132,7 +132,7 @@ render in it, and how the alerts look, are still to be checked on screen.
 
 | | |
 |---|---|
-| Prototypes | `prototypes/cargo.lua`: two 48-slot containers derived from the steel chest, tinted orange (export) and green (import); icons add an up or down arrow |
+| Prototypes | `prototypes/cargo.lua`: two 48-slot containers derived from the steel chest, rendered graphics ([visual-identity.md](visual-identity.md)): a crate with an orange up arrow (export) or a green down arrow (import) on its lid |
 | Recipe | 1 steel chest + 5 electronic circuits, 2 s; unlocked by the technology below |
 | Attachment | the nearest registered hub of the same force within `cargo.HUB_RANGE` (10 tiles), resolved on build, for nearby modules when a hub is built, for a removed hub's modules, for every module on configuration change and force merge ([ADR-0005](adr/0005-modules-attach-to-a-hub-in-range.md)). When its hub has no power or belongs to another force, a module switches to the nearest powered hub of its force in range; if there is none, it stays attached to its nearest hub, powered or not |
 | Export | every `cargo.EXPORT_INTERVAL` (6) ticks, the next `cargo.EXPORT_BATCH` (2) export chests — 20 chests a second — sell their plain stacks while each unit still fetches at least `min_price_ratio` (default 0.5) × its base value. Plain (any quality, sold at its quality's price, [ADR-0008](adr/0008-quality-values-by-level.md)): no extra data (equipment grid, inventory, blueprint, tags), full health, unused tools and ammunition. Spoilable goods (Space Age) are plain too, though each of their stacks carries a `LuaItem`; a unit fetches its price × its freshness (`1 - spoil_percent`), the market moving by the units sold, and the floor applies to that, so with the default floor a stack less than about half fresh stays in the chest ([ADR-0013](adr/0013-spoilable-goods-priced-by-freshness.md)). The sale is made first; the stack only shrinks for what was paid; journal entries merge per item and minute (`cargo.JOURNAL_MERGE_TICKS`) |
@@ -223,7 +223,7 @@ Code: `scripts/power.lua`; prototypes: `prototypes/power.lua`.
 
 | | |
 |---|---|
-| Prototypes | two 2×2 `electric-energy-interface`s, tinted orange (export) and green (import), `tertiary` priority like accumulators: export charges only from the network's surplus (input 40 MW, output 0), import discharges only on shortage (input 0, output 40 MW) |
+| Prototypes | two 2×2 `electric-energy-interface`s, rendered graphics ([visual-identity.md](visual-identity.md)): a transformer with an orange up arrow (export) or a green down arrow (import), `tertiary` priority like accumulators: export charges only from the network's surplus (input 40 MW, output 0), import discharges only on shortage (input 0, output 40 MW) |
 | Recipe | 10 steel plates, 10 electronic circuits, 20 copper cables, 5 s |
 | Technology | `gb-power-trading` (after the Galactic Bazaar and electric energy distribution 1; 150 × red and green) unlocks both, at 10 MW each; `gb-power-trading-2` (after electric energy distribution 2; 300 × red, green, blue) raises them to 40 MW |
 | Hub | the nearest hub of the same force within `power.HUB_RANGE` (10 tiles), attached when the substation is built, when a hub is built or removed nearby, on force merge and on configuration change; at a settlement, a substation whose hub has no power or another force switches to the nearest powered hub in range; without a hub in range it does not trade, and costs no search until a hub is built |
@@ -317,7 +317,7 @@ Gives its hub the cargo shuttle tier (#65, [ADR-0014](adr/0014-delivery-tier-per
 
 | | |
 |---|---|
-| Prototype | a 10-slot chest derived from the steel chest, tinted blue |
+| Prototype | a 10-slot chest derived from the steel chest, rendered graphics ([visual-identity.md](visual-identity.md)): a crate with a landing pad |
 | Recipe | 50 steel plates, 20 advanced circuits, 10 electric engines, 10 s |
 | Technology | `gb-cargo-shuttle` (after the Galactic Bazaar, rocket fuel and electric engine; 300 × red, green and blue) |
 | Hub | attached like the other modules (`docking_bay.HUB_RANGE`, 10 tiles); bays of another force are ignored |
@@ -333,7 +333,7 @@ Gives its hub the teleporter tier (#66, [ADR-0014](adr/0014-delivery-tier-per-hu
 
 | | |
 |---|---|
-| Prototype | an `electric-energy-interface` derived from the base one, tinted violet, drawing 20 MW (`secondary-input`, 40 MJ buffer, intake capped at 24 MW so a network that cannot keep up drains it; a fresh one reaches half its buffer in about 5 s) |
+| Prototype | an `electric-energy-interface` derived from the base one, rendered graphics ([visual-identity.md](visual-identity.md)): a field ring turning around a warp core (animation, always running), drawing 20 MW (`secondary-input`, 40 MJ buffer, intake capped at 24 MW so a network that cannot keep up drains it; a fresh one reaches half its buffer in about 5 s) |
 | Recipe | 100 processing units, 50 low density structures, 200 steel plates, 30 s |
 | Technology | `gb-teleporter` (after the cargo shuttle, processing unit, low density structure, production and utility science; 500 × red, green, blue, purple and yellow) |
 | Hub | attached like the other modules (`teleporter.HUB_RANGE`, 10 tiles), indexed per hub (`storage.teleporters.by_hub`) |
@@ -346,7 +346,7 @@ Bulk exports (#67). Code: `scripts/catapult.lua`; prototypes: `prototypes/catapu
 
 | | |
 |---|---|
-| Prototypes | a 48-slot chest derived from the steel chest, tinted red; under it, a hidden `gb-catapult-capacitor` (electric-energy-interface, not selectable, not blueprintable, not repairable, indestructible, no collision layers but the chest's footprint for pole coverage; `secondary-input`, 100 MJ buffer, intake capped at 30 MW) placed and removed by the script with the catapult; a catapult adopts a capacitor already under it (an area clone copies both) |
+| Prototypes | a 48-slot chest derived from the steel chest, rendered graphics ([visual-identity.md](visual-identity.md)): a crate with a coil-wound launch rail; under it, a hidden `gb-catapult-capacitor` (electric-energy-interface, not selectable, not blueprintable, not repairable, indestructible, no collision layers but the chest's footprint for pole coverage; `secondary-input`, 100 MJ buffer, intake capped at 30 MW) placed and removed by the script with the catapult; a catapult adopts a capacitor already under it (an area clone copies both) |
 | Recipe | 100 steel plates, 30 advanced circuits, 10 accumulators, 20 electric engines, 20 s |
 | Technology | `gb-catapult` (after the cargo shuttle and accumulators; 250 × red, green and blue) |
 | Hub | attached like the other modules (`catapult.HUB_RANGE`, 10 tiles); shoots only through a powered hub of its force |
@@ -363,7 +363,7 @@ prototypes: `prototypes/contract_chest.lua`.
 
 | | |
 |---|---|
-| Prototypes | a copy of the steel chest, tinted gold |
+| Prototypes | a copy of the steel chest, rendered graphics ([visual-identity.md](visual-identity.md)): a crate with a document slot and a seal |
 | Recipe | 1 steel chest, 5 electronic circuits |
 | Technology | `gb-contracts` (after the Galactic Bazaar and logistic science; 100 × red and green) |
 | Hub | attached like the other modules (`incoming.HUB_RANGE`, 10 tiles); hands nothing over without a hub, powered or not |
@@ -389,7 +389,7 @@ Storage rental (#119, [ADR-0024](adr/0024-storage-rental.md)). Code: `scripts/va
 
 | | |
 |---|---|
-| Prototypes | copies of the steel chest (48 slots), tinted violet (uplink) and blue (warehouse) |
+| Prototypes | copies of the steel chest (48 slots), rendered graphics ([visual-identity.md](visual-identity.md)): a crate with a vault door and an antenna (uplink), a crate with a roof and a locked shutter (warehouse) |
 | Recipe | each: 1 steel chest, 5 electronic circuits |
 | Technology | `gb-storage-rental` (after contracts; 150 × red and green), which unlocks both |
 | Hub | attached like the other modules (`vaults.HUB_RANGE`, `warehouses.HUB_RANGE`, 10 tiles); powered or not |

@@ -1,21 +1,19 @@
 -- The cargo module: an export chest whose content the market buys, and an import chest that
 -- receives purchases. Both work when a trading hub of their force is in range (ADR-0005).
--- Placeholder graphics: the steel chest, tinted, with an arrow on the icon.
-local function cargo_chest(name, tint, arrow, order)
+-- Rendered graphics (prototypes/graphics.lua): a crate with the trading band and an arrow on its lid.
+local graphics = require("prototypes.graphics")
+
+local function cargo_chest(name, order)
   local chest = table.deepcopy(data.raw["container"]["steel-chest"])
   chest.name = name
   chest.minable = { mining_time = 0.2, result = name }
-  chest.icons = {
-    { icon = "__base__/graphics/icons/steel-chest.png", tint = tint },
-    { icon = "__base__/graphics/icons/arrows/" .. arrow .. ".png", scale = 0.25, shift = { 8, -8 } },
-  }
+  chest.icons = graphics.icons(name)
   chest.icon = nil
   chest.fast_replaceable_group = nil
   chest.next_upgrade = nil
-  chest.picture = table.deepcopy(chest.picture)
-  for _, layer in pairs(chest.picture.layers or { chest.picture }) do
-    if not layer.draw_as_shadow then layer.tint = tint end
-  end
+  chest.picture = graphics.sprite(name)
+  chest.water_reflection = nil
+  chest.drawing_box_vertical_extension = graphics.vertical_extension(name)
   local item = {
     type = "item",
     name = name,
@@ -39,5 +37,5 @@ local function cargo_chest(name, tint, arrow, order)
   return chest, item, recipe
 end
 
-data:extend({ cargo_chest("gb-export-chest", { 1, 0.65, 0.35, 1 }, "up-arrow", "b[cargo]-a[export]") })
-data:extend({ cargo_chest("gb-import-chest", { 0.45, 1, 0.55, 1 }, "down-arrow", "b[cargo]-b[import]") })
+data:extend({ cargo_chest("gb-export-chest", "b[cargo]-a[export]") })
+data:extend({ cargo_chest("gb-import-chest", "b[cargo]-b[import]") })

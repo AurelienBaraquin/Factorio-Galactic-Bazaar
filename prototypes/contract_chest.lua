@@ -1,17 +1,18 @@
 -- The contract chest (#76): products put in it are handed over to the force's open incoming
--- contracts. Derived from the steel chest, tinted gold.
-local TINT = { 1, 0.85, 0.3, 1 }
+-- contracts. Derived from the steel chest, with rendered graphics: a crate with the finance band, a
+-- document slot and a seal (prototypes/graphics.lua).
+local graphics = require("prototypes.graphics")
 
 local entity = table.deepcopy(data.raw["container"]["steel-chest"])
 entity.name = "gb-contract-chest"
-entity.icons = { { icon = "__base__/graphics/icons/steel-chest.png", tint = TINT } }
+entity.icons = graphics.icons("gb-contract-chest")
 entity.icon = nil
 entity.minable = { mining_time = 0.2, result = "gb-contract-chest" }
 entity.fast_replaceable_group = nil
 entity.next_upgrade = nil
-for _, layer in pairs(entity.picture.layers or { entity.picture }) do
-  if not layer.draw_as_shadow then layer.tint = TINT end
-end
+entity.picture = graphics.sprite("gb-contract-chest")
+entity.water_reflection = nil
+entity.drawing_box_vertical_extension = graphics.vertical_extension("gb-contract-chest")
 
 data:extend({
   entity,

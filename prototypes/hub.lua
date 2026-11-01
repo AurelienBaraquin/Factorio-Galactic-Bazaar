@@ -1,10 +1,12 @@
 -- The trading hub: the terminal's central building. Its interface (opened on click) gives access to
--- the market; modules attach to it. It draws a constant amount of power.
-local TINT = { 0.55, 0.8, 1, 1 }
+-- the market; modules attach to it. It draws a constant amount of power. Rendered graphics: a
+-- terminal with a sweeping rooftop dish (prototypes/graphics.lua).
+local graphics = require("prototypes.graphics")
 
 local hub = table.deepcopy(data.raw["electric-energy-interface"]["electric-energy-interface"])
 hub.name = "gb-hub"
-hub.icons = { { icon = "__base__/graphics/icons/accumulator.png", tint = TINT } }
+hub.icons = graphics.icons("gb-hub")
+hub.icon = nil
 hub.hidden = false
 hub.minable = { mining_time = 0.5, result = "gb-hub" }
 hub.max_health = 400
@@ -15,10 +17,10 @@ hub.allow_copy_paste = false
 hub.energy_source = { type = "electric", usage_priority = "secondary-input", buffer_capacity = "200kJ" }
 hub.energy_production = "0kW"
 hub.energy_usage = "100kW"
-hub.picture = table.deepcopy(hub.picture)
-for _, layer in pairs(hub.picture.layers or { hub.picture }) do
-  if not layer.draw_as_shadow then layer.tint = TINT end
-end
+hub.picture = nil
+hub.animation = graphics.animation("gb-hub")
+hub.continuous_animation = true
+hub.drawing_box_vertical_extension = graphics.vertical_extension("gb-hub")
 
 data:extend({
   { type = "item-subgroup", name = "galactic-bazaar", group = "logistics", order = "z[galactic-bazaar]" },

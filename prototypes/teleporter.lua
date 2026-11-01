@@ -1,12 +1,13 @@
 -- The teleporter (#66): an electric building that gives its trading hub the teleporter delivery
 -- tier while powered, for a constant 20 MW draw. Derived from the base electric-energy-interface,
--- tinted violet. Its intake is capped a little above its draw, so that a network that cannot keep up
--- drains its buffer (and a fresh one fills in seconds rather than in one tick).
-local TINT = { 0.75, 0.45, 1, 1 }
+-- with a rendered animation: a field ring turning around a warp core (prototypes/graphics.lua). Its
+-- intake is capped a little above its draw, so that a network that cannot keep up drains its buffer
+-- (and a fresh one fills in seconds rather than in one tick).
+local graphics = require("prototypes.graphics")
 
 local entity = table.deepcopy(data.raw["electric-energy-interface"]["electric-energy-interface"])
 entity.name = "gb-teleporter"
-entity.icons = { { icon = "__base__/graphics/icons/accumulator.png", tint = TINT } }
+entity.icons = graphics.icons("gb-teleporter")
 entity.icon = nil
 entity.hidden = false
 entity.minable = { mining_time = 1, result = "gb-teleporter" }
@@ -20,10 +21,10 @@ entity.energy_source = {
 }
 entity.energy_production = "0kW"
 entity.energy_usage = "20MW"
-entity.picture = table.deepcopy(entity.picture)
-for _, layer in pairs(entity.picture.layers or { entity.picture }) do
-  if not layer.draw_as_shadow then layer.tint = TINT end
-end
+entity.picture = nil
+entity.animation = graphics.animation("gb-teleporter")
+entity.continuous_animation = true
+entity.drawing_box_vertical_extension = graphics.vertical_extension("gb-teleporter")
 
 data:extend({
   entity,

@@ -17,6 +17,7 @@ info.json       mod manifest: name, version, factorio_version 2.1, dependencies 
 settings.lua    settings stage: the startup setting of the global value multiplier
 data.lua        prototype stage entry point: requires one file per prototype family
 prototypes/     prototype definitions (trading hub, cargo chests, technologies, custom inputs, Tips and tricks)
+graphics/       rendered sprites and icons of the mod's buildings (generated, docs/graphics-pipeline.md)
 control.lua     runtime stage entry point: registers every event handler
 locale/         in-game text, one folder per language (en, fr)
 scripts/        runtime adapters between the game API and the pure logic
@@ -25,7 +26,8 @@ changelog.txt   release notes in the strict format the game parses
 spec/           busted unit tests of scripts/core/
 tests/          FactorioTest in-game tests of scripts/
 package.json    development tooling only (FactorioTest CLI)
-tools/          repository tooling: Lua toolchain setup, packaging and deploy, documentation check, balance simulation
+tools/          repository tooling: Lua toolchain setup, packaging and deploy, documentation check, balance simulation,
+                the Blender render pipeline of the graphics
 docs/           brief, architecture, ADRs and the documentation index
 .assistant/     decisions log and lessons for AI agents
 .github/        issue and pull request templates, CI workflows
@@ -33,7 +35,7 @@ docs/           brief, architecture, ADRs and the documentation index
 .claude/        Claude Code project settings, hooks, Factorio modding skills and agents
 ```
 
-Only the first nine entries ship in the mod: `.gitattributes` marks everything else
+Only the first ten entries ship in the mod: `.gitattributes` marks everything else
 `export-ignore`, and `tools/build.py` uses that list for both the zip and play-test deploys.
 
 ## 2. Conventions in place

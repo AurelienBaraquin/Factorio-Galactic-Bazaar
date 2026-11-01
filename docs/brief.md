@@ -82,8 +82,10 @@ Out of scope (until 1.0):
 - Circuit signals are 32-bit integers (about 2.1 × 10⁹): large amounts must be scaled.
 - Lua numbers are doubles: integers are exact up to 2⁵³ (about 9 × 10¹⁵).
 - Periodic work is batched across ticks to protect UPS.
-- All graphics are produced by AI agents, never by hand. Until 1.0 they are composed from the base
-  game's sprites and icons; Space Age graphics are never referenced, since Space Age is optional.
+- All graphics are produced by AI agents, never by hand: buildings are rendered from procedural
+  Blender models scripted in Python ([ADR-0027](adr/0027-procedural-blender-render-pipeline.md)),
+  and the few that must match a vanilla machine keep its base sprite; Space Age graphics are never
+  referenced, since Space Age is optional.
 
 ## Open questions
 
