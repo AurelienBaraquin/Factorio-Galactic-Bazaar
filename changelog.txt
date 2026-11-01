@@ -5,7 +5,8 @@ Date: 2026-11-01
     - Recording a recurring trade (automatic sales, power, orders) finds the journal entry it merges into
       through an index instead of searching the journal: about half the cost with many goods traded.
     - The Logistics tab rewrites its counts, pages, module summary, hub header and camera only when they
-      change, and lists a hub's modules with fewer comparisons.
+      change, builds rows for the shown page of shipments only, and sorts a hub's modules again only when
+      they changed.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.35
 Date: 2026-10-31

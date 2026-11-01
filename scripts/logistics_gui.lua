@@ -8,9 +8,9 @@
 -- the tab's view in storage.bazaar_gui: `hub` (the hub selected), `focus` (the module the camera
 -- shows), `hubs_page`, `shipments_page`, `modules_page`, what each row last showed (`drawn`: {[list] =
 -- {[row] = {key, status}}}, `visible`: {[list] = rows shown}), what each other part of the tab last
--- showed (`written`: {[part] = key}: the pagers, counts, header, camera) and `modules`, the selected hub's modules as
--- last listed and sorted (redone only when the hub changes or MODULE_RESCAN_TICKS have passed, the
--- cadence at which the status passes find modules anyway).
+-- showed (`written`: {[part] = key}: the pagers, counts, header, camera) and `modules`, the selected
+-- hub's modules as last listed and sorted (redone when the hub changes, or when, checked every
+-- MODULE_RESCAN_TICKS, the cadence at which the status passes find modules anyway, they changed).
 local bazaar_gui = require("scripts.bazaar_gui")
 local catalog = require("scripts.core.catalog")
 local core = require("scripts.core.logistics")
@@ -151,6 +151,16 @@ local function changed(view, name, key)
   return true
 end
 
+-- Whether two captions (strings, numbers or LocalisedStrings) are the same text.
+local function same_text(a, b)
+  if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+  if #a ~= #b then return false end
+  for i = 1, #a do
+    if not same_text(a[i], b[i]) then return false end
+  end
+  return true
+end
+
 local PAGER_PARTS = { hubs = "hubs-pager", shipments = "shipments-pager", modules = "modules-pager" }
 
 -- Shows a page's number and enables its buttons, when they changed.
@@ -284,22 +294,21 @@ local function refresh_shipments(player, view, hub)
   local elements = view.elements
   local now = game.tick
   local capsules = freight.capsules(hub.unit_number)
-  local rows = core.shipments(capsules, player.force_index, now, freight.TIERS, {
+  local shown = core.shipments(capsules, player.force_index, now, freight.TIERS, {
     unload_ticks = freight.UNLOAD_INTERVAL, held = held_tiers(hub.unit_number),
     contracts = contract_facts(player.force_index, capsules),
-  })
-  local shown = core.page(rows, view.shipments_page, core.SHIPMENT_ROWS)
+  }, view.shipments_page, core.SHIPMENT_ROWS)
   view.shipments_page = shown.page
   refresh_pager(view, "shipments", shown)
-  if changed(view, "shipment-count", #rows) then
-    elements.shipment_count.caption = { "gb-logistics.shipments", #rows }
-    elements.no_shipment.visible = #rows == 0
+  if changed(view, "shipment-count", shown.count) then
+    elements.shipment_count.caption = { "gb-logistics.shipments", shown.count }
+    elements.no_shipment.visible = shown.count == 0
   end
   local factor = fee_factor(player.force_index)
   show_rows(view, "shipments", elements.shipment_rows, #shown.items)
   for i, row in ipairs(shown.items) do
-    local key = table.concat({ row.kind, row.name, row.count, row.tier, row.state, row.origin, row.contract or "",
-      row.planet or "", row.loss or "", row.unit_cost, row.arrival, factor }, " ")
+    local key = string.format("%s %s %s %s %s %s %s %s %s %s %s %s", row.kind, row.name, row.count, row.tier,
+      row.state, row.origin, row.contract or "", row.planet or "", row.loss or "", row.unit_cost, row.arrival, factor)
     local _, fresh = drawn_row(view, "shipments", i, key)
     refresh_shipment_row(elements.shipment_rows[i], row, now, factor, fresh)
   end
@@ -321,23 +330,52 @@ local function groups_caption(groups)
 end
 
 -- The modules of a hub as listed now: {hub, tick, rows, groups (see core.modules), entities =
--- {[unit_number] = entity}}.
+-- {[unit_number] = entity}, positions = {[unit_number] = its row}}.
 local function list_modules(player, hub)
-  local modules = entity_status.modules_of(hub.unit_number, player.force_index)
   local entities = {}
-  for _, module in ipairs(modules) do entities[module.unit_number] = module.entity end
-  local listed = core.modules(modules)
-  return { hub = hub.unit_number, tick = game.tick, rows = listed.rows, groups = listed.groups, entities = entities }
+  local listed = core.modules(function(visit)
+    entity_status.each_module_of(hub.unit_number, player.force_index, function(unit_number, rank, entity, descriptor)
+      entities[unit_number] = entity
+      visit(rank, entity.name, unit_number, descriptor)
+    end)
+  end)
+  local positions = {}
+  for i, row in ipairs(listed.rows) do positions[row.unit_number] = i end
+  return { hub = hub.unit_number, tick = game.tick, rows = listed.rows, groups = listed.groups, entities = entities,
+    positions = positions }
 end
 
--- Shows the modules of a hub, listed again when the hub changed or the list is MODULE_RESCAN_TICKS
--- old; returns the entity the camera follows when one is in focus.
+-- Whether a hub's modules are still those `listed` shows, with the same diodes: then the listing is
+-- kept as it is, neither read into new tables nor sorted again. A listing from before 0.1.36 (no
+-- `positions`) is never kept.
+local function still_listed(player, listed)
+  local positions, rows = listed.positions, listed.rows
+  if not positions then return false end
+  local count, same = 0, true
+  entity_status.each_module_of(listed.hub, player.force_index, function(unit_number, _, _, descriptor)
+    local position = positions[unit_number]
+    if not (position and rows[position].diode == (descriptor and descriptor.diode or nil)) then same = false end
+    count = count + 1
+  end)
+  return same and count == #rows
+end
+
+-- Shows the modules of a hub, listed again when the hub changed, or when the list is
+-- MODULE_RESCAN_TICKS old and the modules or their diodes changed; returns the entity the camera
+-- follows when one is in focus.
 local function refresh_modules(player, view, hub, surfaces)
   local elements = view.elements
   local listed = view.modules
-  if not (listed and listed.hub == hub.unit_number and game.tick - listed.tick < logistics_gui.MODULE_RESCAN_TICKS) then
+  if not (listed and listed.hub == hub.unit_number) then
     listed = list_modules(player, hub)
     view.modules = listed
+  elseif game.tick - listed.tick >= logistics_gui.MODULE_RESCAN_TICKS then
+    if still_listed(player, listed) then
+      listed.tick = game.tick
+    else
+      listed = list_modules(player, hub)
+      view.modules = listed
+    end
   end
   local shown = core.page(listed.rows, view.modules_page, core.MODULE_ROWS)
   view.modules_page = shown.page
@@ -379,7 +417,12 @@ end
 local function refresh_header(player, view, hub, surfaces)
   local elements = view.elements
   local unit_number = hub.unit_number
-  if changed(view, "title", unit_number) then elements.title.caption = location(hub, surfaces) end
+  -- A hub does not move, but its surface may be renamed: the title follows the surface's caption.
+  local surface = surface_caption(hub, surfaces)
+  if changed(view, "title", unit_number) or not same_text(view.written.surface, surface) then
+    view.written.surface = surface
+    elements.title.caption = location(hub, surfaces)
+  end
   local tier = freight.tier(unit_number)
   local factor = fee_factor(player.force_index)
   if changed(view, "tier", tier.name .. " " .. factor) then

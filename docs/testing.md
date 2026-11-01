@@ -106,8 +106,11 @@ module tests that measure a pass) are logged, not asserted: `LuaProfiler` values
 Lua, so a budget is checked by reading the `[galactic-bazaar] … tab refresh` and similar lines in
 `factorio-test-data-dir/factorio-current.log` after a run. A measurement that follows a burst of
 allocation (placing hundreds of buildings, or the test files run before it) collects garbage first
-(`collectgarbage("collect")`, then a warm-up), as `tests/logistics_gui.lua` does: otherwise the
-collector charges that garbage to the code measured.
+(`collectgarbage("collect")`, then a warm-up): otherwise the collector charges that garbage to the code
+measured. Since that hides the collection the code's own garbage drives, `tests/logistics_gui.lua`
+also logs what each refresh allocates (collector stopped) and single refreshes with a collector that
+never pauses (`collectgarbage("setpause", 100)`, restored after), whose median and worst case are
+read from the log.
 
 Space Age is not owned by the owner, so the `--mods space-age` run is the only coverage of Space
 Age code paths: every such path needs a test here.

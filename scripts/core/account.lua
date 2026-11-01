@@ -75,7 +75,7 @@ local function merge_id(entry)
 end
 
 -- The index of the journal's recurring entries (`state.journal_index`): {journal = the journal table
--- it indexes, entries = {[merge_id] = the entry of that kind and key that started last}}. Kept by
+-- it indexes, entries = {[merge_id] = the last entry of that kind and key in the journal}}. Kept by
 -- `record`; rebuilt from the journal when missing (a save from 0.1.35 or older, a merge of forces) or
 -- made for another journal table (one replaced whole).
 local function journal_index(state)
@@ -83,29 +83,37 @@ local function journal_index(state)
   if index and index.journal == state.journal then return index end
   local entries = {}
   for _, entry in ipairs(state.journal) do
-    if entry.merge_ticks then
-      local id = merge_id(entry)
-      local known = entries[id]
-      if not known or entry.first_tick >= known.first_tick then entries[id] = entry end
-    end
+    if entry.merge_ticks then entries[merge_id(entry)] = entry end
   end
   index = { journal = state.journal, entries = entries }
   state.journal_index = index
   return index
 end
 
--- The position of the entry a recurring transaction (of merge_id `id`) merges into: the entry of the
--- same kind and key that started last, when it started less than `merge_ticks` before it (any other
--- started earlier still). Found through the index, then by identity from the end of the journal,
--- where recurring entries move, instead of comparing the fields of every entry, so any number of
--- recurring transactions keep merging. An index whose entry the journal no longer holds is rebuilt once.
+local function is_open(candidate, entry)
+  return candidate.merge_ticks and candidate.kind == entry.kind and candidate.key == entry.key
+    and entry.tick - candidate.first_tick < entry.merge_ticks
+end
+
+-- The position of the entry a recurring transaction (of merge_id `id`) merges into: the last entry of
+-- the journal of the same kind and key started less than `merge_ticks` before it. The last one of that
+-- kind and key comes from the index and is found by identity from the end of the journal, where
+-- recurring entries move, without comparing the fields of each entry. Only when it is no longer open
+-- are the entries before it searched, as an earlier one may still be (after forces merged, journals
+-- joined in tick order). An index whose entry the journal no longer holds is rebuilt once.
 local function merge_target(state, entry, id)
   for _ = 1, 2 do
     local candidate = journal_index(state).entries[id]
-    if not (candidate and entry.tick - candidate.first_tick < entry.merge_ticks) then return nil end
+    if not candidate then return nil end
     local journal = state.journal
     for i = #journal, 1, -1 do
-      if journal[i] == candidate then return i end
+      if journal[i] == candidate then
+        if is_open(candidate, entry) then return i end
+        for j = i - 1, 1, -1 do
+          if is_open(journal[j], entry) then return j end
+        end
+        return nil
+      end
     end
     state.journal_index = nil
   end

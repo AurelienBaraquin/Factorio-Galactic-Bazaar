@@ -424,30 +424,28 @@ function entity_status.shown(unit_number)
   return state_of().shown[unit_number]
 end
 
---- The buildings of force `force_index` attached to a hub, for the Logistics tab: {{rank (their
---- kind's order), name, unit_number, entity, descriptor (see `shown`)}...}, unordered. Reads the
---- modules the last and the current cycle found attached to that hub (a module attached since shows
---- once a pass or its construction refreshes it), each checked again: listed, still attached to the
---- hub, valid and of the force.
-function entity_status.modules_of(hub_unit_number, force_index)
+--- Calls `visit(unit_number, rank, entity, descriptor)` once for each building of force `force_index`
+--- attached to a hub, for the Logistics tab (`rank`: its kind's order; `descriptor`: see `shown`), in no
+--- order, making no table per building. Reads the modules the last and the current cycle found
+--- attached to that hub (a module attached since shows once a pass or its construction refreshes it),
+--- each checked again: listed, still attached to the hub, valid and of the force.
+function entity_status.each_module_of(hub_unit_number, force_index, visit)
   local state = state_of()
-  local found, seen = {}, {}
-  for _, cycle in ipairs({ state.members, state.joining }) do
-    for unit_number in pairs(cycle[hub_unit_number] or {}) do
-      if not seen[unit_number] then
+  local members, joining = state.members[hub_unit_number], state.joining[hub_unit_number]
+  for _, cycle in ipairs({ members or {}, joining or {} }) do
+    for unit_number in pairs(cycle) do
+      -- A building found by both cycles is visited from the last one only.
+      if cycle == members or not (members and members[unit_number]) then
         local position = state.index[unit_number]
         local kind = position and KIND_BY_NAME[state.kinds[position]]
         local module = kind and kind.modules()[unit_number]
         local entity = module and module.entity
         if module and module.hub == hub_unit_number and entity.valid and entity.force_index == force_index then
-          seen[unit_number] = true
-          found[#found + 1] = { rank = KIND_RANK[kind.name], name = entity.name, unit_number = unit_number,
-            entity = entity, descriptor = state.shown[unit_number] }
+          visit(unit_number, KIND_RANK[kind.name], entity, state.shown[unit_number])
         end
       end
     end
   end
-  return found
 end
 
 return entity_status
