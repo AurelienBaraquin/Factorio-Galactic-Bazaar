@@ -9,3 +9,6 @@
 node_modules/
 factorio-test-data-dir/
 dist/
+
+# Python bytecode of the render pipeline (tools/graphics/)
+__pycache__/

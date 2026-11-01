@@ -3,16 +3,20 @@
 -- only charges from the network's surplus, the import substation only discharges when the network
 -- lacks power. The script settles their buffers with the market and sizes them for the force's
 -- research level, which caps the throughput (flow limits cannot be changed at runtime, so they are
--- set here for the highest level, 40 MW; the buffer is the first level's 10 MW for 5 s).
+-- set here for the highest level, 40 MW; the buffer is the first level's 10 MW for 5 s). Rendered
+-- graphics: a transformer with the trading band and an arrow for the flow (prototypes/graphics.lua).
+local graphics = require("prototypes.graphics")
+
 local SUBSTATIONS = {
-  { name = "gb-power-export", tint = { 1, 0.6, 0.2, 1 }, input = "40MW", output = "0W", order = "d[power]-a[export]" },
-  { name = "gb-power-import", tint = { 0.4, 1, 0.5, 1 }, input = "0W", output = "40MW", order = "d[power]-b[import]" },
+  { name = "gb-power-export", input = "40MW", output = "0W", order = "d[power]-a[export]" },
+  { name = "gb-power-import", input = "0W", output = "40MW", order = "d[power]-b[import]" },
 }
 
 for _, spec in ipairs(SUBSTATIONS) do
   local entity = table.deepcopy(data.raw["electric-energy-interface"]["electric-energy-interface"])
   entity.name = spec.name
-  entity.icons = { { icon = "__base__/graphics/icons/accumulator.png", tint = spec.tint } }
+  entity.icons = graphics.icons(spec.name)
+  entity.icon = nil
   entity.hidden = false
   entity.minable = { mining_time = 0.5, result = spec.name }
   entity.max_health = 300
@@ -26,10 +30,8 @@ for _, spec in ipairs(SUBSTATIONS) do
   }
   entity.energy_production = "0kW"
   entity.energy_usage = "0kW"
-  entity.picture = table.deepcopy(entity.picture)
-  for _, layer in pairs(entity.picture.layers or { entity.picture }) do
-    if not layer.draw_as_shadow then layer.tint = spec.tint end
-  end
+  entity.picture = graphics.sprite(spec.name)
+  entity.drawing_box_vertical_extension = 0.5
   data:extend({
     entity,
     {

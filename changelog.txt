@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.40
+Date: 2026-11-01
+  Graphics:
+    - The trading hub, export and import chests, power substations, docking bay, electromagnetic
+      catapult, teleporter, contract chest, vault uplink and rental warehouse have their own rendered
+      graphics, shadows and icons instead of tinted base-game sprites; the hub's dish and the
+      teleporter's ring are animated.
+    - Combinators, fluid manifolds and the rental assembler keep their tinted base sprites.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.39
 Date: 2026-11-01
   Balancing:

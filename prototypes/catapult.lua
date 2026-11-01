@@ -1,20 +1,21 @@
 -- The electromagnetic catapult (#67): a 48-slot chest that sells its contents to the market in bulk,
 -- one shot at a time, each shot drawing energy from a capacitor: a hidden electric-energy-interface
--- the script places under the catapult, charging from the electric network.
-local TINT = { 1, 0.45, 0.45, 1 }
+-- the script places under the catapult, charging from the electric network. Rendered graphics: a
+-- crate with the logistics band and a coil-wound launch rail (prototypes/graphics.lua).
+local graphics = require("prototypes.graphics")
 
 local catapult = table.deepcopy(data.raw["container"]["steel-chest"])
 catapult.name = "gb-catapult"
-catapult.icons = { { icon = "__base__/graphics/icons/steel-chest.png", tint = TINT } }
+catapult.icons = graphics.icons("gb-catapult")
 catapult.icon = nil
 catapult.minable = { mining_time = 1, result = "gb-catapult" }
 catapult.inventory_size = 48
 catapult.max_health = 600
 catapult.fast_replaceable_group = nil
 catapult.next_upgrade = nil
-for _, layer in pairs(catapult.picture.layers or { catapult.picture }) do
-  if not layer.draw_as_shadow then layer.tint = TINT end
-end
+catapult.picture = graphics.sprite("gb-catapult")
+catapult.water_reflection = nil
+catapult.drawing_box_vertical_extension = 0.5
 
 local capacitor = table.deepcopy(data.raw["electric-energy-interface"]["electric-energy-interface"])
 capacitor.name = "gb-catapult-capacitor"
