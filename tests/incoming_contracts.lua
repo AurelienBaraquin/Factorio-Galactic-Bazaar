@@ -51,7 +51,7 @@ describe("incoming contracts", function()
     -- In storage, so that it survives the reload of the last test.
     storage.gb_test_incoming = {
       balance = state().balance, reputation = state().reputation, history = #state().contracts.history,
-      researched = force().technologies[incoming.TECHNOLOGY].researched,
+      researched = force().technologies[incoming.TECHNOLOGY].researched, market_events = storage.market_events,
     }
     test_helpers.set_balance(state(), 1000)
     state().contracts.open = {}
@@ -70,6 +70,7 @@ describe("incoming contracts", function()
     end
     local saved = storage.gb_test_incoming
     if saved then
+      storage.market_events = saved.market_events
       test_helpers.set_balance(state(), saved.balance)
       state().reputation = saved.reputation
       local history = state().contracts.history
@@ -171,7 +172,7 @@ describe("incoming contracts", function()
         short = candidates[i].products[1].name
       end
     end
-    local saved_events = storage.market_events
+    assert.is_not_nil(short)
     -- A shortage started an hour ago, still active: its shift is near its goal of 1 depth.
     local events = events_core.new_state(1, game.tick, 1, market_events.PARAMS)
     events.next_tick = game.tick + 3600 * 600
@@ -179,12 +180,11 @@ describe("incoming contracts", function()
       goal = 1, segment_tick = game.tick - 216000, segment_shift = 0, trail = { { game.tick - 216000, 0 } },
       start_tick = game.tick - 216000, end_tick = game.tick + 216000, told = "active" }
     events_core.reindex(events)
-    storage.market_events = events
+    storage.market_events = events -- restored by after_each
     assert.is_true(market_events.depths("item/" .. short, game.tick) <= -offers.SHORTAGE_DEPTHS)
     -- State 1 draws about 8e-6 first: below the shortage chance.
     storage.incoming_contracts.rng[force().index] = 1
     local contract = contracts.get(force().index, incoming.make_offer(force()))
-    storage.market_events = saved_events
     assert.are.equal(short, contract.requires[1].name)
   end)
 

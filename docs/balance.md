@@ -24,7 +24,7 @@ in [ADR-0026](adr/0026-contract-pay-follows-work-and-the-spread.md), each consta
 A few figures belong to adapters or prototypes, which need the game, and are copied in `sim.lua`
 with their source: the export chests' price floor (`cargo.DEFAULT_MIN_PRICE_RATIO`, 0.5), the rental
 assembler's speed (0.75), the rental warehouse's 48 slots, one offer every 5 minutes, 8 listed
-contracts.
+contracts. `tests/balance.lua` checks in game that they equal the adapters' and prototypes' values.
 
 ### Regenerating the snapshot
 
@@ -52,7 +52,7 @@ the last hour is measured, at steady state.
 | Space Age late | teleporter, 20 | as vanilla late, with 40 processing units and structures, 40 tungsten, 180 holmium, 60 carbon fibre, 20 supercapacitors, 5 quantum processors | 5 production and 5 utility science | 5, 100 000 |
 
 Incoming contracts: one offer every 5 minutes, accepted and fulfilled, each paying the median reward
-of the snapshot's recipes at the scenario's reputation. Rentals: the scenario's rental assemblers
+of the snapshot's recipes at the scenario's reputation (the report also gives the mean). Rentals: the scenario's rental assemblers
 rented all the time, each paying the mean rent of the snapshot's recipes.
 
 ## Results (credits an hour)
@@ -61,11 +61,16 @@ Before (0.1.38) and after (0.1.39). Exports, imports, fees and loan interest did
 
 | Scenario | Exports | Imports | Fees | Incoming before → after | Rentals before → after | Loan interest | Net before → after | Reputation / h before → after |
 |---|---|---|---|---|---|---|---|---|
-| vanilla early | 45 066 | 5 481 | 274 | 292 → 991 | 0 → 0 | 500 | 39 103 → 39 802 | 12 → 12 |
-| vanilla mid | 158 317 | 37 105 | 835 | 523 → 1 589 | 1 141 732 → 4 320 | 1 500 | 1 261 133 → 124 786 | 20 → 12 |
-| vanilla late | 246 560 | 136 201 | 681 | 600 → 2 273 | 1 427 165 → 5 400 | 5 000 | 1 532 444 → 112 351 | 22 → 12 |
-| Space Age mid | 166 830 | 17 107 | 385 | 532 → 2 103 | 590 652 → 4 320 | 1 500 | 739 022 → 154 261 | 20 → 12 |
-| Space Age late | 306 456 | 75 907 | 380 | 612 → 3 175 | 738 314 → 5 400 | 5 000 | 964 096 → 233 745 | 22 → 12 |
+| vanilla early | 45 066 | 5 481 | 274 | 292 → 886 (mean 904) | 0 → 0 | 500 | 39 103 → 39 697 | 12 → 12 |
+| vanilla mid | 158 317 | 37 105 | 835 | 523 → 1 524 (mean 1 714) | 1 141 732 → 4 320 | 1 500 | 1 261 133 → 124 721 | 20 → 12 |
+| vanilla late | 246 560 | 136 201 | 681 | 600 → 2 227 (mean 2 457) | 1 427 165 → 5 400 | 5 000 | 1 532 444 → 112 306 | 22 → 12 |
+| Space Age mid | 166 830 | 17 107 | 385 | 532 → 1 720 (mean 2 175) | 590 652 → 4 320 | 1 500 | 739 022 → 153 878 | 20 → 12 |
+| Space Age late | 306 456 | 75 907 | 380 | 612 → 2 400 (mean 3 158) | 738 314 → 5 400 | 5 000 | 964 096 → 232 970 | 22 → 12 |
+
+The vanilla late scenario nets less than vanilla mid: it buys 5 production and 5 utility science
+packs a minute, 136 000 credits an hour, because their markets are thin (a pack is worth about 133
+credits, so 20 000 credits of depth is 150 packs). Buying high-tier science costs more than its
+base value; making it is the cheaper way, which is the point.
 
 From reputation 0, the best reputation (20) takes 100 minutes of fulfilled crafting contracts (it
 took 30 minutes from 10 with four idle rental assemblers before).
@@ -83,11 +88,16 @@ dearer):
 
 | | Reward | Reward / products | Reward / crafting second | Best buy-and-deliver net | Same, drift 2σ |
 |---|---|---|---|---|---|
-| vanilla before → after | 24.3 → 82.5 | 2.4 % → 7.4 % | 0.10 → 0.32 | −185.6 → −138.4 | 150.2 → 203.8 |
-| Space Age before → after | 22.2 → 89.3 | 2.2 % → 7.2 % | 0.10 → 0.32 | −180.4 → −134.6 | 143.0 → 193.4 |
+| vanilla before → after | 24.3 → 73.8 | 2.4 % → 7.4 % | 0.10 → 0.32 | −185.6 → −138.4 | 150.2 → 203.8 |
+| Space Age before → after | 22.2 → 71.8 | 2.2 % → 7.2 % | 0.10 → 0.32 | −180.4 → −134.6 | 143.0 → 193.2 |
 
-The snapshot's recipes add more value than most: over all 173 vanilla candidates the median reward
-was about 5 credits before and is about 60 after (5.4 % of the products; 64 and 5.5 % with Space Age).
+The work cap (1 credit a crafting second) binds for quick, valuable crafts: a spidertron's offer
+paid 3 408 before the cap and pays 10 now, on an 82 000-credit guarantee.
+
+The snapshot's recipes add more value than most. Over all candidates, measured once in game on
+2026-11-01 (the dumps behind the snapshot; the full lists are not kept): 173 vanilla recipes, median
+reward about 5 credits before and 48 after (4.1 % of the products, the work cap binding for 105 of
+them, largest 158); 207 with Space Age, 200 of them viable, median 56.5 after (5.1 %, largest 232).
 
 **Machine rentals** (a rental assembler, speed 0.75):
 
@@ -124,7 +134,9 @@ their markets are thin: buy late science gradually, or make it.
 |---|---|---|
 | Machine rental | rent was 30 % of the products' value: a risk-free 50 % of the guarantee an hour, unbounded by the recipe's value (2.2 million a term for a spidertron), funded by a loan at 10 % an hour | **closed**: rent per crafting second, 540 a term whatever the recipe (ADR-0026) |
 | Rental reputation | each fulfilled rental gave +1: four idle machines took a force from 10 to 20 in 30 minutes, with nothing at stake | **closed**: rentals are passive, no reputation (ADR-0026) |
-| Incoming contracts | the reward was capped at the value crafting adds: about 5 credits for most recipes, a dead channel | **reworked**: the value crafting adds plus half the spread a market round trip loses, still below that loss (ADR-0026) |
+| Incoming contracts | the reward was capped at the value crafting adds: about 5 credits for most recipes, a dead channel | **reworked**: the value crafting adds plus half the spread a market round trip loses, still below that loss, and at most 1 credit a crafting second (ADR-0026) |
+| Incoming reward following value | before the work cap, a spidertron paid 3 408 for a 10-second craft, about 44 % an hour on its 82 000 guarantee funded by a loan | **closed**: the work cap (independent review of #127) |
+| Shortage offers on dead recipes | in Space Age, gears, pipes and cables cost more to assemble than to cast, so no offer can be made of them; a shortage of one took half the offers for nothing | **closed**: offers draw only among viable recipes (`contract_offers.viable`) |
 | Buying the products to fulfil an incoming contract | loses 135 to 190 credits a contract on a balanced market; pays when NPC drift moves the products and ingredients far enough apart (break-even when the products drift about 0.07 depth down and the ingredients as much up, 0.8σ each; 2σ each gives about +200); bounded by 12 offers an hour | accepted: a trader's opportunity, not a pump; the reward is still capped by base values |
 | Market round trips from balance | best −4.3 % over quantities up to 5 depths and waits up to 10 hours | none |
 | Own reversion (ADR-0003) | buying back at its own depressed price and selling once it has recovered returns +5 % (+10.5 % for small trades, [market.md](market.md)), but the whole cycle (the sale that depressed it included) always earns less than selling less in the first place | accepted: it recovers part of the force's own price impact, never more; checked by the spec |
@@ -139,8 +151,11 @@ their markets are thin: buy late science gradually, or make it.
   own-reversion cycle never beats selling less at once.
 - One good's export income never exceeds the ceiling, at any value and volume.
 - Buying the products and selling the ingredients of an incoming contract never pays on a balanced
-  market, at every reputation and tier, vanilla and Space Age; every snapshot recipe pays a reward.
-- A rental's rent stays within its machine-time bound whatever the recipe, and earns no reputation;
+  market, at every reputation and tier, vanilla and Space Age; at base prices the reward leaves at
+  least a quarter of the spread as a margin, and `SPREAD_SHARE` is below 1; a reward pays more than
+  the value crafting adds, except where the work cap binds, where it equals the cap.
+- A rental's rent stays within its machine-time bound whatever the recipe, and a fulfilled rental
+  earns no reputation (read from the engine's own settlement);
   8 rentals earn under a quarter of the vanilla mid exports.
 - Keeping and selling a warehouse's goods needs more than 4σ of NPC drift, for every snapshot good at
   reputation −20, 0 and 20.

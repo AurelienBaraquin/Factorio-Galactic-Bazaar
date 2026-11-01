@@ -30,11 +30,12 @@ local rows = {}
 for _, scenario in ipairs(sim.SCENARIOS) do
   local r = sim.scenario(scenario)
   local to_max = (reputation.MAX - scenario.reputation) / r.reputation
-  rows[#rows + 1] = { r.name, n(r.income), n(r.imports), n(r.fees), n(r.incoming), n(r.rentals), n(r.interest),
-    n(r.net), n(r.reputation, 1), scenario.reputation < reputation.MAX and n(to_max * 60) .. " min" or "—" }
+  local incoming = n(r.incoming) .. " (mean " .. n(r.incoming_mean) .. ")"
+  rows[#rows + 1] = { r.name, n(r.income), n(r.imports), n(r.fees), incoming, n(r.rentals), n(r.interest), n(r.net),
+    n(r.reputation, 1), scenario.reputation < reputation.MAX and n(to_max * 60) .. " min" or "—" }
 end
-table_out({ "Scenario", "Exports", "Imports", "Fees", "Incoming contracts", "Rentals", "Loan interest", "Net",
-  "Reputation / h", "To reputation 20" }, rows)
+table_out({ "Scenario", "Exports", "Imports", "Fees", "Incoming contracts: median (mean)", "Rentals",
+  "Loan interest", "Net", "Reputation / h", "To reputation 20" }, rows)
 
 print("### Exports: share of production sold and price ratio, last hour\n")
 rows = {}

@@ -2,10 +2,11 @@
 -- contract spec — a counterparty provides the ingredients for a batch, the force hands back the
 -- products — priced from base values.
 --
--- Pricing keeps the deal honest both ways: the reward pays the work — LABOR_SHARE of the products'
--- value, but never more than the value crafting adds (products minus ingredients) plus SPREAD_SHARE of
--- what the market's spread takes from buying the products and selling the ingredients, so that doing
--- so never pays on a balanced market (#122) — and the guarantee (deposit plus penalty) exceeds the
+-- Pricing keeps the deal honest both ways: the reward pays the work — REWARD_PER_CRAFT_SECOND for each
+-- second of crafting at speed 1, at most LABOR_SHARE of the products' value, and never more than the
+-- value crafting adds (products minus ingredients) plus SPREAD_SHARE of what the market's spread takes
+-- from buying the products and selling the ingredients, so that doing so never pays on a balanced
+-- market (#122, ADR-0026) — and the guarantee (deposit plus penalty) exceeds the
 -- value of the ingredients provided, so taking them and failing costs more than they are worth (the
 -- adapter raises the penalty to their market price at acceptance).
 local market = require("scripts.core.market")
@@ -19,6 +20,9 @@ contract_offers.LABOR_SHARE = 0.3
 -- Share of the spread a round trip through the market loses (spread / 2 on each side, at base values)
 -- that the reward may add to the value crafting adds; the rest is the margin against price moves.
 contract_offers.SPREAD_SHARE = 0.5
+-- Most a reward pays per second of crafting at speed 1: twice a rental's rent (RENT_PER_SECOND), so that
+-- crafting for a counterparty pays a machine at least as well as renting it out.
+contract_offers.REWARD_PER_CRAFT_SECOND = 1
 -- Deposit and penalty, as shares of the value of the ingredients provided.
 contract_offers.DEPOSIT_SHARE = 0.2
 contract_offers.PENALTY_SHARE = 1
@@ -69,7 +73,8 @@ function contract_offers.offer(recipe, values, draw, scale)
     provides = scaled(recipe.ingredients, batch),
     requires = scaled(recipe.products, batch),
     reward = math.min(contract_offers.LABOR_SHARE * product_value, product_value - ingredient_value
-      + contract_offers.SPREAD_SHARE * market.DEFAULTS.spread / 2 * (product_value + ingredient_value)) * batch,
+      + contract_offers.SPREAD_SHARE * market.DEFAULTS.spread / 2 * (product_value + ingredient_value),
+      contract_offers.REWARD_PER_CRAFT_SECOND * recipe.energy) * batch,
     deposit = contract_offers.DEPOSIT_SHARE * ingredient_value * batch,
     penalty = contract_offers.PENALTY_SHARE * ingredient_value * batch,
     duration_ticks = math.ceil(recipe.energy * 60 * batch * contract_offers.TIME_FACTOR)
@@ -177,6 +182,16 @@ end
 function contract_offers.outsourcing(planet, recipe, value, slots)
   local units = contract_offers.outsourcing_units(recipe.energy, recipe.amount, slots)
   return lease_spec("outsourcing", planet, recipe.product, units, value, contract_offers.OUTSOURCING_PRICE)
+end
+
+--- The recipes of `candidates` (a list, its order kept) an offer can be made of with base `values`:
+--- every good valued, the products worth more than the ingredients (`offer` is not nil).
+function contract_offers.viable(candidates, values)
+  local list = {}
+  for _, recipe in ipairs(candidates) do
+    if contract_offers.offer(recipe, values, 0.5) then list[#list + 1] = recipe end
+  end
+  return list
 end
 
 --- The recipe of `candidates` (a sorted list) that `draw` (a number in (0, 1)) picks.

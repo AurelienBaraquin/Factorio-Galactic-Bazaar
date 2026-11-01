@@ -4,6 +4,7 @@
 -- `tools/balance/report.lua` prints them, `spec/balance_spec.lua` checks the economic invariants.
 -- Base values come from a snapshot of the game's own valuation (tools/balance/values.lua).
 local account = require("scripts.core.account")
+local contracts = require("scripts.core.contracts")
 local contract_offers = require("scripts.core.contract_offers")
 local freight = require("scripts.core.freight")
 local loans = require("scripts.core.loans")
@@ -198,8 +199,8 @@ function sim.incoming(set, score, tier, drift)
       end
       rows[#rows + 1] = {
         recipe = recipe.name, reward = spec.reward, guarantee = spec.deposit + spec.penalty,
-        products = value_of(values, spec.requires), seconds = recipe.energy * spec.requires[1].count
-          / recipe.products[1].count,
+        products = value_of(values, spec.requires), ingredients = value_of(values, spec.provides),
+        seconds = recipe.energy * spec.requires[1].count / recipe.products[1].count,
         arbitrage = arbitrage(0), arbitrage_drift = arbitrage(drift or 0),
       }
     end
@@ -207,8 +208,20 @@ function sim.incoming(set, score, tier, drift)
   return rows
 end
 
+-- The reputation a contract of `spec` earns when every required unit is delivered: the engine's own
+-- settlement outcome.
+local function fulfilment_reputation(spec)
+  local contract = contracts.new(spec, 0)
+  contracts.accept(contract, 0)
+  for _, required in ipairs(contract.requires) do
+    contracts.deliver(contract, contracts.key(required), required.count, 1)
+  end
+  return contracts.settle(contract, 2).reputation
+end
+
 --- Machine rentals of a set by a rental assembler: per recipe, the rent over the term, the guarantee
---- (at base values; the adapter raises it to market values at acceptance) and their ratio.
+--- (at base values; the adapter raises it to market values at acceptance), their ratio and the
+--- reputation a fulfilled rental earns.
 function sim.rentals(set)
   local values = sim.values_by_key(set)
   local rows = {}
@@ -218,7 +231,7 @@ function sim.rentals(set)
     if spec then
       rows[#rows + 1] = { recipe = recipe.name, crafts = crafts, rent = spec.reward,
         guarantee = spec.deposit + spec.penalty, ratio = spec.reward / (spec.deposit + spec.penalty),
-        reputation = (spec.custody or spec.passive) and 0 or 1 }
+        reputation = fulfilment_reputation(spec) }
     end
   end
   return rows
@@ -400,8 +413,8 @@ function sim.technologies()
 end
 
 --- Per scenario, an hour at steady state: export income, import cost, freight fees, contract income
---- (an offer every 5 minutes at its reputation, each paying the median reward of the snapshot's recipes;
---- its rentals), loan interest and the reputation an hour earns.
+--- (an offer every 5 minutes at its reputation, each paying the median reward of the snapshot's recipes,
+--- and the same with the mean; its rentals), loan interest and the reputation an hour earns.
 function sim.scenario(scenario)
   local _, income = sim.exports(scenario.set, scenario.exports)
   local cost, fees = sim.imports(scenario.set, scenario.imports, scenario.tier, scenario.reputation)
@@ -416,6 +429,7 @@ function sim.scenario(scenario)
   return {
     reputation = sim.OFFERS_PER_HOUR + rentals_per_hour * sim.mean(rentals, "reputation"),
     name = scenario.name, income = income, imports = cost, fees = fees, incoming = incoming_hour,
+    incoming_mean = sim.mean(incoming, "reward") * sim.OFFERS_PER_HOUR,
     rentals = rental_hour, interest = interest * 60 * MINUTE / loans.TERM_TICKS,
     net = income - cost - fees + incoming_hour + rental_hour - interest * 60 * MINUTE / loans.TERM_TICKS,
   }

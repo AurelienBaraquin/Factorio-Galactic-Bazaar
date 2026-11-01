@@ -199,6 +199,22 @@ describe("capacity rental", function()
     assert.is_nil(machine.get_recipe())
   end)
 
+  test("an offer on the terms before 0.1.39 is declined on configuration change, an accepted one kept",
+    function()
+    local id = rent(machine, 10)
+    local offered = contracts.get(force().index, id)
+    offered.passive = nil
+    rental.init()
+    assert.is_nil(contracts.get(force().index, id))
+    assert.is_nil(module_of(machine).contract)
+    local kept = rent(machine, 10)
+    rental.accept(force().index, kept)
+    contracts.get(force().index, kept).passive = nil
+    rental.init()
+    assert.are.equal(core.ACTIVE, contracts.get(force().index, kept).state)
+    assert.are.equal(kept, module_of(machine).contract)
+  end)
+
   test("only recipes the machine can craft where it stands are offered", function()
     local space = force().recipes["space-science-pack"]
     local enabled = space and space.enabled

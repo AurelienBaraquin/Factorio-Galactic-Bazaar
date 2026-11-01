@@ -30,8 +30,33 @@ describe("contract_offers.offer", function()
 
   it("pays at most the labour share of the products' value", function()
     local rich = { ["item/iron-plate"] = 1, ["item/iron-gear-wheel"] = 10 }
-    local spec = contract_offers.offer(gear, rich, 0.5)
+    local slow = { energy = 100, ingredients = gear.ingredients, products = gear.products }
+    local spec = contract_offers.offer(slow, rich, 0.5)
     assert.are.near(contract_offers.LABOR_SHARE * 10 * contract_offers.TARGET_VALUE / 10, spec.reward, 1e-9)
+  end)
+
+  it("pays at most the work: a rate per second of crafting at speed 1", function()
+    local rich = { ["item/iron-plate"] = 1, ["item/iron-gear-wheel"] = 10 }
+    local spec = contract_offers.offer(gear, rich, 0.5)
+    local batch = spec.requires[1].count
+    assert.are.near(contract_offers.REWARD_PER_CRAFT_SECOND * 0.5 * batch, spec.reward, 1e-9)
+    assert.is_true(contract_offers.REWARD_PER_CRAFT_SECOND >= 2 * contract_offers.RENT_PER_SECOND)
+  end)
+
+  it("keeps a share of the spread as a margin: the reward never reaches the round trip's loss at base "
+    .. "prices", function()
+    assert.is_true(contract_offers.SPREAD_SHARE > 0 and contract_offers.SPREAD_SHARE < 1)
+    local half_spread = market.DEFAULTS.spread / 2
+    for _, plate in ipairs({ 0.5, 1, 1.3, 1.34, 2, 4.9 }) do
+      for _, energy in ipairs({ 0.1, 0.5, 5, 100 }) do
+        local recipe = { energy = energy, ingredients = gear.ingredients, products = gear.products }
+        local spec = contract_offers.offer(recipe, { ["item/iron-plate"] = plate, ["item/iron-gear-wheel"] = 10 }, 0.5)
+        local batch = spec.requires[1].count
+        local p, i = 10 * batch, 2 * plate * batch
+        local margin = (1 - contract_offers.SPREAD_SHARE) * half_spread * (p + i)
+        assert.is_true(spec.reward <= p - i + half_spread * (p + i) - margin + 1e-9)
+      end
+    end
   end)
 
   it("pays the value crafting adds and a share of the spread, less than buying the products and selling the "
@@ -66,6 +91,23 @@ describe("contract_offers.offer", function()
     assert.are.equal(contract_offers.COUNTERPARTIES[1], contract_offers.offer(gear, values, 0).counterparty)
     assert.are.equal("b", contract_offers.pick({ "a", "b" }, 0.99))
     assert.is_nil(contract_offers.pick({}, 0.5))
+  end)
+end)
+
+describe("contract_offers.viable", function()
+  it("keeps only the recipes an offer can be made of, in their order", function()
+    local dead = { name = "dead", energy = 1, ingredients = { { kind = "item", name = "iron-gear-wheel", count = 2 } },
+      products = { { kind = "item", name = "iron-plate", count = 1 } } }
+    local list = contract_offers.viable({ dead, gear, dead }, values)
+    assert.are.same({ gear }, list)
+  end)
+
+  it("never lets a short but dead recipe take the shortage's offers", function()
+    local dead = { name = "dead", energy = 1, ingredients = { { kind = "item", name = "iron-gear-wheel", count = 2 } },
+      products = { { kind = "item", name = "iron-plate", count = 1 } } }
+    local function depths(key) return key == "item/iron-plate" and -1 or 0 end
+    local picked = contract_offers.pick_short(contract_offers.viable({ dead, gear }, values), depths, 0, 0.01)
+    assert.are.equal(gear, picked)
   end)
 end)
 

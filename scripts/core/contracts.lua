@@ -184,7 +184,8 @@ function contracts.settle(contract, tick)
     contract.state, contract.settled_tick = contracts.FULFILLED, tick
     return {
       state = contracts.FULFILLED, credits = contract.reward - (contract.paid or 0) + contracts.guarantee(contract),
-      reputation = (contract.custody or contract.passive) and 0 or 1,
+      -- A rental offered before rentals were passive (0.1.38) lacks the field.
+      reputation = (contract.custody or contract.passive or contract.kind == "rental") and 0 or 1,
     }
   end
   if tick > contract.due_tick then

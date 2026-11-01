@@ -8,11 +8,19 @@ Date: 2026-11-01
     - Machine rentals no longer raise reputation: the counterparty supplies everything and the
       machine only runs, like warehouse rentals.
     - Crafting contracts pay the value crafting adds plus half of what the market's spread would take
-      from buying the products and selling the ingredients: about 5 % of the products for most
-      recipes instead of almost nothing, still less than that round trip loses.
+      from buying the products and selling the ingredients, at most 1 credit per second of recipe
+      time: about 4 to 5 % of the products for most recipes instead of almost nothing, still less
+      than that round trip loses.
+    - Rentals offered on the old terms are declined when the game loads, and their machines offered
+      again; rentals already accepted keep their rent but no longer raise reputation.
   Features:
     - While a market event makes goods short, half of the crafting contract offers ask for a recipe
       that makes them.
+    - The tips say what each contract is for (crafting contracts build reputation, rentals are a
+      modest income) and that one good earns at most about 26 700 credits an hour from exports.
+  Bugfixes:
+    - Crafting contract offers are drawn only among recipes whose products are worth more than
+      their ingredients, so a tick no longer passes without an offer.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.38
 Date: 2026-11-01

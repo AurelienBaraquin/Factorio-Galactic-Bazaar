@@ -247,6 +247,13 @@ describe("contract lifecycle", function()
     local lost = active({ passive = true })
     assert.are.equal(-1, contracts.settle(lost, 3601).reputation)
   end)
+
+  it("treats a rental offered before rentals were passive as passive", function()
+    local old = active({ kind = "rental" })
+    assert.is_nil(old.passive)
+    contracts.deliver(old, GEAR, 50, 10)
+    assert.are.equal(0, contracts.settle(old, 20).reputation)
+  end)
 end)
 
 describe("contract books", function()

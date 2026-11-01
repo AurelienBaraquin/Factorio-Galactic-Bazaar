@@ -47,10 +47,28 @@ describe("balance: incoming contracts", function()
     end
   end)
 
-  it("pay more than the value crafting adds, so that crafting for them earns something", function()
+  it("pay more than the value crafting adds, unless the work's rate caps them", function()
     for _, set in ipairs(SETS) do
       for _, row in ipairs(sim.incoming(set, 0, "capsule", 0)) do
-        assert.is_true(row.reward > 0, set .. " " .. row.recipe)
+        local work = contract_offers.REWARD_PER_CRAFT_SECOND * row.seconds
+        if row.reward < work - 1e-9 then
+          assert.is_true(row.reward > row.products - row.ingredients, set .. " " .. row.recipe)
+        else
+          assert.are.near(work, row.reward, 1e-9)
+        end
+      end
+    end
+  end)
+
+  it("leave at least a quarter of the spread as a margin at base prices, whatever the reputation", function()
+    local half_spread = market.DEFAULTS.spread / 2
+    for _, set in ipairs(SETS) do
+      for _, score in ipairs({ reputation.MIN, 0, reputation.MAX }) do
+        for _, row in ipairs(sim.incoming(set, score, "teleporter", 0)) do
+          local both = row.products + row.ingredients
+          assert.is_true(row.reward <= row.products - row.ingredients + half_spread * both - half_spread * both / 4,
+            set .. " " .. row.recipe)
+        end
       end
     end
   end)

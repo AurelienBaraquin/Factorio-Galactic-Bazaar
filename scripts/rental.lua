@@ -79,9 +79,15 @@ function rental.init()
   for _, unit_number in ipairs(gone) do machines()[unit_number] = nil end
   for _, unit_number in ipairs(sorted_units()) do
     local module = machines()[unit_number]
+    local force_index = module.entity.force_index
+    local contract = module.contract and contracts.get(force_index, module.contract)
     if module.recipe and not craftable(module.entity, module.recipe) then
-      local force_index = module.entity.force_index
       if not contracts.void(force_index, module.contract) then contracts.decline(force_index, module.contract) end
+      release(module)
+    elseif contract and contract.state == core.OFFERED and not contract.passive then
+      -- An offer made on the terms before #122 (rent from the products' value): no guarantee is held
+      -- yet, so it is declined and the machine offered again on the current terms.
+      contracts.decline(force_index, module.contract)
       release(module)
     end
     close_to_player(module.entity)

@@ -89,6 +89,13 @@ which also shows the trend column and the price history of the selected item. Wh
 receive is always the live price, shown in the window's preview. With many price combinators,
 the last ones get new prices a little later: about 0.1 s per combinator.
 
+## One good saturates its market
+
+Every unit you sell lowers that good's price, and the price recovers by half every 10 minutes.
+Export chests sell a good only while it fetches at least half its base value, so one good earns at
+most about **26 700 credits an hour**, however much of it you make and whatever it is worth. To earn
+more, sell more kinds of goods ([balance.md](balance.md)).
+
 ## Credits and overdraft
 
 Your force may spend below zero: purchases, contract guarantees, lease deposits and charges, power
@@ -192,8 +199,10 @@ them in the **Contracts** tab.
 - **On time**: you get the reward and the whole guarantee back, and +1 reputation. **Late or
   abandoned**: the guarantee is lost, and −1 reputation. The guarantee is set at acceptance above
   what the ingredients sell for then, so keeping them does not pay.
-- The reward is the value your crafting adds plus a small margin (about 5 % of the products for most
-  recipes): less than buying the products and selling the ingredients would lose.
+- Crafting contracts are how you build **reputation**; their reward is modest: the value your
+  crafting adds plus a small margin (about 4 to 5 % of the products for most recipes), at most 1
+  credit per second of recipe time at speed 1 — less than buying the products and selling the
+  ingredients would lose.
 - While a market event makes goods short, half of the offers ask for a recipe that makes them.
 - **Reputation** (from −20 to 20, shown in the Market tab) lowers your freight fees, down to half
   at 20, and makes offers larger, up to three times at 20. Below zero, fees rise and offers shrink, down to half their size at −5.
@@ -265,7 +274,8 @@ one is offered for rent in the **Contracts** tab (hover the counterparty to see 
   crafting promised, about 540 credits for the 30 minutes, whatever the recipe.
 - **Do not put an output inserter next to it**: products it takes out never reach the
   counterparty, and the contract falls short.
-- On time, you get the rest of the rent and the guarantee back; a rental earns no reputation. Short of the
+- On time, you get the rest of the rent and the guarantee back. Rentals are a modest income and earn
+  no reputation. Short of the
   promise at the end, or if you remove the machine, the guarantee is lost (rent already paid stays).
 
 ## Storage rental

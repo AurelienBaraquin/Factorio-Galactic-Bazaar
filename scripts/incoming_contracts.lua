@@ -181,12 +181,14 @@ end
 
 --- Makes one offer to a force from a recipe it can craft, sized by its reputation, and tells the
 --- force; half of the time while goods are in shortage (market events), a recipe making them
---- (`offers.pick_short`). Returns its id, or nil.
+--- (`offers.pick_short`). Only recipes an offer can be made of are drawn (`offers.viable`). Returns its
+--- id, or nil.
 function incoming.make_offer(force)
   local tick = game.tick
   local function depths(key) return market_events.depths(key, tick) end
   local choice = incoming.draw(force.index)
-  local recipe = offers.pick_short(incoming.candidates(force), depths, choice, incoming.draw(force.index))
+  local candidates = offers.viable(incoming.candidates(force), storage.base_values)
+  local recipe = offers.pick_short(candidates, depths, choice, incoming.draw(force.index))
   local scale = reputation.contract_scale(storage.forces[force.index].reputation)
   local spec = recipe and offers.offer(recipe, storage.base_values, incoming.draw(force.index), scale)
   local id = spec and contracts.offer(force.index, spec)
