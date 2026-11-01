@@ -210,6 +210,27 @@ describe("entity_status.rental", function()
   end)
 end)
 
+describe("entity_status.vault_uplink", function()
+  it("tells whether its hub has a vault to send to, and when it holds goods no vault takes", function()
+    assert.are.same({ diode = YELLOW, label = { "gb-status.uplink-no-vault" } },
+      status.vault_uplink({ vaults = 0, held = true }))
+    assert.are.same({ diode = GREEN, label = { "gb-status.uplink-ready", 2 } },
+      status.vault_uplink({ vaults = 2, held = false }))
+    assert.are.same({ diode = YELLOW, label = { "gb-status.uplink-held", 1 } },
+      status.vault_uplink({ vaults = 1, held = true }))
+  end)
+end)
+
+describe("entity_status.warehouse", function()
+  it("tells an idle, offered or rented warehouse", function()
+    assert.are.same({ diode = GREEN, label = { "gb-status.warehouse-idle" } }, status.warehouse({ state = "idle" }))
+    assert.are.same({ diode = YELLOW, label = { "gb-status.warehouse-offered", 7 } },
+      status.warehouse({ state = "offered", id = 7 }))
+    assert.are.same({ diode = GREEN, label = { "gb-status.warehouse-rented", 7 } },
+      status.warehouse({ state = "rented", id = 7 }))
+  end)
+end)
+
 describe("entity_status.visits", function()
   it("refreshes every building once per cycle, within a cap per pass", function()
     assert.are.equal(0, status.visits(0, 30, 20))

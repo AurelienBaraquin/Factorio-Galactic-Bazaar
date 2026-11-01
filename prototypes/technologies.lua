@@ -211,6 +211,25 @@ data:extend({
       time = 15,
     },
   },
+  -- Storage rental (#119): both buildings, and both directions, scripts/vaults.lua and
+  -- scripts/warehouses.lua read this technology.
+  {
+    type = "technology",
+    name = "gb-storage-rental",
+    icons = data.raw.item["gb-rental-warehouse"].icons,
+    icon_size = 64,
+    prerequisites = { "gb-contracts" },
+    effects = {
+      { type = "unlock-recipe", recipe = "gb-vault-uplink" },
+      { type = "unlock-recipe", recipe = "gb-rental-warehouse" },
+      { type = "nothing", effect_description = { "technology-effect.gb-storage-rental" } },
+    },
+    unit = {
+      count = 150,
+      ingredients = { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 } },
+      time = 15,
+    },
+  },
   -- Outsourcing branch (#88): NPC planets and their mining concessions, then slot booking in their
   -- foundries and assemblers. Effects are script-side: the scripts read these technologies.
   {

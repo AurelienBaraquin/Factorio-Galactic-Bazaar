@@ -17,7 +17,9 @@ local statement_gui = {}
 local ROW_COLUMNS = { "time", "kind", "subject", "quantity", "amount", "balance" }
 local TOTAL_COLUMNS = { "category", "income", "spending", "net", "count" }
 -- Contract kinds with a name (`gb-notify.kind-<kind>`).
-local CONTRACT_KINDS = { incoming = true, rental = true, concession = true, outsourcing = true, loan = true }
+local CONTRACT_KINDS = {
+  incoming = true, rental = true, warehouse = true, concession = true, outsourcing = true, storage = true, loan = true,
+}
 
 local function percent(share)
   return string.format("%.4g", share * 100)

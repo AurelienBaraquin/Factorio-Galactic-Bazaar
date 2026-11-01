@@ -21,6 +21,7 @@ local ENTRIES = {
   { name = "gb-contracts", technology = "gb-contracts" },
   { name = "gb-reputation", technology = "gb-contracts" },
   { name = "gb-rental", technology = "gb-capacity-rental" },
+  { name = "gb-storage-rental", technology = "gb-storage-rental" },
   { name = "gb-planets", technology = "gb-planetary-concessions" },
   { name = "gb-outsourcing", technology = "gb-outsourcing" },
   { name = "gb-loans", technology = "gb-credit" },

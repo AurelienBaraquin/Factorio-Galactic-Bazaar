@@ -148,6 +148,7 @@ local DATALESS_ITEM_TYPES = {
   ["item"] = true, ["tool"] = true, ["capsule"] = true, ["ammo"] = true, ["module"] = true, ["gun"] = true,
   ["rail-planner"] = true, ["repair-tool"] = true, ["space-platform-starter-pack"] = true,
 }
+cargo.DATALESS_ITEM_TYPES = DATALESS_ITEM_TYPES
 
 -- Whether a stack's LuaItem holds only its spoilage: every stack of a spoilable item has one.
 local function has_only_spoilage(stack)
@@ -162,6 +163,7 @@ local function is_plain(stack)
   if stack.is_ammo and stack.ammo < stack.prototype.magazine_size then return false end
   return true
 end
+cargo.is_plain = is_plain
 
 --- Sells the plain stacks of `inventory` for a force, each unit at its quality's price times its
 --- freshness (1 - spoil_percent, ADR-0013), while each unit fetches at least `min_price_ratio` × its

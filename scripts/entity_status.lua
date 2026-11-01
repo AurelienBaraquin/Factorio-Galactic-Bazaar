@@ -6,8 +6,8 @@
 -- that each is refreshed about once every CYCLE_TICKS and no tick does more. A building is also
 -- refreshed when it is built. A status is written only when it changed. Each hub's modules of its
 -- force are counted as they are refreshed, and the count shown from the next cycle on. The costly
--- reads (a hub's delivery tier and bays' fuel, a force's contract needs and price period) are made
--- once per hub or force and cycle, and a pass stops after MAX_COSTLY_READS of them.
+-- reads (a hub's delivery tier and bays' fuel, a force's contract needs and price period, a hub's
+-- vaults) are made once per hub or force and cycle, and a pass stops after MAX_COSTLY_READS of them.
 --
 -- State lives in storage.entity_status: the list (`units` and `kinds`, parallel arrays, and `index`
 -- {[unit_number] = position}), the `cursor`, the hubs' module counts (`counts`, last cycle's;
@@ -28,6 +28,8 @@ local incoming = require("scripts.incoming_contracts")
 local power = require("scripts.power")
 local telecom = require("scripts.telecom")
 local teleporter = require("scripts.teleporter")
+local vaults = require("scripts.vaults")
+local warehouses = require("scripts.warehouses")
 
 local entity_status = {}
 
@@ -212,6 +214,32 @@ local KINDS = {
         facts = { state = "rented", id = contract.id }
       end
       return core.module(hub, false, core.rental(facts))
+    end,
+  },
+  {
+    name = "vault-uplink",
+    costly = 1,
+    modules = vaults.uplinks,
+    describe = function(module, hub, _, work)
+      local count = hub ~= "none" and cached(work, "vaults", module.hub, function(hub_unit_number)
+        return vaults.count_at(module.entity.force_index, hub_unit_number)
+      end) or 0
+      return core.module(hub, false, core.vault_uplink({ vaults = count, held = module.held }))
+    end,
+  },
+  {
+    name = "warehouse",
+    costly = 0,
+    modules = warehouses.chests,
+    describe = function(module, hub)
+      local contract = module.contract and contracts.get(module.entity.force_index, module.contract)
+      local facts = { state = "idle" }
+      if contract and contract.state == contracts_core.OFFERED then
+        facts = { state = "offered", id = contract.id }
+      elseif contract and contract.state == contracts_core.ACTIVE then
+        facts = { state = "rented", id = contract.id }
+      end
+      return core.module(hub, false, core.warehouse(facts))
     end,
   },
 }

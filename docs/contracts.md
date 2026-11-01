@@ -17,6 +17,7 @@ trades are not contracts ([market.md](market.md)).
 | `charge` | optional credits the force pays every installment period: a service contract ([ADR-0019](adr/0019-service-contracts-with-a-charge.md)), whose `requires` may be empty |
 | `advance` | optional credits (needs a `charge`) paid to the force at acceptance: a loan, whose charge repays it with interest and needs no service ([ADR-0021](adr/0021-loans.md)) |
 | `installment_ticks`, `paid`, `next_installment` | optional period at which the reward is paid in installments ([ADR-0017](adr/0017-capacity-rental-with-installments.md)); reward paid so far; tick of the next installment |
+| `custody` | optional: the counterparty collects the goods back itself (a warehouse rental, [ADR-0024](adr/0024-storage-rental.md)); fulfilling it earns no reputation, and no "due soon" alert is raised |
 | `state` | `offered`, `active`, `fulfilled`, `failed`, `expired`, `declined` or `voided` |
 | `delivered` | units handed over so far, per `kind/name` key |
 | `offered_tick`, `accept_by`, `accepted_tick`, `due_tick`, `completed_tick`, `settled_tick`, `id` | lifecycle ticks, and the id, unique across all forces |
@@ -36,7 +37,7 @@ trades are not contracts ([market.md](market.md)).
 | active (loan) | a charge the available funds cannot cover | failed | that charge and every one left become the force's arrears | −1 |
 | active (loan) | `contracts.abandon`: every charge left (`contracts.payoff`) is taken first; refused (`insufficient-funds`), changing nothing, when the available funds cannot cover it, and settled only once taken | fulfilled | − charges left (`contract-repaid`) | — |
 | active (service) | its term ended (`due_tick` passed) and its last period charged | fulfilled | + deposit + penalty (`contract-fulfilled`) | — |
-| active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward − `paid` + deposit + penalty (`contract-fulfilled`) | +1 |
+| active | every required unit delivered, at the next settlement (or on abandon) | fulfilled | + reward − `paid` + deposit + penalty (`contract-fulfilled`) | +1 (0 for a `custody` contract, whose counterparty collects its goods itself: a warehouse rental) |
 | active | deadline passed, at the next settlement, or `contracts.abandon` before completion | failed | nothing back: the guarantee is kept, installments paid stay paid (`contract-failed`, amount 0) | −1 |
 | offered | offer window passed | expired | — | — |
 | active | `contracts.void(force, id)`: its goods no longer exist (a mod was removed); never a loan, whose debt would vanish | voided | + deposit + penalty (`contract-voided`) | — |
@@ -75,7 +76,7 @@ place, empty and disabled.
 | | |
 |---|---|
 | Unlock | the `gb-contracts` technology, which also unlocks the contract chest ([terminal.md](terminal.md)) |
-| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists concessions, outsourcing bookings and loans) open, offered or active (the rows of the Contracts tab), gets one; the recipe and counterparty are drawn from the force's own deterministic random state. The force is told of new offers, of contracts due within 2 minutes and of each fulfilment or failure at settlement ([notifications.md](notifications.md)) |
+| Offers | every `incoming.OFFER_TICKS` (5 min), each force that researched it, owns a hub, has fewer than `MAX_OFFERS` (3) open incoming offers and fewer than `contracts.MAX_LISTED` (8) contracts of the listed kinds (incoming and rental, `contracts.LISTED_KINDS`, which also lists warehouse rentals, concessions, outsourcing bookings, vaults and loans) open, offered or active (the rows of the Contracts tab), gets one; the recipe and counterparty are drawn from the force's own deterministic random state. The force is told of new offers, of contracts due within 2 minutes and of each fulfilment or failure at settlement ([notifications.md](notifications.md)) |
 | Recipes | enabled, not hidden, made in an assembling machine (`crafting` or `advanced-crafting`), item ingredients only and one sure item product in a whole amount (no range, probability or extra fraction), every good with a base value, products worth more than ingredients; sorted by name before the draw |
 | Batch | enough crafts for the products to be worth `TARGET_VALUE` (1 000) credits × the force's contract scale (see Reputation), from 1 to `MAX_BATCH` (1 000) |
 | Terms | reward = the value crafting adds (products' minus ingredients' base value), at most `LABOR_SHARE` (0.3) × products' value, so buying the products and selling the ingredients does not pay at base prices; deposit = `DEPOSIT_SHARE` (0.2) and penalty = `PENALTY_SHARE` (1) × ingredients' base value; at acceptance the penalty rises to what the ingredients would sell for on the force's market then, if more, so the guarantee always exceeds what the force receives; time = recipe time × batch × `TIME_FACTOR` (4) + `MARGIN_TICKS` (5 min); the offer stands `ACCEPT_TICKS` (5 min) |
@@ -108,6 +109,37 @@ products the script takes from the machine count, so buying them on the market c
 contract. The machine is closed to the player's GUI, but inserters, mining or a paste can still
 take from it what is in it between two services; any such taking leaves the contract short, and
 the guarantee exceeds what can be taken.
+
+## Storage rental
+
+Storage trades both ways (#119, [ADR-0024](adr/0024-storage-rental.md)), after the
+`gb-storage-rental` research, which unlocks both buildings ([terminal.md](terminal.md)). Code:
+`scripts/vaults.lua`, `scripts/warehouses.lua` (runtime), `scripts/core/storage_rental.lua` (terms,
+pure).
+
+### Vaults: the force rents a NPC's space
+
+| | |
+|---|---|
+| Rent | the Contracts tab's **Rent a vault** button (`vaults.rent`), at the window's hub: a `storage` contract offered and accepted at once with a counterparty of `VAULT_OPERATORS`, or nothing changes; refused `not-researched`, `no-import-chest` (the hub has none), `too-many-contracts`, `insolvent`, `insufficient-funds` (`not-offered` and `expired` cannot happen: the offer is accepted in its own tick) |
+| Terms | `VAULT_SLOTS` (50) stacks for `TERM_TICKS` (30 min); charge `SLOT_RENT` (2) × `VAULT_MARKUP` (1.5) per stack (150 credits) every `PERIOD_TICKS` (5 min), whatever it holds; its service (`storage`) serves every period while the vault exists, with or without a hub, since it keeps the goods either way (so removing a hub before a charge never skips it); guarantee one period's charge; no reward, no reputation on fulfilment |
+| Hub | the hub it was rented at, its position kept; when that hub is gone, every `vaults.SWEEP_TICKS` (60) the active vault takes over the nearest hub of its force on the same surface within `REATTACH_RANGE` (10 tiles) of where its hub stood (a hub replaced in place), import chest or not; otherwise it stays unattached until its term ends, still charged, its uplinks feeding nothing and Retrieve refused (`no-hub`), so that removing a hub never moves goods to another one; uplinks feed only the vault's current hub |
+| Filling | every `vaults.UPLINK_TICKS` (6), the next `UPLINK_BATCH` (2) vault uplinks in turn (20 a second, as export chests) send what they hold into the force's active vaults rented at their hub, oldest first, up to each vault's stacks, at most `MAX_MOVES` (10) stack moves a pass for the 2 uplinks together (a stack split between two vaults counts twice); only items of normal quality, of a type whose stacks carry no data (`cargo.DATALESS_ITEM_TYPES`) and not spoilable, and plain (`cargo.is_plain`: undamaged, unused), so that what comes back is what went in; the rest stays in the uplink, whose status says so. A vault may hold more than its stacks only when goods return to it (see Capsules); it then takes nothing until it is back within them |
+| Retrieve | the row's **Retrieve** button (`vaults.retrieve`) ships the vault's goods to the vault's own hub only (never another hub while the vault is active), by orbital capsule (`freight.ship`, free): item by item, as much as that hub's capsule queue takes (`freight.capsule_room`: 20 shipments of at most 10 stacks of one item, one launch every 10 s, landing 30 s after launch); what does not fit stays in the vault and the player is told how many stacks. Refused `no-hub` (the vault is unattached), `no-import-chest` (its hub has none), `queue-full` (nothing could ship). The vault stays rented |
+| End | when the contract ends in any way — term over (guarantee back), a charge the available funds cannot cover or Abandon (failed: guarantee kept, −1 reputation), bankruptcy — every sweep ships what fits of the goods back the same way, never seized: to the vault's hub when it has an import chest, else to the first hub of the force on its surface that has one. What does not fit waits for the next sweep; the vault is forgotten once empty. The Overview's **Vault goods returning** line shows what ended vaults still have to ship |
+| Deleted surface | a vault keeps its surface's index and name; its surface counts as deleted when no surface has that index, or the one that has it bears another name (indexes of deleted surfaces can be reused, [LuaSurface::index](https://lua-api.factorio.com/2.1.24/classes/LuaSurface.html#index)). Then, and only then, its returning goods may go to a hub of the force on any surface: the goods of a vault rented on a space platform that was deleted can land on a planet that way. An active vault on a deleted surface stays unattached until its term ends |
+| Capsules | capsules bringing a vault's goods back carry `vault` = {id, surface_index, surface_name}; if their hub is removed before they land, `freight.on_hub_removed` hands them to the vault (`freight.register_returner`), recreated if it was already forgotten, and they ship again; they are never sold. Cargo whose item no longer exists after a mod change is dropped, like the vault's own goods of that item |
+
+### Warehouse rentals: a NPC rents the force's space
+
+| | |
+|---|---|
+| Offers | every `warehouses.OFFER_TICKS` (5 min), each idle, empty rental warehouse attached to a hub, of a force that researched storage rental and has room in the Contracts tab, is offered, in unit number order; the item is drawn from the sole products of the recipes an incoming contract could name, not spoilable |
+| Terms | `storage_rental.warehouse`: units worth `contract_offers.TARGET_VALUE` × the force's contract scale (see Reputation), at least 1, at most `FILL_SHARE` (half) of the warehouse's slots; the contract provides and requires those units and is a `custody` contract (its counterparty collects the goods itself); reward (the rent) = `SLOT_RENT` (2) × stacks × periods (6), paid at fulfilment; deposit 0.2 and penalty 1 × their base value; `TERM_TICKS` (30 min) |
+| Acceptance | from the Contracts tab: refused `warehouse-gone`, `warehouse-no-hub`, `warehouse-not-empty`; the penalty rises to `storage_rental.warehouse_penalty`: what buying all the goods on the force's market would cost now, with the price impact (`market.preview`), times `BUY_MARGIN` (1.1), or, when the market cannot sell that many, the offer's penalty × `UNQUOTED_FACTOR` (2) × `BUY_MARGIN`, never below the offer's penalty, so that keeping the goods costs no less than buying them at acceptance (the guarantee is fixed at acceptance: deposit (0.2 × the goods' base value) plus the penalty, so keeping the goods then costs no less than buying them at acceptance; if their buy price rises during the term by more than the guarantee's margin over that cost — between about 20 % and 30 %, depending on how far the market stands above the base value (for example through market events, #120) — keeping them becomes cheaper than buying them, a balancing question for #122); every `contracts.can_accept` check runs, then the goods are put in the warehouse (refused and undone if they do not fit), the guarantee is held, and the penalty is set back if the acceptance fails |
+| Maturity | in the last `SERVICE_TICKS` (60) before the deadline, through a hub of its force within 10 tiles, the counterparty takes back what the warehouse holds of its goods, up to what is owed; all of it fulfils the contract at the next settlement: rent and guarantee, and no reputation (a custody contract, like a service contract: passive income earns none). No "contract due" alert is raised for it, since the force has nothing to deliver |
+| Failure | goods missing at maturity — taken out by an inserter, the warehouse mined or deconstructed (its goods then go to whoever mined it) or destroyed, no hub in range — fail the contract at its deadline: the guarantee is kept and −1 reputation, like every failed contract |
+| End | once the contract is settled, declined or expired, the warehouse is released and what is left of the counterparty's goods leaves it |
 
 ## Loans
 
@@ -183,5 +215,6 @@ Market tabs show the state ([window.md](window.md), [terminal.md](terminal.md)).
 level), the insolvency fields `insolvent_since`, `recovering_since`, `credit_ban_until`,
 `bankruptcies`, `bankruptcy_debt` and `solvency_low`, and `storage.contract_next_id`, the next id —
 see [data-model.md](data-model.md); `storage.incoming_contracts` holds the contract chests and each
-force's random state, `storage.rentals` the rental assemblers; the Contracts tab's state lives in
+force's random state, `storage.rentals` the rental assemblers, `storage.vaults` the vaults and
+vault uplinks, `storage.warehouses` the rental warehouses; the Contracts tab's state lives in
 `storage.bazaar_gui` ([window.md](window.md)).

@@ -136,12 +136,12 @@ attempt) says whether the last visit kept goods without selling any; it only fee
 
 ## `storage.freight`
 
-`{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract, planet, loss}...}}}}`
-— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), nil for purchases; `unit_cost` is 0 for goods the force did not pay for, and for a concession's ore the charge per arriving unit, so that it is sold back like a purchase; `planet` and `loss`, on goods shipped from an NPC planet since 0.1.33, are the planet's name and the share of the good lost in transit, shown by the Logistics tab, absent from older capsules and from others) ([terminal.md](terminal.md), ADR-0006). Written by
+`{hubs = {[hub unit_number] = {launches = {[tier] = tick}, next_launch, capsules = {{force_index, kind, name, count, unit_cost, arrival, tier, contract, planet, loss, vault}...}}}}`
+— the delivery queue of each hub (`kind` "item" or "fluid"; nil in capsules queued before 0.1.9 means "item"; `tier` is the tier it ships by, absent before 0.1.10; `contract` is the id of the contract whose goods it carries (incoming ingredients, or goods shipped from an NPC planet, whose `arrival` includes the transit delay), nil for purchases; `unit_cost` is 0 for goods the force did not pay for, and for a concession's ore the charge per arriving unit, so that it is sold back like a purchase; `planet` and `loss`, on goods shipped from an NPC planet since 0.1.33, are the planet's name and the share of the good lost in transit, shown by the Logistics tab, absent from older capsules and from others; `vault` = {id, surface_index, surface_name}, on goods coming back from a vault since 0.1.37, the vault they return to if their hub is removed) ([terminal.md](terminal.md), ADR-0006). Written by
 `scripts/freight.lua`. Invariants: `capsules` is in ordering order (tiers land on their own schedules: every landed shipment is unloaded, none holds back another); `launches[tier]` is that tier's next free launch tick (`next_launch`, from before 0.1.10, is the capsule's) and holds at most
 `max_capsules` entries per tier; `force_index` is the force that paid and `unit_cost` the market price it
 paid per unit; `count` is what is still to unload. A
-queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back (contract capsules are dropped instead); on
+queue is dropped once empty and past its `next_launch`; the queue of a removed hub is sold back (contract capsules are dropped instead, vault capsules handed back to their vault); on
 `on_configuration_changed`, capsules of items that no longer exist are refunded and dropped, and
 the queues of hubs that no longer exist are sold back.
 
@@ -231,6 +231,36 @@ Written by `scripts/rental.lua` on build events, hub build and removal, force me
 `on_object_destroyed`, offer and service ticks. Invariants: a machine has a recipe only while its
 contract is active (up to one service pass after it ends); `provided[name]` never exceeds what the contract provides. Invalid machines are
 dropped on `on_configuration_changed`. Offers draw from `storage.incoming_contracts.rng`.
+
+## `storage.vaults`
+
+`{leases = {[contract id] = {force_index, hub, surface_index, surface_name, position, goods = {[item name] = units}}},
+uplinks = {[unit_number] = {entity, hub, held, order_index}}, order = {unit_number...}, cursor}` —
+the vaults each force rents from NPCs and what they hold (normal-quality items only), every vault
+uplink with its hub, whether its last upload left goods in it and its place in the round robin
+(`order`, visited from `cursor`) ([contracts.md](contracts.md#storage-rental)). Written by
+`scripts/vaults.lua` when a vault is rented, on uplink and sweep ticks, Retrieve, a removed hub's
+returning capsules, build events, hub build and removal, force merge and `on_object_destroyed`;
+created on first use (an event may run before the configuration change of a save from 0.1.36 or
+older). Invariants: `order` lists every uplink once and `uplinks[order[i]].order_index == i`; a
+lease's `hub` is a hub of its force on `surface_index` within `REATTACH_RANGE` of `position` (where
+its hub stands or stood), or nil while the vault is unattached; `surface_name` tells a deleted
+surface from a reused index (an ended vault whose surface was deleted ships to a hub on any
+surface; leases recreated from returning capsules have no `position`); its goods take at most `VAULT_SLOTS` stacks,
+except after goods returned to it, when it takes nothing more until back within them; a lease
+outlives its contract only until its goods are shipped back, and is recreated when goods of a
+forgotten one return. On `on_configuration_changed`, goods whose item no longer exists are dropped,
+invalid uplinks forgotten and the round robin listed again.
+
+## `storage.warehouses`
+
+`{chests = {[unit_number] = {entity, hub, contract, stored}}}` — every rental warehouse, its hub and,
+while offered or rented, the contract id; `stored` lists the item names it holds for an accepted
+contract ([contracts.md](contracts.md#storage-rental)). Written by `scripts/warehouses.lua` on build
+events, hub build and removal, force merge, `on_object_destroyed`, offer and service ticks and
+acceptance; created on first use. Invariant: a warehouse holds a counterparty's goods only while its
+contract is active (up to one service pass after it ends). Invalid warehouses are dropped on
+`on_configuration_changed`. Offers draw from `storage.incoming_contracts.rng`.
 
 ## `storage.entity_status`
 

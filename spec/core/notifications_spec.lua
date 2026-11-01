@@ -127,5 +127,16 @@ describe("notifications", function()
       contracts.accept(lease, 0)
       assert.is_false(notifications.due_soon(lease, 900))
     end)
+
+    it("is false for a custody contract, whose counterparty collects the goods itself", function()
+      local stored = assert(contracts.new({
+        kind = "warehouse", counterparty = "test", custody = true,
+        provides = { { kind = "item", name = "iron-plate", count = 10 } },
+        requires = { { kind = "item", name = "iron-plate", count = 10 } },
+        reward = 1, deposit = 0, penalty = 0, duration_ticks = 1000, accept_ticks = 100,
+      }, 0))
+      contracts.accept(stored, 0)
+      assert.is_false(notifications.due_soon(stored, 900))
+    end)
   end)
 end)
