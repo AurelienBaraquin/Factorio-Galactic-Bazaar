@@ -115,51 +115,63 @@ function logistics.shipment(capsule, now, tiers, facts)
   return row
 end
 
---- The rows of the shipments a force has at a hub (see `logistics.shipment`), by landing tick, in
---- queue order on a tie (`index`, the capsule's position in the queue).
-function logistics.shipments(capsules, force_index, now, tiers, facts)
-  local rows = {}
+--- Page `page` of the shipments a force has at a hub, by landing tick, in queue order on a tie:
+--- {items = rows (see `logistics.shipment`, with `index`, the capsule's position in the queue), page,
+--- pages (see `logistics.page`), count (the force's shipments)}. Only the page's rows are made.
+function logistics.shipments(capsules, force_index, now, tiers, facts, page, size)
+  local order = {}
   for index, capsule in ipairs(capsules) do
-    if capsule.force_index == force_index then
-      local row = logistics.shipment(capsule, now, tiers, facts)
-      row.index = index
-      rows[#rows + 1] = row
-    end
+    if capsule.force_index == force_index then order[#order + 1] = index end
   end
-  table.sort(rows, function(a, b)
-    if a.arrival ~= b.arrival then return a.arrival < b.arrival end
-    return a.index < b.index
+  table.sort(order, function(a, b)
+    local first, second = capsules[a].arrival, capsules[b].arrival
+    if first ~= second then return first < second end
+    return a < b
   end)
-  return rows
+  local shown = logistics.page(order, page, size)
+  for i, index in ipairs(shown.items) do
+    local row = logistics.shipment(capsules[index], now, tiers, facts)
+    row.index = index
+    shown.items[i] = row
+  end
+  shown.count = #order
+  return shown
 end
 
---- The modules attached to a hub, from {{rank (their kind's order), name (the building), unit_number,
---- descriptor (its status: a descriptor, false for the game's own, nil before its first refresh)}...}:
---- {rows = {{rank, name, unit_number, diode}...} ordered by kind, building and unit number (`diode`
---- nil without a descriptor), groups = {{name, count, green, yellow, red}...} one per building in the
---- same order}.
-function logistics.modules(modules)
-  local rows = {}
-  for i, module in ipairs(modules) do
-    local descriptor = module.descriptor
-    rows[i] = {
-      rank = module.rank, name = module.name, unit_number = module.unit_number,
-      diode = descriptor and descriptor.diode or nil,
-    }
-  end
-  table.sort(rows, function(a, b)
-    if a.rank ~= b.rank then return a.rank < b.rank end
-    if a.name ~= b.name then return a.name < b.name end
-    return a.unit_number < b.unit_number
-  end)
-  local groups, last = {}, nil
-  for _, row in ipairs(rows) do
-    if not (last and last.name == row.name) then
-      last = { name = row.name, count = 0, green = 0, yellow = 0, red = 0 }
-      groups[#groups + 1] = last
+--- The modules attached to a hub, from `each(visit)`, which calls `visit(rank, name, unit_number,
+--- descriptor)` for each module (rank: its kind's order; name: the building; descriptor: its status, a
+--- descriptor, false for the game's own, nil before its first refresh), so that no table is made per
+--- module before the rows: {rows = {{rank, name, unit_number, diode}...} ordered by kind, building and
+--- unit number (`diode` nil without a descriptor), groups = {{name, count, green, yellow, red}...} one
+--- per building in the same order}. Sorts the buildings (a few, compared in Lua), then the unit numbers
+--- within each building (numbers, compared by table.sort itself).
+function logistics.modules(each)
+  local groups, units, diodes = {}, {}, {}
+  each(function(rank, name, unit_number, descriptor)
+    local group = units[name]
+    if not group then
+      group = {}
+      units[name] = group
+      groups[#groups + 1] = { name = name, rank = rank, count = 0, green = 0, yellow = 0, red = 0 }
     end
-    last.count = last.count + 1
-    if row.diode then last[row.diode] = last[row.diode] + 1 end
+    group[#group + 1] = unit_number
+    diodes[unit_number] = descriptor and descriptor.diode or nil
+  end)
+  table.sort(groups, function(a, b)
+    if a.rank ~= b.rank then return a.rank < b.rank end
+    return a.name < b.name
+  end)
+  local rows = {}
+  for _, group in ipairs(groups) do
+    local name, rank = group.name, group.rank
+    local sorted = units[name]
+    table.sort(sorted)
+    for _, unit_number in ipairs(sorted) do
+      local diode = diodes[unit_number]
+      rows[#rows + 1] = { rank = rank, name = name, unit_number = unit_number, diode = diode }
+      if diode then group[diode] = group[diode] + 1 end
+    end
+    group.count, group.rank = #sorted, nil
   end
   return { rows = rows, groups = groups }
 end

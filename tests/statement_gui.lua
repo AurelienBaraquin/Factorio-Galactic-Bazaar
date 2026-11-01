@@ -287,6 +287,60 @@ describe("Statement tab", function()
     assert.are.equal(statement.format_signed(runs), rows()[1].amount.caption)
   end)
 
+  test("measures recording transactions into a full journal of 200 recurring goods", function()
+    -- A force of its own: sales of 200 goods every second, each merged per minute, and a purchase
+    -- every 2 s, as in docs/data-model.md; three minutes fill the journal, the fourth is measured.
+    local state = { balance = 1e12 }
+    account.init(state)
+    local goods, keys = 200, {}
+    for g = 1, goods do keys[g] = "item/good-" .. g end
+    local function minute(m)
+      local calls = 0
+      for second = 0, 59 do
+        local tick = m * statement.MINUTE_TICKS + second * 60
+        for g = 1, goods do
+          account.apply(state, 1, { tick = tick, kind = "sell", key = keys[g], quantity = 1, merge_ticks = 3600 })
+        end
+        calls = calls + goods
+        if second % 2 == 0 then
+          account.apply(state, -1, { tick = tick, kind = "buy", key = "item/bought", quantity = 1 })
+          calls = calls + 1
+        end
+      end
+      return calls
+    end
+    for m = 0, 2 do minute(m) end
+    local profiler = helpers.create_profiler()
+    local calls = minute(3)
+    profiler.stop()
+    profiler.divide(calls)
+    log({ "", "[galactic-bazaar] journal: account.apply into a full journal, ", goods,
+      " recurring goods (average of ", calls, "): ", profiler })
+    assert.are.equal(account.JOURNAL_SIZE, #state.journal)
+    assert.are.same({ "item/good-" .. goods, 60 }, { state.journal[#state.journal].key,
+      state.journal[#state.journal].quantity })
+  end)
+
+  test("merges recurring transactions into their journal entry across a save and reload", function()
+    account.apply(force_state(), 1, { tick = game.tick, kind = "sell", key = "item/gb-test-reload", quantity = 1,
+      merge_ticks = 3600 })
+  end).after_reload_mods(function()
+    player = game.get_player(1)
+    local state = force_state()
+    local found = {}
+    for _, recorded in ipairs(state.journal) do
+      if recorded.key == "item/gb-test-reload" then found[#found + 1] = recorded end
+    end
+    -- The index still refers to the journal table and its entry themselves: a save keeps shared
+    -- references, so it is not rebuilt after a load.
+    assert.is_true(rawequal(state.journal_index.journal, state.journal))
+    assert.is_true(rawequal(state.journal_index.entries["sell\nitem/gb-test-reload"], found[1]))
+    local size = #state.journal
+    account.apply(state, 1, { tick = game.tick, kind = "sell", key = "item/gb-test-reload", quantity = 1,
+      merge_ticks = 3600 })
+    assert.are.same({ 1, size, 2 }, { #found, #state.journal, found[1].quantity })
+  end)
+
   test("keeps its filter, page and period across a save and reload", function()
     local now = game.tick
     local journal = {}

@@ -190,11 +190,34 @@ ledger the period covers; each element is written only when what it shows change
 Budget: 0.7 ms per window refresh, that is 0.7 ms per slot tick for each player
 whose index falls in that slot, nothing on other ticks and nothing for closed windows. The
 Logistics tab is measured by `tests/logistics_gui.lua` with 20 hubs, a full capsule queue and about
-1000 modules on the map, after a warm-up (`log` line read by hand, not asserted; ten runs of the
-file alone): 0.33 to 0.49 ms per refresh, and 0.51 to 0.74 ms for a refresh that lists the selected
-hub's modules again (once every 5 s while the tab is shown, or when another hub is selected). Runs
-on a busier machine or within the full suite, whose heap is larger, showed averages up to 0.81 ms
-and 2.4 ms for those, which the budget does not cover; the module listing is the part to watch
+1000 modules on the map (`log` lines read by hand, not asserted), for three kinds of refresh: steady;
+the rescan every 5 s that finds the hub's modules unchanged; and a listing (another hub selected, a
+module added, removed or changing diode). Three measurements: averages of 10 with the game's
+collector after a full collection and a warm-up (without the collection, the garbage of placing 1000
+buildings and of the test files run before was collected during the refreshes measured: that, not the
+tab, made the M7 full-suite figures of up to 1.06 ms and 5.8 ms); what each refresh allocates; and 50
+single refreshes of each kind with the collector never pausing (`setpause` 100), so that each pays the
+incremental collection its own garbage drives, the worst steady state. #121 measured them before and
+after on the same test (Space Age; "alone" is five runs of the file, 250 refreshes of each kind;
+"full" three runs of the full suite, 150), as median / 95th percentile / worst single refresh:
+
+| Refresh | Allocated | Before, alone | After, alone | Before, full | After, full |
+|---|---|---|---|---|---|
+| Steady | 50.7 → 30.6 KB | 0.49 / 0.78 / 1.73 ms | 0.38 / 0.56 / 1.47 ms | 0.45 / 0.69 / 1.01 ms | 0.45 / 0.90 / 1.05 ms |
+| Rescan, modules unchanged | 104.5 → 31.2 KB | 0.80 / 4.75 / 8.30 ms | 0.45 / 0.75 / 1.91 ms | 0.70 / 3.87 / 8.72 ms | 0.49 / 0.89 / 1.23 ms |
+| Listing | 104.5 → 68.1 KB | 0.82 / 1.37 / 2.15 ms | 0.63 / 3.29 / 5.50 ms | 0.74 / 1.02 / 1.40 ms | 0.76 / 3.89 / 7.64 ms |
+
+(Before #121 a rescan was a listing.) Averages with the game's collector, after: 0.33 to 0.36 ms steady,
+0.43 to 0.52 ms rescan, 0.52 to 0.62 ms listing alone (before: 0.41 to 0.50, 0.71 to 0.78 and 0.72 to
+0.84 ms); in the vanilla full suite (two runs, 100 each) 0.39 / 0.60 / 0.68 ms steady, 0.46 / 0.73 /
+0.79 ms rescan, 0.61 / 2.79 / 3.72 ms listing. So the budget is met by the medians of the steady and
+rescan refreshes and by every average, not by the worst cases: with a collector that never pauses, 1 %
+of steady, 6 % of rescan and 35 % of listing refreshes exceed 0.7 ms alone (23 %, 17 % and 64 % in the
+full suite; before, 12 %, 80 % and 88 % alone), the tail being collection steps (a listing allocates
+68 KB, mostly its rows and sort), up to 7.6 ms. A listing happens when the player
+selects a hub or the hub's modules change, not on a timer. The order of the measurements moves the
+tails between kinds from run to run (one full-suite run measured 0.59 / 0.77 / 1.19 ms on average),
+so compare the medians and allocation first
 ([terminal.md](terminal.md#logistics-tab)). `tests/explanations.lua` measures a full Contracts tab
 (8 rows: offers, a lease and loans) and the Market tab beside it: 0.25 to 0.29 ms and 0.23 to 0.26
 ms per refresh. The tooltips (#111) changed no refresh measurably: over five runs of the measuring

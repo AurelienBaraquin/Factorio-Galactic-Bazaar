@@ -70,16 +70,52 @@ local function is_finite(n)
   return type(n) == "number" and n == n and n > -math.huge and n < math.huge
 end
 
--- The position of the entry a recurring transaction merges into: same kind and key, also mergeable,
--- and started less than `merge_ticks` before it. The whole journal is searched (JOURNAL_SIZE entries
--- at most), so any number of recurring transactions keep merging.
-local function merge_target(journal, entry)
-  for i = #journal, 1, -1 do
-    local candidate = journal[i]
-    if candidate.merge_ticks and candidate.kind == entry.kind and candidate.key == entry.key
-      and entry.tick - candidate.first_tick < entry.merge_ticks then
-      return i
+local function merge_id(entry)
+  return tostring(entry.kind) .. "\n" .. tostring(entry.key)
+end
+
+-- The index of the journal's recurring entries (`state.journal_index`): {journal = the journal table
+-- it indexes, entries = {[merge_id] = the last entry of that kind and key in the journal}}. Kept by
+-- `record`; rebuilt from the journal when missing (a save from 0.1.35 or older, a merge of forces) or
+-- made for another journal table (one replaced whole).
+local function journal_index(state)
+  local index = state.journal_index
+  if index and index.journal == state.journal then return index end
+  local entries = {}
+  for _, entry in ipairs(state.journal) do
+    if entry.merge_ticks then entries[merge_id(entry)] = entry end
+  end
+  index = { journal = state.journal, entries = entries }
+  state.journal_index = index
+  return index
+end
+
+local function is_open(candidate, entry)
+  return candidate.merge_ticks and candidate.kind == entry.kind and candidate.key == entry.key
+    and entry.tick - candidate.first_tick < entry.merge_ticks
+end
+
+-- The position of the entry a recurring transaction (of merge_id `id`) merges into: the last entry of
+-- the journal of the same kind and key started less than `merge_ticks` before it. The last one of that
+-- kind and key comes from the index and is found by identity from the end of the journal, where
+-- recurring entries move, without comparing the fields of each entry. Only when it is no longer open
+-- are the entries before it searched, as an earlier one may still be (after forces merged, journals
+-- joined in tick order). An index whose entry the journal no longer holds is rebuilt once.
+local function merge_target(state, entry, id)
+  for _ = 1, 2 do
+    local candidate = journal_index(state).entries[id]
+    if not candidate then return nil end
+    local journal = state.journal
+    for i = #journal, 1, -1 do
+      if journal[i] == candidate then
+        if is_open(candidate, entry) then return i end
+        for j = i - 1, 1, -1 do
+          if is_open(journal[j], entry) then return j end
+        end
+        return nil
+      end
     end
+    state.journal_index = nil
   end
   return nil
 end
@@ -90,7 +126,8 @@ local function record(state, amount, entry)
   state.overdraft_low = math.min(state.overdraft_low or state.balance, balance)
   state.solvency_low = math.min(state.solvency_low or state.balance, balance)
   local journal = state.journal
-  local position = entry.merge_ticks and merge_target(journal, entry)
+  local id = entry.merge_ticks and merge_id(entry)
+  local position = id and merge_target(state, entry, id)
   state.balance = balance
   local category = statement.record(state, entry, amount)
   if position then
@@ -105,9 +142,14 @@ local function record(state, amount, entry)
   entry.amount = amount
   entry.balance = balance
   entry.category = category
-  entry.first_tick = entry.merge_ticks and entry.tick or nil
+  entry.first_tick = id and entry.tick or nil
   journal[#journal + 1] = entry
-  while #journal > account.JOURNAL_SIZE do table.remove(journal, 1) end
+  local entries = journal_index(state).entries
+  if id then entries[id] = entry end
+  while #journal > account.JOURNAL_SIZE do
+    local dropped = table.remove(journal, 1)
+    if dropped.merge_ticks and entries[merge_id(dropped)] == dropped then entries[merge_id(dropped)] = nil end
+  end
 end
 
 --- Adds `amount` credits (negative to spend) and records `entry` (a plain table, e.g.
@@ -167,7 +209,8 @@ end
 
 --- Folds `source` into `destination` when two forces merge: balances add up, and so do the lowest
 --- balances of the period (each debt still pays its interest, and still counts towards insolvency);
---- journals are joined in tick order and trimmed to the newest entries, and ledgers are folded together.
+--- journals are joined in tick order and trimmed to the newest entries (the destination's journal index
+--- is dropped, rebuilt at its next transaction), and ledgers are folded together.
 function account.merge(destination, source)
   destination.overdraft_low = (destination.overdraft_low or destination.balance)
     + (source.overdraft_low or source.balance)
@@ -179,6 +222,7 @@ function account.merge(destination, source)
   for _, entry in ipairs(source.journal) do journal[#journal + 1] = entry end
   table.sort(journal, function(a, b) return (a.tick or 0) < (b.tick or 0) end)
   while #journal > account.JOURNAL_SIZE do table.remove(journal, 1) end
+  destination.journal_index = nil
 end
 
 return account

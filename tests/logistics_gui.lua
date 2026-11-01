@@ -8,6 +8,7 @@ local catalog = require("scripts.core.catalog")
 local entity_status = require("scripts.entity_status")
 local freight = require("scripts.freight")
 local logistics = require("scripts.core.logistics")
+local logistics_gui = require("scripts.logistics_gui")
 local planets = require("scripts.planets")
 
 local Y = 640
@@ -265,6 +266,134 @@ describe("Logistics tab", function()
     assert.are.equal("[img=utility/status_not_working] ", by_sprite["entity/gb-export-chest"].status.caption[2])
   end)
 
+  test("updates the selected hub's header when its power, tier, queue or the selection changes", function()
+    local hub = trading_hub(0)
+    local other = place("gb-hub", 20)
+    show(hub)
+    local function header()
+      local e = elements()
+      return { title = plain(e.title.caption), tier = plain(e.tier.caption), power = plain(e.power.caption),
+        queue = plain(e.queue.caption), camera = e.camera.entity }
+    end
+    local function location(entity)
+      local surface = entity.surface
+      local caption = surface.localised_name or surface.planet and surface.planet.prototype.localised_name
+        or surface.name
+      return { "gb-logistics.location", plain(caption),
+        tostring(math.floor(entity.position.x)), tostring(math.floor(entity.position.y)) }
+    end
+    local function queue(tier, queued)
+      return plain({ "", { "gb-logistics.queue-entry", { "gb-gui.tier-" .. tier }, queued,
+        freight.TIERS[tier].max_capsules } })
+    end
+    local seen = header()
+    assert.are.same(location(hub), seen.title)
+    assert.are.same(plain({ "gb-logistics.tier", { "gb-gui.tier-capsule" } }), seen.tier)
+    assert.are.same(plain({ "gb-logistics.powered" }), seen.power)
+    assert.are.same(queue("capsule", 0), seen.queue)
+    assert.are.equal(hub, seen.camera)
+    hub.energy = 0
+    bazaar_gui.refresh(player)
+    assert.are.same(plain({ "gb-logistics.unpowered" }), header().power)
+    hub.energy = hub.electric_buffer_size
+    local bay = place("gb-docking-bay", -3)
+    bay.insert({ name = "rocket-fuel", count = 10 })
+    bazaar_gui.refresh(player)
+    seen = header()
+    assert.are.same(plain({ "gb-logistics.powered" }), seen.power)
+    assert.are.same(plain({ "gb-logistics.tier", { "gb-gui.tier-shuttle" } }), seen.tier)
+    assert.are.equal("gb-logistics.tier-tooltip", elements().tier.tooltip[1])
+    assert.are.same(queue("shuttle", 0), seen.queue)
+    assert.is_true(freight.order(player.force_index, hub.unit_number, GEAR, 10))
+    bazaar_gui.refresh(player)
+    assert.are.same(queue("shuttle", 1), header().queue)
+    click(hub_row(other.unit_number).select)
+    seen = header()
+    assert.are.same({ location(other), plain({ "gb-logistics.unpowered" }), queue("capsule", 0), other },
+      { seen.title, seen.power, seen.queue, seen.camera })
+    assert.are.same(plain({ "gb-logistics.tier", { "gb-gui.tier-capsule" } }), seen.tier)
+    -- A surface given another name: the title follows it.
+    local surface = other.surface
+    local before = surface.localised_name
+    surface.localised_name = "gb test surface"
+    bazaar_gui.refresh(player)
+    local renamed = header().title
+    surface.localised_name = before
+    assert.are.equal("gb test surface", renamed[2])
+  end)
+
+  test("keeps the module listing while nothing changes, and lists again for a new module or diode", function()
+    local hub = trading_hub(0)
+    local export = place("gb-export-chest", 0, 3)
+    show(hub)
+    local listed = view().modules
+    local function rescan()
+      view().modules.tick = game.tick - logistics_gui.MODULE_RESCAN_TICKS
+      bazaar_gui.refresh(player)
+    end
+    rescan()
+    assert.is_true(rawequal(listed, view().modules))
+    assert.are.equal(game.tick, listed.tick)
+    -- A building attached since: listed again at the next rescan.
+    place("gb-power-export", 3, 3)
+    rescan()
+    assert.is_false(rawequal(listed, view().modules))
+    same({ "gb-logistics.modules", 3 }, elements().module_count.caption)
+    -- A diode turning red: the summary counts it at the next rescan.
+    listed = view().modules
+    hub.energy = 0
+    entity_status.on_built(export)
+    rescan()
+    assert.is_false(rawequal(listed, view().modules))
+    local red = "[img=entity/gb-export-chest] 1 ([img=utility/status_not_working] 1)"
+    assert.is_true(elements().module_groups.caption:find(red, 1, true) ~= nil)
+    -- A building gone: listed again without it.
+    export.destroy()
+    rescan()
+    same({ "gb-logistics.modules", 2 }, elements().module_count.caption)
+    -- A listing from 0.1.35 (no positions) is never kept.
+    view().modules.positions = nil
+    listed = view().modules
+    rescan()
+    assert.is_false(rawequal(listed, view().modules))
+  end)
+
+  test("updates pages and counts when they change, and writes a window from 0.1.35 in full", function()
+    local hub = trading_hub(0)
+    queue_capsules(hub, 12)
+    show(hub)
+    same({ "gb-logistics.shipments", 12 }, elements().shipment_count.caption)
+    same({ "gb-gui.page", 1, 2 }, elements().pagers.shipments.label.caption)
+    click(elements().pagers.shipments.next)
+    same({ "gb-gui.page", 2, 2 }, elements().pagers.shipments.label.caption)
+    assert.is_false(elements().pagers.shipments.next.enabled)
+    assert.is_true(elements().pagers.shipments.previous.enabled)
+    storage.freight.hubs[hub.unit_number].capsules[12] = nil
+    bazaar_gui.refresh(player)
+    same({ "gb-logistics.shipments", 11 }, elements().shipment_count.caption)
+    same({ "gb-logistics.modules", 1 }, elements().module_count.caption)
+    place("gb-export-chest", 0, 3)
+    -- Modules are listed again every MODULE_RESCAN_TICKS: as if that time had passed.
+    view().modules = nil
+    bazaar_gui.refresh(player)
+    same({ "gb-logistics.modules", 2 }, elements().module_count.caption)
+    assert.is_true(elements().module_groups.caption:find("[img=entity/gb-export-chest] 1", 1, true) ~= nil)
+    local hubs_before = hub_count()
+    place("gb-hub", 20)
+    bazaar_gui.refresh(player)
+    same({ "gb-logistics.hubs", hubs_before + 1 }, elements().hub_count.caption)
+    -- A tab built by 0.1.35 has no `written`: the next refresh creates it and writes every part.
+    elements().title.caption = ""
+    elements().shipment_count.caption = ""
+    elements().pagers.shipments.label.caption = ""
+    view().written = nil
+    bazaar_gui.refresh(player)
+    assert.are.equal("gb-logistics.location", elements().title.caption[1])
+    same({ "gb-logistics.shipments", 11 }, elements().shipment_count.caption)
+    same({ "gb-gui.page", 2, 2 }, elements().pagers.shipments.label.caption)
+    assert.is_table(view().written)
+  end)
+
   test("reads a save from before the tab: older capsules and no building status yet", function()
     local hub = trading_hub(0)
     storage.freight.hubs[hub.unit_number] = { launches = {}, capsules = {
@@ -302,30 +431,66 @@ describe("Logistics tab", function()
     queue_capsules(hub, freight.TIERS.capsule.max_capsules)
     show(hub)
     assert.are.equal(logistics.MODULE_ROWS, #visible(elements().module_rows))
-    -- Steady refreshes, then refreshes that each list the hub's modules again (every
-    -- MODULE_RESCAN_TICKS, or when another hub is selected), after a warm-up of both, so that the
-    -- garbage left by placing 1000 buildings is not charged to them.
+    -- Three kinds of refresh: steady; the one every MODULE_RESCAN_TICKS that finds the hub's modules
+    -- unchanged ("rescan"); and one that lists them again ("listing": another hub selected, or a
+    -- module added, removed or changing diode).
+    local before_refresh = {
+      steady = function() end,
+      rescan = function() view().modules.tick = game.tick - logistics_gui.MODULE_RESCAN_TICKS end,
+      listing = function() view().modules = nil end,
+    }
+    local kinds = { "steady", "rescan", "listing" }
+    local function refresh_as(kind)
+      before_refresh[kind]()
+      bazaar_gui.refresh(player)
+    end
+    -- 1. Averages with the game's collector, after a full collection and a warm-up, so that the garbage
+    -- left by placing 1000 buildings and by the test files run before is not charged to them (without
+    -- the collection, the full suite charged up to 6 ms of it to the first refreshes measured).
     local runs = 10
+    collectgarbage("collect")
     for _ = 1, 2 * runs do
-      view().modules = nil
-      bazaar_gui.refresh(player)
-      bazaar_gui.refresh(player)
+      for _, kind in ipairs(kinds) do refresh_as(kind) end
     end
-    local steady = helpers.create_profiler()
-    for _ = 1, runs do bazaar_gui.refresh(player) end
-    steady.stop()
-    steady.divide(runs)
-    local rescan = helpers.create_profiler(true)
-    for _ = 1, runs do
-      view().modules = nil
-      rescan.restart()
-      bazaar_gui.refresh(player)
-      rescan.stop()
+    local averages = {}
+    for _, kind in ipairs(kinds) do
+      local profiler = helpers.create_profiler(true)
+      for _ = 1, runs do
+        before_refresh[kind]()
+        profiler.restart()
+        bazaar_gui.refresh(player)
+        profiler.stop()
+      end
+      profiler.divide(runs)
+      averages[kind] = profiler
     end
-    rescan.divide(runs)
     log({ "", "[galactic-bazaar] logistics tab refresh (", hub_count(), " hubs, ",
-      freight.TIERS.capsule.max_capsules, " shipments, about 1000 modules, average of ", runs, "): ", steady,
-      "; listing the modules again: ", rescan })
+      freight.TIERS.capsule.max_capsules, " shipments, about 1000 modules, average of ", runs, "): ", averages.steady,
+      "; modules unchanged: ", averages.rescan, "; listing the modules again: ", averages.listing })
+    -- 2. What each refresh allocates, the collector stopped: the garbage the incremental collector then
+    -- has to go through.
+    collectgarbage("stop")
+    local allocated = {}
+    for _, kind in ipairs(kinds) do
+      local before = collectgarbage("count")
+      refresh_as(kind)
+      allocated[#allocated + 1] = string.format("%s %.1f KB", kind, collectgarbage("count") - before)
+    end
+    collectgarbage("restart")
+    log("[galactic-bazaar] logistics tab allocation per refresh: " .. table.concat(allocated, ", "))
+    -- 3. Each refresh alone, the collector never paused (a new cycle starts as soon as one ends), so that
+    -- every refresh pays the incremental collection its garbage drives: the worst steady state.
+    local pause = collectgarbage("setpause", 100)
+    for _, kind in ipairs(kinds) do
+      for _ = 1, 5 * runs do
+        before_refresh[kind]()
+        local sample = helpers.create_profiler()
+        bazaar_gui.refresh(player)
+        sample.stop()
+        log({ "", "[galactic-bazaar] logistics tab sample, ", kind, ": ", sample })
+      end
+    end
+    collectgarbage("setpause", pause)
   end)
 
   test("keeps the hub selected and the tab working across a save and reload", function()

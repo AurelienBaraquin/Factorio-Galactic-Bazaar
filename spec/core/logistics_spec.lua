@@ -149,14 +149,25 @@ describe("logistics.shipment", function()
 end)
 
 describe("logistics.shipments", function()
-  it("lists the force's shipments by landing time, in queue order on a tie", function()
+  it("pages the force's shipments by landing time, in queue order on a tie", function()
     local capsules = {
       capsule({ arrival = 3000, name = "a" }), capsule({ arrival = 1000, name = "b" }),
       capsule({ arrival = 3000, name = "c" }), capsule({ arrival = 500, name = "d", force_index = 2 }),
     }
-    local rows = logistics.shipments(capsules, 1, 0, TIERS, { unload_ticks = 60, held = {}, contracts = {} })
+    local facts = { unload_ticks = 60, held = {}, contracts = {} }
+    local shown = logistics.shipments(capsules, 1, 0, TIERS, facts, 1, 8)
+    local rows = shown.items
     assert.are.same({ "b", "a", "c" }, { rows[1].name, rows[2].name, rows[3].name })
-    assert.are.equal(3, #rows)
+    assert.are.same({ 3, 3, 1, 1 }, { #rows, shown.count, shown.page, shown.pages })
+    assert.are.same({ 2, 1, 3 }, { rows[1].index, rows[2].index, rows[3].index })
+  end)
+
+  it("makes the rows of one page only, and clamps the page", function()
+    local capsules = {}
+    for i = 1, 5 do capsules[i] = capsule({ arrival = 100 * (6 - i), name = "g" .. i }) end
+    local shown = logistics.shipments(capsules, 1, 0, TIERS, { unload_ticks = 60, held = {}, contracts = {} }, 9, 2)
+    assert.are.same({ 3, 3, 5, 1 }, { shown.page, shown.pages, shown.count, #shown.items })
+    assert.are.same({ "g1", 1 }, { shown.items[1].name, shown.items[1].index })
   end)
 end)
 
@@ -172,7 +183,9 @@ describe("logistics.modules", function()
       { rank = 2, name = "gb-export-chest", unit_number = 11, descriptor = false },
       { rank = 2, name = "gb-import-chest", unit_number = 10 },
     }
-    local listed = logistics.modules(modules)
+    local listed = logistics.modules(function(visit)
+      for _, module in ipairs(modules) do visit(module.rank, module.name, module.unit_number, module.descriptor) end
+    end)
     local order = {}
     for i, row in ipairs(listed.rows) do order[i] = row.unit_number end
     assert.are.same({ 11, 15, 10, 12, 30 }, order)
