@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.41
+Date: 2026-11-01
+  Bugfixes:
+    - Overdraft 1 and 2 and Galactic telecommunications 1 and 2 showed "Unknown key" for their name
+      and description in the technology tree, and Power trading 2 showed level 1's description.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.40
 Date: 2026-11-01
   Graphics:

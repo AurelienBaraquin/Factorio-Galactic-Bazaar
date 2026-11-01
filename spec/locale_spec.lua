@@ -160,4 +160,31 @@ describe("locale files", function()
     rawset(_G, "data", nil)
     package.loaded["prototypes.tips_and_tricks"] = nil
   end)
+
+  it("name and describe every technology (#129)", function()
+    local defined = {}
+    local items = setmetatable({}, { __index = function() return { icons = {} } end })
+    rawset(_G, "data", {
+      raw = { item = items },
+      extend = function(_, list)
+        for _, prototype in ipairs(list) do defined[#defined + 1] = prototype end
+      end,
+    })
+    package.loaded["prototypes.technologies"] = nil
+    require("prototypes.technologies")
+    local missing = {}
+    for _, prototype in ipairs(defined) do
+      for _, language in ipairs(LANGUAGES) do
+        for _, section in ipairs({ "technology-name", "technology-description" }) do
+          if not locales[language][section][prototype.name] then
+            missing[#missing + 1] = language .. ": " .. section .. "." .. prototype.name
+          end
+        end
+      end
+    end
+    assert.is_true(#defined > 0)
+    assert.are.same({}, missing)
+    rawset(_G, "data", nil)
+    package.loaded["prototypes.technologies"] = nil
+  end)
 end)

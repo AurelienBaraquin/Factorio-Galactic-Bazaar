@@ -1,6 +1,7 @@
 -- In-game tests of the mod's research (#68): every Galactic Bazaar technology uses vanilla science
 -- packs only, needs at least the packs of its prerequisites, and unlocks recipes whose ingredients
--- its own prerequisites (or the start of the game) already give.
+-- its own prerequisites (or the start of the game) already give. Each one is named and described by
+-- its own locale key (#129).
 local VANILLA_PACKS = {
   ["automation-science-pack"] = true, ["logistic-science-pack"] = true, ["military-science-pack"] = true,
   ["chemical-science-pack"] = true, ["production-science-pack"] = true, ["utility-science-pack"] = true,
@@ -74,6 +75,13 @@ describe("research", function()
           end
         end
       end
+    end
+  end)
+
+  test("is named and described by its own locale key, even when its name ends in a level", function()
+    for _, technology in ipairs(ours()) do
+      assert.are.same({ "technology-name." .. technology.name }, technology.localised_name)
+      assert.are.same({ "technology-description." .. technology.name }, technology.localised_description)
     end
   end)
 end)
