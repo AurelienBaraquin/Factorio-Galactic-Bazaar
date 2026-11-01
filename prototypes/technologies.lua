@@ -37,6 +37,9 @@ data:extend({
   {
     type = "technology",
     name = "gb-power-trading-2",
+    -- Explicit keys: for a name ending in "-<number>" Factorio would look up the name without it.
+    localised_name = { "technology-name.gb-power-trading-2" },
+    localised_description = { "technology-description.gb-power-trading-2" },
     icons = data.raw.item["gb-power-import"].icons,
     icon_size = 64,
     prerequisites = { "gb-power-trading", "electric-energy-distribution-2" },
@@ -85,6 +88,8 @@ data:extend({
   {
     type = "technology",
     name = "gb-telecommunications-1",
+    localised_name = { "technology-name.gb-telecommunications-1" },
+    localised_description = { "technology-description.gb-telecommunications-1" },
     icons = { { icon = "__base__/graphics/icons/radar.png", icon_size = 64 } },
     prerequisites = { "gb-galactic-bazaar", "logistic-science-pack" },
     effects = {
@@ -99,6 +104,8 @@ data:extend({
   {
     type = "technology",
     name = "gb-telecommunications-2",
+    localised_name = { "technology-name.gb-telecommunications-2" },
+    localised_description = { "technology-description.gb-telecommunications-2" },
     icons = { { icon = "__base__/graphics/icons/radar.png", icon_size = 64 } },
     prerequisites = { "gb-telecommunications-1", "advanced-circuit" },
     effects = {
@@ -283,6 +290,8 @@ data:extend({
   {
     type = "technology",
     name = "gb-overdraft-1",
+    localised_name = { "technology-name.gb-overdraft-1" },
+    localised_description = { "technology-description.gb-overdraft-1" },
     icons = { { icon = "__base__/graphics/icons/coin.png", icon_size = 64 } },
     prerequisites = { "gb-credit" },
     effects = {
@@ -297,6 +306,8 @@ data:extend({
   {
     type = "technology",
     name = "gb-overdraft-2",
+    localised_name = { "technology-name.gb-overdraft-2" },
+    localised_description = { "technology-description.gb-overdraft-2" },
     icons = { { icon = "__base__/graphics/icons/coin.png", icon_size = 64 } },
     prerequisites = { "gb-overdraft-1", "chemical-science-pack" },
     effects = {

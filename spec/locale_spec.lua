@@ -160,4 +160,45 @@ describe("locale files", function()
     rawset(_G, "data", nil)
     package.loaded["prototypes.tips_and_tricks"] = nil
   end)
+
+  it("name and describe every technology by its own key (#129)", function()
+    local defined = {}
+    local items = setmetatable({}, { __index = function() return { icons = {} } end })
+    rawset(_G, "data", {
+      raw = { item = items },
+      extend = function(_, list)
+        for _, prototype in ipairs(list) do defined[#defined + 1] = prototype end
+      end,
+    })
+    finally(function()
+      rawset(_G, "data", nil)
+      package.loaded["prototypes.technologies"] = nil
+    end)
+    package.loaded["prototypes.technologies"] = nil
+    require("prototypes.technologies")
+    local wrong = {}
+    for _, prototype in ipairs(defined) do
+      for _, language in ipairs(LANGUAGES) do
+        for _, section in ipairs({ "technology-name", "technology-description" }) do
+          if not locales[language][section][prototype.name] then
+            wrong[#wrong + 1] = language .. ": " .. section .. "." .. prototype.name
+          end
+        end
+      end
+      -- Factorio drops a trailing "-<number>" from a technology's name to find its keys, unless the
+      -- prototype names them.
+      if prototype.name:match("%-%d+$") then
+        local fields = { localised_name = "technology-name", localised_description = "technology-description" }
+        for field, section in pairs(fields) do
+          local value = prototype[field]
+          if not (type(value) == "table" and value[1] == section .. "." .. prototype.name and #value == 1) then
+            wrong[#wrong + 1] = prototype.name .. ": " .. field
+          end
+        end
+      end
+    end
+    assert.is_true(#defined > 0)
+    table.sort(wrong)
+    assert.are.same({}, wrong)
+  end)
 end)
