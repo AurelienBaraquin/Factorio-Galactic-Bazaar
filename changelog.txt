@@ -1,4 +1,24 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.38
+Date: 2026-11-01
+  Features:
+    - Market events: now and then a shortage makes buyers of one good pay more and cuts its supply, a
+      surplus makes its sellers get less, or a crisis is a shortage over a family of goods. They act on
+      the market's displacement, so order impact, liquidity bounds and the return to balance work as
+      usual, and every force sees the same.
+    - An event only ever makes prices worse: in a shortage buyers pay more while sellers get the usual
+      sell price, in a surplus sellers get less while buyers pay the usual buy price, so no trade does
+      better with an event than without it.
+    - The market's own NPC drift is salted every minute with figures nobody knows in advance, so it can
+      no longer be computed from an item's name.
+    - An event's course is uncertain and it may end early; only the range of its effect and the most it
+      may last are shown. About half the events are forecast 5 minutes ahead, and a quarter of the
+      forecasts are called off.
+    - Events tab in the Galactic Bazaar window, a Market events line in the Market tab's item detail,
+      alerts with chat lines (Notify: market events) for the forces that researched Galactic Bazaar, and
+      a Tips and tricks entry.
+    - Map settings for the frequency (0 turns events off) and the magnitude of market events.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.37
 Date: 2026-11-01
   Features:

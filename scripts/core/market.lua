@@ -101,4 +101,53 @@ function market.decay(displacement, ticks, params)
   return displacement * 0.5 ^ (ticks / params.half_life_ticks)
 end
 
+-- Prices under a market event (scripts/core/market_events.lua): the event shifts the displacement `s`
+-- by `shift` units. The shifted displacement sets the mid price and the bounds, but a shift only ever
+-- makes a price worse for the trader: a shortage (shift < 0) raises the buy price, the sell price
+-- staying the plain one; a surplus (shift > 0) lowers the sell price, the buy price staying the plain
+-- one. So every trade under an event is at most as good as the same trade on the plain market at the
+-- same moment and the same displacement, and an event can add nothing to any strategy, whatever its
+-- course and whatever a player knows of it. Prices are continuous in the shift.
+
+--- Price of the next unit bought under a shift: the buy price at s + min(shift, 0).
+function market.shifted_buy_price(base_value, displacement, shift, params)
+  return market.buy_price(base_value, displacement + math.min(shift, 0), params)
+end
+
+--- Price of the next unit sold under a shift: the sell price at s + max(shift, 0).
+function market.shifted_sell_price(base_value, displacement, shift, params)
+  return market.sell_price(base_value, displacement + math.max(shift, 0), params)
+end
+
+--- Cost of buying `quantity` units under a shift, and the shifted displacement after the trade; nil
+--- and a reason like market.quote_buy, the bound applying to the shifted displacement.
+function market.quote_shifted_buy(base_value, displacement, shift, quantity, params)
+  if quantity ~= quantity or quantity <= 0 then return nil, "invalid-quantity" end
+  if quantity > market.max_buy(base_value, displacement + shift, params) then return nil, "insufficient-liquidity" end
+  local depth = market.depth(base_value, params)
+  local cost = (1 + params.spread / 2) * market.mid_price(base_value, displacement + math.min(shift, 0), params)
+    * depth * expm1(quantity / depth)
+  return cost, displacement + shift - quantity
+end
+
+--- Revenue of selling `quantity` units under a shift, and the shifted displacement after the trade.
+function market.quote_shifted_sell(base_value, displacement, shift, quantity, params)
+  if quantity ~= quantity or quantity <= 0 then return nil, "invalid-quantity" end
+  if quantity > market.max_sell(base_value, displacement + shift, params) then return nil, "insufficient-liquidity" end
+  local depth = market.depth(base_value, params)
+  local revenue = (1 - params.spread / 2) * market.mid_price(base_value, displacement + math.max(shift, 0), params)
+    * depth * -expm1(-quantity / depth)
+  return revenue, displacement + shift + quantity
+end
+
+--- Most units sellable under a shift while each unit's price stays at or above `min_price`, within
+--- the bound of the shifted displacement.
+function market.max_shifted_sell_at_or_above(base_value, displacement, shift, min_price, params)
+  local priced = displacement + math.max(shift, 0)
+  local room = market.max_sell(base_value, displacement + shift, params)
+  if min_price <= 0 then return room end
+  local last = -market.depth(base_value, params) * math.log(min_price / ((1 - params.spread / 2) * base_value))
+  return math.max(0, math.min(last - priced, room))
+end
+
 return market

@@ -17,6 +17,7 @@ notifications.CATEGORIES = {
   contracts = "gb-notify-contracts",
   deliveries = "gb-notify-deliveries",
   finance = "gb-notify-finance",
+  market = "gb-notify-market",
 }
 
 local WARNING = { r = 1, g = 0.4, b = 0.3 }
@@ -49,6 +50,15 @@ notifications.KINDS = {
     chat = "gb-insolvency.bankrupt", color = WARNING, chat_always = true },
   ["credit-restored"] = { category = "finance", icon = virtual("signal-unlock"), period = 0,
     chat = "gb-insolvency.credit-restored", color = GOOD },
+  -- Market events (scripts/market_events.lua): rare and bounded by their draw, grouped by event.
+  ["market-event-announced"] = { category = "market", icon = virtual("signal-question-mark"), period = 0,
+    chat = "gb-notify.market-event-announced-chat" },
+  ["market-event-started"] = { category = "market", icon = virtual("signal-alarm"), period = 0,
+    chat = "gb-notify.market-event-started-chat" },
+  ["market-event-cancelled"] = { category = "market", icon = virtual("signal-no-entry"), period = 0,
+    chat = "gb-notify.market-event-cancelled-chat" },
+  ["market-event-ended"] = { category = "market", icon = virtual("signal-white-flag"), period = 0,
+    chat = "gb-notify.market-event-ended-chat" },
 }
 
 -- Drops the entries of a throttle log whose period has passed at `tick` and that have no count left

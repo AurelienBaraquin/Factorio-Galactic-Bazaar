@@ -53,6 +53,42 @@ describe("item_detail.market", function()
   end)
 end)
 
+describe("item_detail under a market event", function()
+  it("gives the capped buy and sell prices and the impact of an order on them", function()
+    local depth = market.depth(10, PARAMS)
+    local shift = -2 * depth
+    local figures = item_detail.market(10, 100 + shift, PARAMS, NPC, shift)
+    assert.is_true(near(market.shifted_buy_price(10, 100, shift, PARAMS), figures.buy))
+    assert.is_true(near(market.shifted_sell_price(10, 100, shift, PARAMS), figures.sell))
+    assert.is_true(near(market.mid_price(10, 100 + shift, PARAMS), figures.mid))
+    local impact = item_detail.impact(10, 100 + shift, 50, PARAMS, shift)
+    assert.is_true(near(market.quote_shifted_buy(10, 100, shift, 50, PARAMS), impact.buy.total))
+    assert.is_true(near(market.quote_shifted_sell(10, 100, shift, 50, PARAMS), impact.sell.total))
+    assert.is_true(near(market.shifted_buy_price(10, 50, shift, PARAMS), impact.buy.next_price))
+  end)
+
+  it("finds the shifted displacement back from a seen buy price, the surplus part added back", function()
+    local depth = market.depth(10, PARAMS)
+    for _, shift in ipairs({ -depth, 0, 0.01 * depth, 3 * depth }) do
+      local buy = market.shifted_buy_price(10, 250, shift, PARAMS)
+      assert.is_true(math.abs(250 + shift - item_detail.displacement_from_buy(10, buy, PARAMS, shift)) < 1e-6)
+    end
+  end)
+end)
+
+describe("item_detail.event", function()
+  it("gives the share of the mid price a market event's shift makes", function()
+    local depth = market.depth(10, PARAMS)
+    local shortage = item_detail.event(10, -depth / 2, PARAMS)
+    assert.is_true(near(-depth / 2, shortage.units))
+    assert.is_true(near(-0.5, shortage.depths))
+    assert.is_true(near(math.exp(0.5) - 1, shortage.effect))
+    local surplus = item_detail.event(10, depth, PARAMS)
+    assert.is_true(near(math.exp(-1) - 1, surplus.effect))
+    assert.are.equal(0, item_detail.event(10, 0, PARAMS).effect)
+  end)
+end)
+
 describe("item_detail.displacement_from_buy", function()
   it("finds the displacement back from a buy price", function()
     for _, displacement in ipairs({ 0, -1234.5, 4321 }) do

@@ -1,11 +1,13 @@
 -- The item detail of the Market tab (#110, scripts/market_gui.lua): for the selected key, its
--- prices and why they are what they are (base value, gap from it, liquidity, spread, NPC drift and
--- reversion), the impact of the quantity typed, the price history (telecommunications 2) and why
+-- prices and why they are what they are (base value, gap from it, market events, liquidity, spread,
+-- NPC drift and reversion), the impact of the quantity typed, the price history (telecommunications 2) and why
 -- the base value is what it is. The figures come from scripts/core/item_detail.lua; only the
 -- selected key is read, once per refresh. Elements are built once and updated in place.
 local catalog = require("scripts.core.catalog")
 local item_detail = require("scripts.core.item_detail")
 local market = require("scripts.market")
+local market_events = require("scripts.market_events")
+local market_model = require("scripts.core.market")
 local npc_market = require("scripts.core.npc_market")
 local pricing = require("scripts.pricing")
 local telecom = require("scripts.telecom")
@@ -21,7 +23,7 @@ local HISTORY_WIDTH = 30
 -- Width of the text of the panel, in pixels: long lines wrap. The Market tab's preview line uses it too.
 item_detail_gui.TEXT_WIDTH = 400
 -- The market figures, in display order.
-local FIGURES = { "buy", "sell", "mid", "base", "gap", "liquidity", "spread", "drift", "reversion", "seen" }
+local FIGURES = { "buy", "sell", "mid", "base", "gap", "event", "liquidity", "spread", "drift", "reversion", "seen" }
 
 local function percent(ratio, signed)
   return string.format(signed and "%+.1f" or "%.1f", ratio * 100)
@@ -33,20 +35,24 @@ end
 
 -- The market part of the detail: see item_detail_gui.read.
 local function read_market(force, kind, name, quality_name, quantity)
-  local base_value, live, params = market.position(force.index, kind, name, quality_name)
+  local base_value, live, params, shift = market.position(force.index, kind, name, quality_name)
   if not base_value then return nil end
+  local key = pricing.key(kind, name, quality_name)
   local level = telecom.level(force)
   local period = telecom_core.period(level)
-  local seen = pricing.key(kind, name, quality_name) == pricing.key(kind, name)
-    and telecom.quote(force.index, kind, name, period) or nil
-  local displacement = seen and item_detail.displacement_from_buy(base_value, seen.buy, params) or live
+  local seen = key == pricing.key(kind, name) and telecom.quote(force.index, kind, name, period) or nil
+  -- The figures follow the prices seen, with the events' shift when they were seen.
+  local seen_shift = seen and market_events.depths(key, seen.tick) * market_model.depth(base_value, params)
+  local displacement = seen and item_detail.displacement_from_buy(base_value, seen.buy, params, seen_shift) or live
   return {
-    figures = item_detail.market(base_value, displacement, params, npc_market.DEFAULTS),
+    figures = item_detail.market(base_value, displacement, params, npc_market.DEFAULTS, seen_shift or shift),
     seen_tick = seen and seen.tick,
     period = period,
     level = level,
     history = seen and telecom_core.shows_history(level) and seen.history or nil,
-    impact = quantity and item_detail.impact(base_value, live, quantity, params),
+    impact = quantity and item_detail.impact(base_value, live, quantity, params, shift),
+    event = item_detail.event(base_value, shift, params),
+    events = market_events.events_of(key),
   }
 end
 
@@ -67,8 +73,9 @@ end
 --- The detail figures of `kind`/`name` (quality `quality_name`, default normal) for `force`, with
 --- the impact of an order of `quantity` units (optional): {figures (item_detail.market, from the
 --- prices the force sees: its telecommunications feed for the normal quality, live otherwise),
---- seen_tick, period, level, history, impact (live), breakdown (item_detail.breakdown), ladder}; nil
---- when the key is not tradeable.
+--- seen_tick, period, level, history, impact (live), event (item_detail.event, live, of the shift left
+--- within the market's bounds), events (of the key, oldest first), breakdown (item_detail.breakdown),
+--- ladder}; nil when the key is not tradeable.
 function item_detail_gui.read(force, kind, name, quality_name, quantity)
   local detail = read_market(force, kind, name, quality_name, quantity)
   if detail then detail.breakdown, detail.ladder = read_breakdown(kind, name, quality_name) end
@@ -178,6 +185,30 @@ local function refresh_figures(info, detail)
   for id, caption in pairs(values) do cells[id].caption = caption end
 end
 
+-- The event of the key that moves its price most now (the newest on a tie), and how many others do.
+local function dominant(events, tick)
+  local best, best_size
+  for _, event in ipairs(events) do
+    local size = math.abs(market_events.event_depths(event, tick))
+    if not best or size >= best_size then best, best_size = event, size end
+  end
+  return best, #events - 1
+end
+
+-- What all market events of the key add to the price now, with the one that weighs most and where it
+-- stands: written on every refresh.
+local function refresh_event(info, detail)
+  local tick = game.tick
+  local main, others = dominant(detail.events, tick)
+  if not main then
+    info.figures.event.caption = { "gb-detail.event-none" }
+    return
+  end
+  info.figures.event.caption = { "gb-detail.event-value", market_events.percent(1 + detail.event.effect),
+    { "gb-events.kind-" .. main.kind }, market_events.phase_caption(main, tick),
+    others > 0 and { "gb-detail.event-others", others } or "" }
+end
+
 -- How old the prices seen are: written on every refresh.
 local function refresh_seen(info, detail)
   info.figures.seen.caption = detail.seen_tick and { "gb-detail.seen-value",
@@ -196,6 +227,7 @@ local function refresh_rules(info, detail)
     mid = { "gb-detail.figure-mid-rule", depth },
     base = { "gb-detail.figure-base-rule" },
     gap = { "gb-detail.figure-gap-rule", depth, catalog.format_credits(figures.depth * figures.base_value) },
+    event = { "gb-detail.figure-event-rule", catalog.format_duration(figures.half_life_ticks) },
     liquidity = { "gb-detail.figure-liquidity-rule", catalog.format_units(figures.bound_units),
       amount(figures.bound_units / figures.depth), catalog.format_credits(figures.floor),
       catalog.format_credits(figures.ceiling) },
@@ -319,6 +351,7 @@ function item_detail_gui.refresh(player, elements, kind, name, quantity)
   local known = pricing.value_source(key) ~= nil or (override ~= nil and override.value ~= nil)
   local new_key = info.key ~= key or info.value ~= value or info.known ~= known
   refresh_impact(info, quantity, detail.impact)
+  refresh_event(info, detail)
   refresh_seen(info, detail)
   if new_key or info.buy ~= detail.figures.buy or info.level ~= detail.level then
     refresh_figures(info, detail)

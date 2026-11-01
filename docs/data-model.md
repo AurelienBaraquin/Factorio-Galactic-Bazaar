@@ -28,7 +28,7 @@ Keyed by `LuaForce.index` (a number), never by the `LuaForce` object.
 | `bankruptcies` | number | bankruptcies so far, 0 to start (added on configuration change for older saves); each doubles the next credit ban, up to 8 hours; on merge the larger of the two (ADR-0022) |
 | `bankruptcy_debt` | number | what the force owed at its bankruptcies (negative balance, arrears, loan installments left) plus a 25 % restructuring surcharge, not yet repaid, 0 to start (added on configuration change for older saves); earns no interest; every credit `account.apply` records goes to it first and every 60 ticks it takes a positive balance, never into the overdraft; added up on merge (ADR-0022) |
 | `reputation` | number | the force's reputation score, from −20 to 20 (brought within them on configuration change for saves before 0.1.17): +1 per fulfilled contract, −1 per failed one; on merge only the source's debt follows ([contracts.md](contracts.md), ADR-0016) |
-| `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read |
+| `markets` | table | `[key] = {displacement, tick, rng, history}`: this force's market for each key read so far, `key` with `@<quality>` for an item quality other than normal ([market.md](market.md)); created on first read. `displacement` is the force's own part: market events add their shift when it is read (`storage.market_events`) |
 
 Account rules (`scripts/core/account.lua`): `account.apply(state, amount, entry)` is atomic — a
 refused transaction (`invalid-amount`, `insufficient-funds`) changes nothing. A debit is refused
@@ -337,6 +337,35 @@ no longer active is removed and its slot released) and on configuration change.
 `storage.planet_rng[force_index]` — each force's random state for transit losses
 ([planets.md](planets.md)), advanced at every draw, starting from its index. Written by
 `scripts/planets.lua`; the merged force's entry is dropped on `on_forces_merged`.
+
+## `storage.market_events`
+
+`{rng, next_tick, next_id, events, by_key, candidates, salts}` — the market events of the galaxy, shared by
+every force ([market.md](market.md#market-events-scriptscoremarket_eventslua-scriptsmarket_eventslua),
+[ADR-0025](adr/0025-market-events-as-a-shared-displacement-shift.md), an explicit exception to
+ADR-0001: it holds no force's money, reputation, order or contract). `rng` is the Park-Miller state
+of the draws, seeded from the map seed and mixed with the forces' balances and journal sizes and the
+tick at each draw, each pass with an active event and each minute's salt; `next_tick` the tick of the next draw;
+`next_id` the next event id. `events` is an array, oldest first, of `{id, kind, family, keys,
+direction, magnitude, goal, segment_tick, segment_shift, trail, announce_tick, start_tick, end_tick,
+end_shift, cancelled, told}`: `kind` "shortage", "surplus" or "crisis", `family` the item subgroup of
+a crisis, `keys` the sorted normal keys of its goods, `direction` the sign its goal pushes the
+displacement (−1 raises prices), `magnitude` the setting it was drawn at, `goal` its current goal in
+depths towards its direction (nil until the pass that starts it), `segment_tick` and `segment_shift`
+the start of its current segment, `trail` up to 31 `{tick, shift}` knots of its past course (one a
+minute, for the price history), `announce_tick` nil when not announced, `end_tick` its latest end
+(set to the pass that ends it early), `end_shift` its shift at an early end, `cancelled` true for an
+announced event called off (decided at its start), `told` the last phase told. `by_key` indexes the events by key (`[key] = {event...}`, the
+same tables), rebuilt whenever events are added or dropped; a key in it is never drawn again until its events are dropped. `candidates` (`{keys, families}`) caches
+the tradeable goods and their item subgroups, rebuilt with the base values. `salts` is a ring of 32
+`{minute, salt}` (slot `minute % 32 + 1`): the salt drawn at the first pass of each minute, which
+every NPC drift step of the following minute adds to its roll ([market.md](market.md)); created by
+the first pass. Written by
+`scripts/market_events.lua`: created on `on_init`, `on_configuration_changed` or, for a save that
+lacks it, at the first pass; events dropped 10 half-lives after their end (called-off ones at their
+start); on every base value rebuild, goods without a base value are dropped from the events, and events of another shape (a development save of 0.1.36, whose state had no `by_key`) are dropped there and when the pass first reads such a state. Nothing
+per force: force merges leave it unchanged. About 3 events kept at frequency 1 and 12 at frequency 4
+on average (at most 18 in a 2000-hour simulation).
 
 ## `storage.notifications`
 

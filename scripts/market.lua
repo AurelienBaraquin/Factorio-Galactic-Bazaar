@@ -1,8 +1,14 @@
 -- The market of each force (ADR-0003, ADR-0004): quotes and trades for any key with a base value.
 -- Market entries live in storage.forces[force_index].markets[key] and are brought up to date only
--- when read, so the simulation costs nothing while nobody trades or looks.
+-- when read, so the simulation costs nothing while nobody trades or looks. Market events (ADR-0025,
+-- scripts/market_events.lua) shift every force's displacement of their goods: the mid price, the
+-- bounds and the liquidity use the entry's displacement plus that shift (within the bounds), and
+-- buy and sell prices are the shifted prices of scripts/core/market.lua, which a shift only ever
+-- makes worse for the trader than the plain ones. A trade moves the entry's own part by what it
+-- traded.
 local account = require("scripts.core.account")
 local market_model = require("scripts.core.market")
+local market_events = require("scripts.market_events")
 local npc_market = require("scripts.core.npc_market")
 local pricing = require("scripts.pricing")
 
@@ -26,9 +32,18 @@ local function params_for(ratio)
   return params
 end
 
--- The up-to-date market entry of a key for a force, with its base value, the force state and the
--- key's market parameters; nil when the force has no state (being merged) or the key has no base
--- value (not tradeable).
+-- Brings a market entry of `key` up to `tick`, its history sampled with the shift of market events
+-- and its drift salted (scripts/core/market_events.lua); returns that shift at `tick`, in units.
+local function catch_up(entry, key, base_value, tick, params)
+  local shift, shift_at = market_events.shift(key, tick, market_model.depth(base_value, params))
+  npc_market.catch_up(entry, base_value, tick, params, NPC_PARAMS, shift_at, market_events.salt_at)
+  return shift
+end
+
+-- The up-to-date market entry of a key for a force, with its base value, the force state, the key's
+-- market parameters, the shift of market events (units, what is left of it within the bounds, so
+-- that the entry's displacement plus it is the shifted displacement) and the bound; nil when the
+-- force has no state (being merged) or the key has no base value (not tradeable).
 local function current_entry(force_index, key)
   local state = storage.forces[force_index]
   local base_value, ratio = pricing.key_value(key)
@@ -39,8 +54,10 @@ local function current_entry(force_index, key)
     entry = npc_market.new_entry(key, force_index, game.tick)
     state.markets[key] = entry
   end
-  npc_market.catch_up(entry, base_value, game.tick, params, NPC_PARAMS)
-  return entry, base_value, state, params
+  local shift = catch_up(entry, key, base_value, game.tick, params)
+  local bound = params.max_depths * market_model.depth(base_value, params)
+  local shifted = math.max(-bound, math.min(bound, entry.displacement + shift))
+  return entry, base_value, state, params, shifted - entry.displacement, bound
 end
 
 -- Every function below takes `quality_name`, optional: an item quality other than normal trades on
@@ -50,43 +67,63 @@ end
 --- Current prices of `kind`/`name` ("item"/"fluid") for a force: {buy, sell, mid, history}, or nil
 --- when it is not tradeable.
 function market.quote(force_index, kind, name, quality_name)
-  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  local entry, base_value, _, params, shift = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return nil end
+  local own = entry.displacement
   return {
-    buy = market_model.buy_price(base_value, entry.displacement, params),
-    sell = market_model.sell_price(base_value, entry.displacement, params),
-    mid = market_model.mid_price(base_value, entry.displacement, params),
+    buy = market_model.shifted_buy_price(base_value, own, shift, params),
+    sell = market_model.shifted_sell_price(base_value, own, shift, params),
+    mid = market_model.mid_price(base_value, own + shift, params),
     history = entry.history,
   }
 end
 
---- The live market position of `kind`/`name` for a force: its base value, its displacement and the
---- market parameters of its quality (scripts/core/market.lua), for figures computed from them (the
---- Market tab's detail); nil when it is not tradeable.
+--- The live market position of `kind`/`name` for a force: its base value, its displacement (market
+--- events included), the market parameters of its quality (scripts/core/market.lua) and the shift
+--- market events make in it (units, what is left of it within the bounds), for figures computed from
+--- them (the Market tab's detail); nil when it is not tradeable.
 function market.position(force_index, kind, name, quality_name)
-  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  local entry, base_value, _, params, shift = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return nil end
-  return base_value, entry.displacement, params
+  return base_value, entry.displacement + shift, params, shift
+end
+
+local function shifted_quote(side)
+  return side == "buy" and market_model.quote_shifted_buy or market_model.quote_shifted_sell
 end
 
 local function trade(force_index, key, quantity, side, merge_ticks, value_factor)
-  local entry, base_value, state, params = current_entry(force_index, key)
+  local entry, base_value, state, params, shift, bound = current_entry(force_index, key)
   if not entry then return false, "not-tradeable" end
-  local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
-  local credits, displacement = quote(base_value, entry.displacement, quantity, params)
-  if not credits then return false, displacement end
+  local own = entry.displacement
+  local credits, after = shifted_quote(side)(base_value, own, shift, quantity, params)
+  if not credits then return false, after end
   credits = credits * value_factor
   local amount = side == "buy" and -credits or credits
   local journal_entry = { tick = game.tick, kind = side, key = key, quantity = quantity, merge_ticks = merge_ticks }
   local ok, reason = account.apply(state, amount, journal_entry)
   if not ok then return false, reason end
-  entry.displacement = displacement
+  -- The entry's own part moves by what was traded (the events' shift is added again at every read).
+  -- The clamp only matters when the shift carried the shifted displacement past the bound: the trade
+  -- was then checked against the bound, and its own part stays within it, which changes no price.
+  entry.displacement = math.max(-bound, math.min(bound, own + after - (own + shift)))
   return true, credits
 end
 
 --- What trading `quantity` units would bring (`side` "sell") or cost (`side` "buy") right now,
 --- without trading: the credits, or nil and a reason.
 function market.preview(force_index, kind, name, side, quantity, quality_name)
+  local entry, base_value, _, params, shift = current_entry(force_index, pricing.key(kind, name, quality_name))
+  if not entry then return nil, "not-tradeable" end
+  local credits, reason = shifted_quote(side)(base_value, entry.displacement, shift, quantity, params)
+  if not credits then return nil, reason end
+  return credits
+end
+
+--- What trading `quantity` units would bring (`side` "sell") or cost (`side` "buy") right now on the
+--- plain market: at the force's own displacement, without the shift of market events; the credits,
+--- or nil and a reason.
+function market.plain_preview(force_index, kind, name, side, quantity, quality_name)
   local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return nil, "not-tradeable" end
   local quote = side == "buy" and market_model.quote_buy or market_model.quote_sell
@@ -98,17 +135,18 @@ end
 --- Units of `kind`/`name` the force can sell while each unit still sells for at least
 --- `min_price_ratio` × its base value; 0 when it is not tradeable.
 function market.sellable(force_index, kind, name, min_price_ratio, quality_name)
-  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  local entry, base_value, _, params, shift = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return 0 end
-  return market_model.max_sell_at_or_above(base_value, entry.displacement, min_price_ratio * base_value, params)
+  return market_model.max_shifted_sell_at_or_above(base_value, entry.displacement, shift,
+    min_price_ratio * base_value, params)
 end
 
---- Units of `kind`/`name` the force can buy before the market's shortage bound; 0 when it is not
---- tradeable. Funds are not checked.
+--- Units of `kind`/`name` the force can buy before the market's shortage bound (market events
+--- included: a shortage leaves fewer); 0 when it is not tradeable. Funds are not checked.
 function market.buyable(force_index, kind, name, quality_name)
-  local entry, base_value, _, params = current_entry(force_index, pricing.key(kind, name, quality_name))
+  local entry, base_value, _, params, shift = current_entry(force_index, pricing.key(kind, name, quality_name))
   if not entry then return 0 end
-  return market_model.max_buy(base_value, entry.displacement, params)
+  return market_model.max_buy(base_value, entry.displacement + shift, params)
 end
 
 --- The base values were rebuilt (prototypes, settings or overrides changed): every market entry is
@@ -127,7 +165,7 @@ function market.rebase_all(old_values, old_levels)
         gone[#gone + 1] = key
       elseif old and old ~= new then
         local old_params, new_params = params_for(old_ratio), params_for(new_ratio)
-        npc_market.catch_up(entry, old, game.tick, old_params, NPC_PARAMS)
+        catch_up(entry, key, old, game.tick, old_params)
         entry.displacement = market_model.rebase(entry.displacement, old, new, old_params, new_params)
       end
     end

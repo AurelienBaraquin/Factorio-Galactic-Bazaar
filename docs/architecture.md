@@ -117,8 +117,8 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   `freight.UNLOAD_INTERVAL` ticks landed capsules are unloaded into import chests; a removed hub's
   queue is sold back ([terminal.md](terminal.md)).
 - **Galactic Bazaar window** ([window.md](window.md), [ADR-0023](adr/0023-central-window.md)): the
-  tab modules (`overview_gui`, `market_gui`, `logistics_gui`, `contracts_gui`, `planets_gui`,
-  `statement_gui`) register with
+  tab modules (`overview_gui`, `market_gui`, `market_events_gui`, `logistics_gui`, `contracts_gui`,
+  `planets_gui`, `statement_gui`) register with
   `scripts/bazaar_gui.lua` when `control.lua` requires them (the Market tab builds the selected
   item's detail with `scripts/item_detail_gui.lua`, its figures computed by
   `scripts/core/item_detail.lua`); the `gb-toggle-bazaar` input and the mod
@@ -153,6 +153,13 @@ Only the first nine entries ship in the mod: `.gitattributes` marks everything e
   old; trades always use live prices ([terminal.md](terminal.md), ADR-0012).
 - **Market**: `scripts/market.lua` quotes and executes trades for a force, advancing each key's
   NPC market lazily when read ([market.md](market.md)); export chests sell through it.
+- **Market events** ([ADR-0025](adr/0025-market-events-as-a-shared-displacement-shift.md)):
+  every `market_events.PASS_TICKS` (600) `scripts/market_events.lua` draws the galaxy's next
+  shortage, surplus or crisis when due (`scripts/core/market_events.lua`, pure), moves the active
+  events along their uncertain course, tells the forces that researched Galactic Bazaar of their
+  phase changes and forgets old events; `scripts/value_overrides.lua` has it rebuild its cached
+  candidates after every base value rebuild; `scripts/market.lua` adds each key's shift to the
+  displacement it reads; the Events tab (`scripts/market_events_gui.lua`) lists them.
 
 ## 4. Decisions
 

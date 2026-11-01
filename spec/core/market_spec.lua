@@ -144,3 +144,72 @@ describe("market.rebase", function()
     assert.is_true(near(ratio, market.mid_price(9 * V, rebased, deep) / (9 * V)))
   end)
 end)
+
+describe("shifted prices (market events)", function()
+  local depth = market.depth(V, params)
+
+  it("let a shortage raise only the buy price, and a surplus lower only the sell price", function()
+    for _, s in ipairs({ -300, 0, 250 }) do
+      local shortage, surplus = -depth, depth
+      assert.is_true(near(market.buy_price(V, s + shortage, params), market.shifted_buy_price(V, s, shortage, params)))
+      assert.is_true(near(market.sell_price(V, s, params), market.shifted_sell_price(V, s, shortage, params)))
+      assert.is_true(near(market.buy_price(V, s, params), market.shifted_buy_price(V, s, surplus, params)))
+      assert.is_true(near(market.sell_price(V, s + surplus, params), market.shifted_sell_price(V, s, surplus, params)))
+    end
+  end)
+
+  it("never make a price better for the trader than the plain price, and equal it without a shift", function()
+    for _, s in ipairs({ -500, -20, 0, 20, 500 }) do
+      for _, shift in ipairs({ -3 * depth, -0.01 * depth, 0, 0.01 * depth, 3 * depth }) do
+        assert.is_true(market.shifted_buy_price(V, s, shift, params) >= market.buy_price(V, s, params) * (1 - 1e-12))
+        assert.is_true(market.shifted_sell_price(V, s, shift, params) <= market.sell_price(V, s, params) * (1 + 1e-12))
+      end
+      assert.is_true(near(market.buy_price(V, s, params), market.shifted_buy_price(V, s, 0, params)))
+      assert.is_true(near(market.sell_price(V, s, params), market.shifted_sell_price(V, s, 0, params)))
+    end
+  end)
+
+  it("price a large order unit by unit", function()
+    for _, s in ipairs({ -200, 0, 200 }) do
+      for _, shift in ipairs({ -2 * depth, -0.01 * depth, 0, 0.01 * depth, 2 * depth }) do
+        local q = depth / 3
+        local cost = market.quote_shifted_buy(V, s, shift, q, params)
+        local revenue = market.quote_shifted_sell(V, s, shift, q, params)
+        local steps, step_cost, step_revenue = 3000, 0, 0
+        for i = 0, steps - 1 do
+          local k = (i + 0.5) * q / steps
+          step_cost = step_cost + market.shifted_buy_price(V, s - k, shift, params) * q / steps
+          step_revenue = step_revenue + market.shifted_sell_price(V, s + k, shift, params) * q / steps
+        end
+        assert.is_true(near(step_cost, cost, 1e-6))
+        assert.is_true(near(step_revenue, revenue, 1e-6))
+      end
+    end
+  end)
+
+  it("bound an order by the shifted displacement", function()
+    local bound = params.max_depths * depth
+    assert.are.same({ nil, "insufficient-liquidity" }, { market.quote_shifted_buy(V, 0, -bound + 5, 10, params) })
+    -- A surplus leaves more room to buy than the plain market would.
+    assert.is_truthy(market.quote_shifted_buy(V, -bound + 5, 20, 10, params))
+    assert.are.same({ nil, "insufficient-liquidity" }, { market.quote_shifted_sell(V, 0, bound - 5, 10, params) })
+    assert.is_truthy(market.quote_shifted_sell(V, bound - 5, -20, 10, params))
+    assert.are.same({ nil, "invalid-quantity" }, { market.quote_shifted_sell(V, 0, 0, 0, params) })
+  end)
+
+  it("count the units sellable at or above a price, within the shifted bound", function()
+    local bound = params.max_depths * depth
+    for _, case in ipairs({ { 0, -2 * depth }, { 0, depth }, { bound - 10, -50 } }) do
+      local s, shift = case[1], case[2]
+      local min_price = market.sell_price(V, s, params) * 0.98
+      local count = market.max_shifted_sell_at_or_above(V, s, shift, min_price, params)
+      assert.is_true(count <= market.max_sell(V, s + shift, params) + 1e-9)
+      if count > 0 then
+        assert.is_true(market.shifted_sell_price(V, s + count - 1e-6, shift, params) >= min_price * (1 - 1e-9))
+      end
+      if count < market.max_sell(V, s + shift, params) - 1 then
+        assert.is_true(market.shifted_sell_price(V, s + count + 1, shift, params) < min_price)
+      end
+    end
+  end)
+end)

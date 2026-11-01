@@ -40,7 +40,8 @@ They are constants. Mods and players adjust values through the multiplier and th
 
 The startup setting `gb-value-multiplier` (`settings.lua`, default 1, from 0.01 to 100) scales
 every base value, and so every price. Values fixed by an override stay exactly as set. The other
-settings of `settings.lua` are per-player notification switches ([notifications.md](notifications.md)).
+settings of `settings.lua` are per-player notification switches ([notifications.md](notifications.md))
+and the frequency and magnitude of market events ([market.md](market.md#market-events-scriptscoremarket_eventslua-scriptsmarket_eventslua)).
 
 ## Overrides by other mods
 

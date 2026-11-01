@@ -153,12 +153,15 @@ end
 
 -- The penalty of a warehouse contract at acceptance: at least what buying its goods back on the
 -- force's market would cost now, with the price impact, plus a margin (storage_rental.warehouse_penalty).
+-- Never below the plain market's cost: a market event (ADR-0025) may raise the buy price, never
+-- lower the guarantee.
 local function penalty_now(force_index, contract)
   local cost = 0
   for _, goods in ipairs(contract.provides) do
     local price = market.preview(force_index, goods.kind, goods.name, "buy", goods.count)
     if not price then return storage_rental.warehouse_penalty(contract.penalty, nil) end
-    cost = cost + price
+    local plain = market.plain_preview(force_index, goods.kind, goods.name, "buy", goods.count)
+    cost = cost + math.max(price, plain or price)
   end
   return storage_rental.warehouse_penalty(contract.penalty, cost)
 end

@@ -13,6 +13,7 @@ local incoming = require("scripts.incoming_contracts")
 local insolvency = require("scripts.insolvency")
 local loans = require("scripts.loans")
 local manifold = require("scripts.manifold")
+local market_events = require("scripts.market_events")
 local notifications = require("scripts.notifications")
 local circuit_orders = require("scripts.circuit_orders")
 local contracts = require("scripts.contracts")
@@ -28,6 +29,7 @@ local warehouses = require("scripts.warehouses")
 -- The tabs of the Galactic Bazaar window register themselves with it when loaded, in this order.
 require("scripts.overview_gui")
 require("scripts.market_gui")
+require("scripts.market_events_gui")
 require("scripts.logistics_gui")
 require("scripts.contracts_gui")
 require("scripts.planets_gui")
@@ -39,6 +41,7 @@ local function init()
   notifications.init()
   local dropped = planets.init()
   value_overrides.rebuild()
+  market_events.init()
   hubs.init()
   cargo.init()
   manifold.init()
@@ -202,6 +205,7 @@ every(vaults.SWEEP_TICKS, vaults.on_sweep_tick)
 every(price_signals.PASS_TICKS, price_signals.on_pass_tick)
 every(circuit_orders.PASS_TICKS, circuit_orders.on_pass_tick)
 every(entity_status.PASS_TICKS, entity_status.on_pass_tick)
+every(market_events.PASS_TICKS, market_events.on_pass_tick)
 for ticks, handlers in pairs(periodic) do
   script.on_nth_tick(ticks, function(event)
     for _, handler in ipairs(handlers) do handler(event) end
@@ -233,7 +237,7 @@ if script.active_mods["factorio-test"] then
       "tests/docking_bay", "tests/teleporter", "tests/power", "tests/price_signals", "tests/circuit_orders",
       "tests/telecom", "tests/technologies", "tests/market_gui", "tests/item_detail", "tests/notifications",
       "tests/entity_status", "tests/bazaar_gui", "tests/logistics_gui",
-      "tests/statement_gui", "tests/explanations" },
+      "tests/statement_gui", "tests/explanations", "tests/market_events" },
     { load_luassert = true }
   )
 end
