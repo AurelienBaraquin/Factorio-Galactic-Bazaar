@@ -4,7 +4,7 @@ One window with tabs gathers what the player needs to read and act on the econom
 [ADR-0023](adr/0023-central-window.md)). Code: `scripts/bazaar_gui.lua` (window, tab registry,
 hub binding, button, inputs, refresh), `scripts/overview_gui.lua` (Overview tab) with its figures
 computed by `scripts/core/overview.lua` (pure), `scripts/statement_gui.lua` (Statement tab) with its
-classification, pages and totals in `scripts/core/statement.lua` (pure), and the tabs described with their features: Market
+classification, pages and totals in `scripts/core/statement.lua` (pure), `scripts/market_events_gui.lua` (Events tab), and the tabs described with their features: Market
 ([terminal.md](terminal.md#market-tab), `scripts/market_gui.lua`), Logistics
 ([terminal.md](terminal.md#logistics-tab), `scripts/logistics_gui.lua`, rows from the pure
 `scripts/core/logistics.lua`), Contracts
@@ -46,6 +46,7 @@ reason, or as `tier-changed` if a tier opened up since.
 |---|---|---|---|
 | Overview | 10 | always | the figures below, one line each, with a tooltip explaining it |
 | Market | 20 | always | prices, search, buy and sell ([terminal.md](terminal.md#market-tab)) |
+| Events | 22 | always | the market events: kind, goods, status, range of their possible effect, effect now, and the settings in force ([below](#events-tab)) |
 | Logistics | 25 | always | the force's hubs, and for the one selected its shipments queued and in flight and its modules with their status ([terminal.md](terminal.md#logistics-tab)) |
 | Contracts | 30 | always | offers, active contracts, the credit line, the Rent a vault button (enabled after Storage rental) and each vault's Retrieve button ([contracts.md](contracts.md#storage-rental)) |
 | Planets | 40 | `gb-planetary-concessions` researched (disabled before, tooltip naming the research; shown again as the Overview if the research is reversed) | planets, slots, leases and bookings ([planets.md](planets.md#planets-tab)) |
@@ -61,6 +62,21 @@ reason, or as `tier-changed` if a tier opened up since.
 | Reputation | the score (−20 to 20), the freight fee factor, the contract size factor, the loan rate over the term and the loan debt cap ([contracts.md](contracts.md)) |
 | Solvency | `solvent`, `insolvent` (grace left before bankruptcy, the balance to keep, and while it is kept the time left before recovery) or `banned` (credit refused after a bankruptcy: time left, bankruptcy debt); the bankruptcies so far |
 | Commitments | open contracts counted by kind and state, shown as offers waiting, active contracts (incoming, rental, warehouse), active leases (concession, outsourcing, storage vault) and loans with the principal left and arrears; the nearest deadline of an active contract and its kind; the goods ended vaults still have to ship back (stacks and vaults, `vaults.returning`, read by the tab itself) |
+
+## Events tab
+
+The market events of the galaxy (#120, `scripts/market_events_gui.lua`,
+[market.md](market.md#market-events-scriptscoremarket_eventslua-scriptsmarket_eventslua)). Read only: it works anywhere.
+A line gives the frequency and magnitude settings and the mean time between draws they make
+(`gb-events.summary`, or `summary-off` at frequency 0), its tooltip the rules of the draw. Up to
+`MAX_ROWS` (8) rows, announced and active events first (soonest start first), then those over and
+fading (latest end first), with a line counting the others: kind (its tooltip starts with what to do about it,
+`gb-events.advice-<kind>`); goods (icons, with the name of a
+single good); status (starts in, at most N minutes left rounded up, over since, called off); the
+range of the event's possible effect on the mid price (never its course); its effect on the mid
+price now. Each cell has its column's tooltip. Rows are built once; a row's kind, goods and range are
+written when the event or phase it shows changes (`view.shown`), its status and current effect on
+each refresh.
 
 ## Statement tab
 

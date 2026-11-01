@@ -11,6 +11,7 @@ local ENTRIES = {
   { name = "gb-bazaar-window", technology = "gb-galactic-bazaar" },
   { name = "gb-trading-hub", technology = "gb-galactic-bazaar" },
   { name = "gb-prices", technology = "gb-galactic-bazaar" },
+  { name = "gb-market-events", technology = "gb-galactic-bazaar" },
   { name = "gb-deliveries", technology = "gb-galactic-bazaar" },
   { name = "gb-account", technology = "gb-galactic-bazaar" },
   { name = "gb-insolvency", technology = "gb-galactic-bazaar" },

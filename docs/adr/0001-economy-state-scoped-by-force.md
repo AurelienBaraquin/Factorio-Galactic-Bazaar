@@ -38,3 +38,10 @@ selected tab), kept apart from economy state.
   (`on_force_created`, `on_forces_merging`) must be handled.
 - Follow-up: decide how forces share a market (one shared order book or one per force) when
   multiplayer is designed.
+
+## Amendment (2026-11-01)
+
+Market events (`storage.market_events`, [ADR-0025](0025-market-events-as-a-shared-displacement-shift.md))
+are one state for the whole galaxy, like the base values: they hold no money, reputation, order or
+contract of any force, and shift every force's own market alike. They are an explicit exception to
+the rule above, justified in ADR-0025; every force's economy state stays keyed by force.

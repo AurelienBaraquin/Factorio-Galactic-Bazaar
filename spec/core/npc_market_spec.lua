@@ -64,6 +64,52 @@ describe("npc_market.catch_up", function()
     assert.is_true(math.abs(entry.displacement) <= bound)
   end)
 
+  it("samples the history with the shift of market events, which the displacement does not hold", function()
+    local depth = market.depth(V, market_params)
+    local plain, shifted = entry_at(0), entry_at(0)
+    local ticks = {}
+    npc_market.catch_up(plain, V, 2 * STEP, market_params, npc_params)
+    npc_market.catch_up(shifted, V, 2 * STEP, market_params, npc_params, function(tick)
+      ticks[#ticks + 1] = tick
+      return -depth
+    end)
+    assert.are.same({ STEP, 2 * STEP }, ticks)
+    assert.are.equal(plain.displacement, shifted.displacement)
+    assert.is_true(math.abs(shifted.history[2] - plain.history[2] * math.exp(1)) < 1e-9 * shifted.history[2])
+  end)
+
+  it("bounds a shifted history sample like any price", function()
+    local bound = market_params.max_depths * market.depth(V, market_params)
+    local entry = entry_at(-bound)
+    npc_market.catch_up(entry, V, STEP, market_params, npc_params, function() return -bound end)
+    assert.is_true(entry.history[1] <= V * math.exp(market_params.max_depths) * (1 + 1e-12))
+  end)
+
+  it("adds a salt of its step's tick to each drift roll, so the key and force alone do not give it", function()
+    local plain, salted = entry_at(0), entry_at(0)
+    local asked = {}
+    npc_market.catch_up(plain, V, 2 * STEP, market_params, npc_params)
+    npc_market.catch_up(salted, V, 2 * STEP, market_params, npc_params, nil, function(tick)
+      asked[#asked + 1] = tick
+      return 0.5
+    end)
+    assert.are.same({ STEP, 2 * STEP }, asked)
+    assert.are_not.equal(plain.displacement, salted.displacement)
+    assert.are.equal(plain.rng, salted.rng)
+    local unsalted = entry_at(0)
+    npc_market.catch_up(unsalted, V, 2 * STEP, market_params, npc_params, nil, function() return nil end)
+    assert.are.equal(plain.displacement, unsalted.displacement)
+  end)
+
+  it("gives the same salted result whether it catches up at once or in pieces", function()
+    local function salt(tick) return (tick / STEP * 0.37) % 1 end
+    local once, pieces = entry_at(500), entry_at(500)
+    npc_market.catch_up(once, V, 6 * STEP, market_params, npc_params, nil, salt)
+    npc_market.catch_up(pieces, V, 2 * STEP, market_params, npc_params, nil, salt)
+    npc_market.catch_up(pieces, V, 6 * STEP, market_params, npc_params, nil, salt)
+    assert.are.same(once, pieces)
+  end)
+
   it("gives the same result whether it catches up at once or in pieces", function()
     local once, pieces = entry_at(500), entry_at(500)
     npc_market.catch_up(once, V, 6 * STEP, market_params, npc_params)

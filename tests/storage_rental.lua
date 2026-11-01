@@ -94,6 +94,7 @@ describe("storage rental", function()
       while #history > saved.history do table.remove(history) end
       technology().researched = saved.researched
       storage.incoming_contracts.rng[force_index()] = saved.rng
+      if saved.market_events ~= nil then storage.market_events = saved.market_events or nil end
       storage.gb_test_storage = nil
     end
     state().contracts.open = {}
@@ -480,6 +481,30 @@ describe("storage rental", function()
     local contract = contracts.get(force_index(), id)
     assert.is_true(math.abs(storage_rental.warehouse_penalty(300, cost) - contract.penalty) < 1e-6)
     assert.is_true(contract.penalty >= cost)
+  end)
+
+  test("a market event at acceptance never lowers the guarantee below the plain buy-back cost", function()
+    -- Restored by after_each, even when an assertion fails.
+    storage.gb_test_storage.market_events = storage.market_events or false
+    for _, kind in ipairs({ "surplus", "shortage" }) do
+      local event = { id = 1, kind = kind, keys = { "item/iron-plate" },
+        direction = kind == "surplus" and 1 or -1, magnitude = 1, goal = 1, segment_tick = game.tick - 36000,
+        segment_shift = 0, trail = { { game.tick - 36000, 0 } }, start_tick = game.tick - 36000,
+        end_tick = game.tick + 36000, told = "active" }
+      storage.market_events = { rng = 1, next_id = 2, next_tick = game.tick + 1e9, events = { event },
+        by_key = { ["item/iron-plate"] = { event } } }
+      local warehouse = place(warehouses.NAME, 3, 3)
+      local id = offer_plates(warehouse)
+      local plain = market.plain_preview(force_index(), "item", "iron-plate", "buy", 200)
+      local shifted = market.preview(force_index(), "item", "iron-plate", "buy", 200)
+      assert.is_true(warehouses.accept(force_index(), id))
+      local penalty = contracts.get(force_index(), id).penalty
+      assert.is_true(penalty >= storage_rental.warehouse_penalty(300, plain) * (1 - 1e-9), kind)
+      assert.is_true(math.abs(storage_rental.warehouse_penalty(300, math.max(plain, shifted)) - penalty) < 1e-6, kind)
+      if kind == "shortage" then assert.is_true(shifted > plain) end
+      state().contracts.open = {}
+      warehouse.destroy()
+    end
   end)
 
   test("mining a rented warehouse hands its goods over and fails the contract at its deadline", function()

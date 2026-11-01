@@ -2,17 +2,19 @@
 -- of base values that every change (and every configuration change) goes through, so that markets
 -- are always rebased on the new values. Overrides persist in storage.value_overrides.
 local market = require("scripts.market")
+local market_events = require("scripts.market_events")
 local overrides = require("scripts.core.overrides")
 local pricing = require("scripts.pricing")
 local raw_graph = require("scripts.recipe_graph")
 
 local value_overrides = {}
 
---- Rebuilds the base values and rebases every market on them.
+--- Rebuilds the base values, rebases every market on them and updates the market events' goods.
 function value_overrides.rebuild()
   local old_values, old_levels = storage.base_values, storage.quality_levels
   pricing.init()
   market.rebase_all(old_values, old_levels)
+  market_events.on_values_rebuilt()
 end
 
 -- Raises an error for the calling mod: remote calls come from other mods' code. The message names

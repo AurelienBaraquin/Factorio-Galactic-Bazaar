@@ -20,12 +20,14 @@ Its tabs:
 - **Market**: prices, buying and selling (below). Select an item to see, beside the list, what
   buying or selling the quantity you type would cost or bring, the average price and the next price
   after such an order, and why its prices are what they are: its base value and how far the market
-  is from it (the shortage or surplus other trades left), how much the market can still take each
+  is from it (the shortage or surplus other trades left), what market events add to it now, how much the market can still take each
   way, the spread, how the other traders move it each minute and how fast it returns to balance
   (hover a line for its rule); its price history once **Galactic telecommunications 2** is
   researched; and why it is worth its base value: the recipe (or mining, pumping...) that makes it
   cheapest, each ingredient and its value, the time it takes, a value set by another mod, and what
   each higher quality is worth.
+- **Events**: the market's shortages, surpluses and crises, forecast, active or fading, with their
+  goods, when they start or how long they may still last, how far they could move the price and how much they move it now ([below](#market-events)).
 - **Logistics**: every trading hub of your force, with its power, its status and how full each
   delivery tier's queue is. Select one to see it on a camera, the tier it delivers by (hover it for
   the delay, launch interval, capacity, fee and queue limit), the shipments bought, sent by a
@@ -335,6 +337,30 @@ value (the market price without the freight fee) — otherwise the terms of a mi
 message printed when you book gives the amount, the charge and the guarantee. Only recipes you have unlocked, with a single sure product,
 can be booked.
 
+## Market events
+
+Now and then the galaxy has a **shortage** (buyers of one good pay more, and less of it can be
+bought before the market's bound), a **surplus** (sellers of one good get less) or a **crisis** (a
+shortage over up to 12 goods of one family, a row of the inventory). It moves the market's stock
+like a stream of other traders, so the cost of large orders and the return to balance work as
+usual, and your own trades add to it: selling into a shortage brings its price down. Every force
+sees the same events.
+
+**An event only ever makes prices worse.** In a shortage buyers pay more while sellers still get the
+usual sell price; in a surplus sellers get less while buyers still pay the usual buy price. So no
+trade, and no way of timing trades, does better with an event than it would without it, whatever you
+know or guess of the event. Events are risks to plan around: make what is short rather than buy it,
+and hold back what is in surplus rather than sell it.
+
+An event's course is uncertain: it drifts at random within the range shown and may end early; it
+lasts at most 10 to 30 minutes (about 14 on average), then fades, halving every 10 minutes. About
+half are forecast 5 minutes ahead, and a quarter of the forecasts are called off. You are told by an
+alert and a chat line once you have researched Galactic Bazaar; the **Events** tab lists them, and
+the Market tab's item detail shows what they add to a price. With default settings about two come an
+hour; the map settings **Market events: frequency** (0 turns them off; at 4, about seven an hour)
+and **Market events: magnitude** (0.25 to 3: how far they can move prices) change that; a frequency
+change waits for the draw already scheduled. Details: [market.md](market.md#market-events-scriptscoremarket_eventslua-scriptsmarket_eventslua).
+
 ## Alerts and notifications
 
 The mod raises game alerts (the icons above the minimap; hover for the message, click to see the
@@ -347,8 +373,9 @@ building on the map) and, for most of them, prints a line in the chat:
   import chests is counted once it is unloaded.
 - **Finance**: a loan installment missed (the loan defaulted), insolvency, recovery, bankruptcy, and
   credit restored.
+- **Market**: a market event forecast, started, called off or over.
 
 Each category can be turned off for yourself only in *Settings → Mod settings → Per player*
-(**Notify: contracts**, **Notify: deliveries**, **Notify: finance**). The insolvency and bankruptcy
+(**Notify: contracts**, **Notify: deliveries**, **Notify: finance**, **Notify: market events**). The insolvency and bankruptcy
 messages are always printed in the chat; the finance setting hides only their alerts. Details:
 [notifications.md](notifications.md).

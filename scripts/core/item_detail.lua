@@ -12,12 +12,15 @@ local item_detail = {}
 --- prices (`buy`, `sell`, `mid`), the gap of the mid price from the base value (`gap`, a ratio, +0.1
 --- for 10 % above), the displacement in units and in depths, the spread, the units left before each
 --- bound and the price bounds, the NPC drift per step (in units, and the largest rise and fall of
---- the mid price it causes) and the mid price after one half-life without trades.
-function item_detail.market(base_value, displacement, params, npc_params)
+--- the mid price it causes) and the mid price after one half-life without trades. `shift` (optional,
+--- units) is the part of `displacement` market events make: buy and sell prices are then the capped
+--- shifted prices of scripts/core/market.lua.
+function item_detail.market(base_value, displacement, params, npc_params, shift)
+  shift = shift or 0
   local depth = market.depth(base_value, params)
   local mid = market.mid_price(base_value, displacement, params)
-  local buy = market.buy_price(base_value, displacement, params)
-  local sell = market.sell_price(base_value, displacement, params)
+  local buy = market.shifted_buy_price(base_value, displacement - shift, shift, params)
+  local sell = market.shifted_sell_price(base_value, displacement - shift, shift, params)
   return {
     base_value = base_value,
     buy = buy,
@@ -43,26 +46,40 @@ function item_detail.market(base_value, displacement, params, npc_params)
   }
 end
 
---- The displacement at which the next unit bought costs `buy`: the inverse of market.buy_price, to
---- read the market figures from a price seen through telecommunications (ADR-0012).
-function item_detail.displacement_from_buy(base_value, buy, params)
-  local mid = buy / (1 + params.spread / 2)
-  return -market.depth(base_value, params) * math.log(mid / base_value)
+--- What market events (scripts/core/market_events.lua) add to a key's displacement, `shift` units:
+--- {units, depths, effect}, `effect` the change of the mid price they make (+0.5 for 50 % above what
+--- it would be without them).
+function item_detail.event(base_value, shift, params)
+  local depth = market.depth(base_value, params)
+  return { units = shift, depths = shift / depth, effect = math.exp(-shift / depth) - 1 }
 end
 
-local function side(quote, next_price, base_value, displacement, quantity, params)
-  local total, after = quote(base_value, displacement, quantity, params)
+--- The displacement at which the next unit bought costs `buy`: the inverse of market.buy_price, to
+--- read the market figures from a price seen through telecommunications (ADR-0012). With a market
+--- event's `shift` (units, optional; the shift when the price was seen) the buy price is the plain
+--- one moved by the shortage part only (market.shifted_buy_price), so the surplus part is added back.
+function item_detail.displacement_from_buy(base_value, buy, params, shift)
+  local mid = buy / (1 + params.spread / 2)
+  return -market.depth(base_value, params) * math.log(mid / base_value) + math.max(shift or 0, 0)
+end
+
+local function side(quote, next_price, base_value, own, shift, quantity, params)
+  local total, after = quote(base_value, own, shift, quantity, params)
   if not total then return { reason = after } end
-  return { total = total, average = total / quantity, next_price = next_price(base_value, after, params) }
+  return { total = total, average = total / quantity,
+    next_price = next_price(base_value, after - shift, shift, params) }
 end
 
 --- What an order of `quantity` units would do, on each side: {buy = {total, average, next_price},
 --- sell = {...}}, `next_price` being the price of the next unit after the order; a side beyond the
---- market's liquidity is {reason}.
-function item_detail.impact(base_value, displacement, quantity, params)
+--- market's liquidity is {reason}. `shift` (optional, units) is the part of `displacement` market
+--- events make, as in item_detail.market.
+function item_detail.impact(base_value, displacement, quantity, params, shift)
+  shift = shift or 0
+  local own = displacement - shift
   return {
-    buy = side(market.quote_buy, market.buy_price, base_value, displacement, quantity, params),
-    sell = side(market.quote_sell, market.sell_price, base_value, displacement, quantity, params),
+    buy = side(market.quote_shifted_buy, market.shifted_buy_price, base_value, own, shift, quantity, params),
+    sell = side(market.quote_shifted_sell, market.shifted_sell_price, base_value, own, shift, quantity, params),
   }
 end
 

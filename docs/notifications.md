@@ -32,6 +32,13 @@ version, which stays in the console once the alert is gone.
 | `recovered` | finance | the force is solvent again | `signal-green` | yes | none |
 | `bankrupt` | finance | the force goes bankrupt | `signal-skull` | always: what ended, what it owes, the ban | none |
 | `credit-restored` | finance | the credit ban ends | `signal-unlock` | yes | none |
+| `market-event-announced` | market | a market event is drawn with a forecast ([market.md](market.md#market-events-scriptscoremarket_eventslua-scriptsmarket_eventslua)) | `signal-question-mark` | yes: kind, goods, time to its start, the most minutes it may last, the range of its possible effect, and what to do (`gb-events.advice-<kind>`: make what is short rather than buy it, hold back what is in surplus) | none (by event) |
+| `market-event-started` | market | a market event starts | `signal-alarm` | yes: kind, goods, the most minutes it may last, the range of its possible effect, and what to do | none |
+| `market-event-cancelled` | market | an announced event is called off when due | `signal-no-entry` | yes | none |
+| `market-event-ended` | market | a market event ends (at its latest end or earlier) | `signal-white-flag` | yes: the half-life its effect fades with | none |
+
+Market event notices are told to every force that has researched Galactic Bazaar, and to no other
+(`scripts/market_events.lua`); they never give an event's exact course or end.
 
 The insolvency chat lines are the messages the insolvency check printed before #107
 ([contracts.md](contracts.md#insolvency-and-bankruptcy)), unchanged. Not told: expired or declined
@@ -53,6 +60,7 @@ default):
 | `gb-notify-contracts` | offers, contracts due, fulfilled and failed |
 | `gb-notify-deliveries` | deliveries landed |
 | `gb-notify-finance` | loan default, insolvency, recovery, bankruptcy, credit restored |
+| `gb-notify-market` | market events forecast, started, called off and over |
 
 A category turned off hides both the alert and the chat line of its kinds for that player only,
 except the chat lines marked *always* above (`chat_always`): insolvency and bankruptcy are printed

@@ -85,7 +85,15 @@ transactions into a full journal of 200 recurring goods, and merging into a jour
 (`tests/statement_gui.lua`), the built-in explanations: the Tips and tricks entries (the Space Age
 and quality ones only with them), the tooltips of the Market, Contracts, Planets and Logistics tabs,
 those that follow the force's state written only when it changes, and their caches across a reload
-(`tests/explanations.lua`), and that state survives a save and reload
+(`tests/explanations.lua`), market events: their shift on every force's quotes, trades, supply,
+history, quality and fluid markets, two events on the same goods, a rebase of base values, a trade
+at the bound, the pass drawing, moving and telling an event only to forces that researched Galactic
+Bazaar, frequency 0, a settings change mid-event, a save without their state, goods that lost their
+value, the item detail and the Events tab, a reload and the cost of the pass and of a price snapshot
+(`tests/market_events.lua`; the suite ends long before the first natural draw, so no event moves
+other files' prices; `spec/core/market_events_spec.lua` also trades through seeded events with five
+strategies and a clairvoyant trader on the real shifted prices, with and without an own displacement, and `tests/market_events.lua` makes a
+real round trip through a shortage), and that state survives a save and reload
 (`.after_reload_mods`, which acts like a save and load for mods). A reload re-runs the test file, so `after_each`
 re-fetches what it needs instead of trusting the file's locals. The periodic handlers keep running
 between tests, so a test never assigns a force's balance directly: it calls
