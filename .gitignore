@@ -13,3 +13,6 @@ dist/
 # Python bytecode and scratch renders of the render pipeline (tools/graphics/)
 __pycache__/
 tools/graphics/.work/
+
+# Screenshots and reports of the in-game check (tools/ingame/)
+tools/ingame/.work/

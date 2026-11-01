@@ -133,3 +133,10 @@ read from the log.
 
 Space Age is not owned by the owner, so the `--mods space-age` run is the only coverage of Space
 Age code paths: every such path needs a test here.
+
+## In-game check in the real client
+
+The headless server draws and translates nothing. `python3 tools/ingame/run.py` starts the Windows
+client from WSL in a sandbox, takes screenshots of every building and window tab, and fails on any name
+or window text the client cannot translate ([ingame-check.md](ingame-check.md)). It is run by hand,
+after a change to graphics, locale or the window.

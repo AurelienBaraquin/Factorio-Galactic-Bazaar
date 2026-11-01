@@ -24,10 +24,11 @@ scripts/        runtime adapters between the game API and the pure logic
 scripts/core/   pure Lua logic, no game API (checked by luacheck, unit-tested)
 changelog.txt   release notes in the strict format the game parses
 spec/           busted unit tests of scripts/core/
-tests/          FactorioTest in-game tests of scripts/
+tests/          FactorioTest in-game tests of scripts/, and the real-client check (tests/ingame_check/,
+                docs/ingame-check.md); control.lua loads each only when its helper mod is active
 package.json    development tooling only (FactorioTest CLI)
 tools/          repository tooling: Lua toolchain setup, packaging and deploy, documentation check, balance simulation,
-                the Blender render pipeline of the graphics
+                the Blender render pipeline of the graphics, the in-game check in the Windows client
 docs/           brief, architecture, ADRs and the documentation index
 .assistant/     decisions log and lessons for AI agents
 .github/        issue and pull request templates, CI workflows

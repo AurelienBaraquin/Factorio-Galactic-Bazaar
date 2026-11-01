@@ -1,0 +1,9 @@
+{
+  "name": "gb-ingame-check",
+  "version": "0.1.0",
+  "title": "Galactic Bazaar in-game check",
+  "author": "AurelienBaraquin",
+  "description": "Development helper, never published: its presence makes Galactic Bazaar run tests/ingame_check in a sandboxed client (tools/ingame/run.py).",
+  "factorio_version": "2.1",
+  "dependencies": ["base", "galactic-bazaar"]
+}
