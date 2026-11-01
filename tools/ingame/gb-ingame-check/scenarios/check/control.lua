@@ -1,0 +1,1 @@
+-- An empty map for tools/ingame/run.py: Galactic Bazaar's tests/ingame_check builds the scene.

@@ -241,3 +241,6 @@ if script.active_mods["factorio-test"] then
     { load_luassert = true }
   )
 end
+
+-- The in-game check of tools/ingame/run.py, in its sandboxed client only (docs/ingame-check.md).
+if script.active_mods["gb-ingame-check"] then require("tests.ingame_check.init") end
