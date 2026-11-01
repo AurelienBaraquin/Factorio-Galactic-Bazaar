@@ -20,7 +20,7 @@ hub.energy_usage = "100kW"
 hub.picture = nil
 hub.animation = graphics.animation("gb-hub")
 hub.continuous_animation = true
-hub.drawing_box_vertical_extension = 0.8
+hub.drawing_box_vertical_extension = graphics.vertical_extension("gb-hub")
 
 data:extend({
   { type = "item-subgroup", name = "galactic-bazaar", group = "logistics", order = "z[galactic-bazaar]" },

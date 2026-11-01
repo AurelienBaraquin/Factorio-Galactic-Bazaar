@@ -12,8 +12,8 @@ def _cargo_chest(direction: int, colour: str):
     def build(_frame: int) -> None:
         crate("trading")
         hatch = parts.material("frame", "frame", metallic=0.5, roughness=0.6)
-        parts.box((0.5, 0.5, 0.02), (0.0, 0.0, CRATE_HEIGHT), hatch, bevel=0.006)
-        parts.arrow(direction, 0.44, 0.36, (0.0, 0.0, CRATE_HEIGHT + 0.02),
+        parts.box((0.7, 0.7, 0.02), (0.0, 0.0, CRATE_HEIGHT), hatch, bevel=0.006)
+        parts.arrow(direction, 0.64, 0.6, (0.0, 0.0, CRATE_HEIGHT + 0.02),
                     parts.material(colour, colour, metallic=0.1, roughness=0.5, grime=0.2))
     return build
 
@@ -68,7 +68,7 @@ def _substation(direction: int, colour: str):
         steel = parts.material("steel", "steel")
         frame_mat = parts.material("frame", "frame", metallic=0.5, roughness=0.6)
         teal = parts.material("trading", "trading", metallic=0.25, roughness=0.45, grime=0.25)
-        accent = parts.material(colour, colour, metallic=0.1, roughness=0.5, grime=0.2)
+        screen = parts.material("screen", "screen", metallic=0.0, roughness=0.25, grime=0.0)
         ceramic = parts.material("ceramic", "ceramic", metallic=0.0, roughness=0.35, grime=0.15)
         copper = parts.material("copper", "copper", metallic=0.7, roughness=0.35, grime=0.2)
         plinth(1.9)
@@ -78,10 +78,11 @@ def _substation(direction: int, colour: str):
         for x in (-1, 1):
             for y in (-0.3, -0.15, 0.0, 0.15, 0.3):
                 parts.box((0.22, 0.04, 0.7), (x * 0.66, 0.05 + y, 0.14), frame_mat, bevel=0.005)
-        # Direction panel on the south face: an arrow in the direction of the power flow.
-        parts.box((0.56, 0.03, 0.5), (0.0, -0.41, 0.22), frame_mat, bevel=0.006)
-        parts.box((0.5, 0.02, 0.44), (0.0, -0.425, 0.25), accent, bevel=0.0)
-        arrow = parts.arrow(direction, 0.34, 0.3, (0.0, 0.0, 0.0), frame_mat, thickness=0.02)
+        # Direction panel on the south face: a lit arrow in the direction of the power flow on a dark
+        # screen, so that the direction reads by shape as well as by colour.
+        parts.box((0.74, 0.03, 0.64), (0.0, -0.41, 0.15), frame_mat, bevel=0.006)
+        parts.box((0.68, 0.02, 0.58), (0.0, -0.425, 0.18), screen, bevel=0.0)
+        arrow = parts.arrow(direction, 0.52, 0.54, (0.0, 0.0, 0.0), parts.emissive(colour, 1.5), thickness=0.03)
         arrow.rotation_euler = (math.radians(90), 0.0, 0.0)
         arrow.location = (0.0, -0.44, 0.47)
         # Three insulators with copper terminals on the lid.

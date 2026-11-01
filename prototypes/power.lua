@@ -31,7 +31,7 @@ for _, spec in ipairs(SUBSTATIONS) do
   entity.energy_production = "0kW"
   entity.energy_usage = "0kW"
   entity.picture = graphics.sprite(spec.name)
-  entity.drawing_box_vertical_extension = 0.5
+  entity.drawing_box_vertical_extension = graphics.vertical_extension(spec.name)
   data:extend({
     entity,
     {

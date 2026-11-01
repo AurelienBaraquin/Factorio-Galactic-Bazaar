@@ -24,7 +24,7 @@ entity.energy_usage = "20MW"
 entity.picture = nil
 entity.animation = graphics.animation("gb-teleporter")
 entity.continuous_animation = true
-entity.drawing_box_vertical_extension = 0.8
+entity.drawing_box_vertical_extension = graphics.vertical_extension("gb-teleporter")
 
 data:extend({
   entity,

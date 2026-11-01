@@ -12,6 +12,7 @@ entity.fast_replaceable_group = nil
 entity.next_upgrade = nil
 entity.picture = graphics.sprite("gb-contract-chest")
 entity.water_reflection = nil
+entity.drawing_box_vertical_extension = graphics.vertical_extension("gb-contract-chest")
 
 data:extend({
   entity,

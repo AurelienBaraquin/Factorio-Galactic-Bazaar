@@ -14,7 +14,7 @@ local function chest(name, order, ingredients)
   entity.next_upgrade = nil
   entity.picture = graphics.sprite(name)
   entity.water_reflection = nil
-  entity.drawing_box_vertical_extension = 0.3
+  entity.drawing_box_vertical_extension = graphics.vertical_extension(name)
   return {
     entity,
     {

@@ -3,7 +3,9 @@
 - **Status**: Accepted
 - **Date**: 2026-11-01
 - **Deciders**: owner (all art made by AI, procedural Blender renders, decisions log 2026-10-29;
-  "Start #48" with the Blender download); implementing agent (engine, versions, layout below)
+  "Start #48" with the Blender download; approved the updated graphics constraint of
+  [brief.md](../brief.md) on 2026-11-01, "Approve the wording"); implementing agent (engine, versions,
+  layout below)
 - **Supersedes**: none
 
 ## Context

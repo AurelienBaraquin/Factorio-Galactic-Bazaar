@@ -15,7 +15,7 @@ catapult.fast_replaceable_group = nil
 catapult.next_upgrade = nil
 catapult.picture = graphics.sprite("gb-catapult")
 catapult.water_reflection = nil
-catapult.drawing_box_vertical_extension = 0.5
+catapult.drawing_box_vertical_extension = graphics.vertical_extension("gb-catapult")
 
 local capacitor = table.deepcopy(data.raw["electric-energy-interface"]["electric-energy-interface"])
 capacitor.name = "gb-catapult-capacitor"

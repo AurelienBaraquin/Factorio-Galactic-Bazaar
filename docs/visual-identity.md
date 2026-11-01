@@ -49,8 +49,8 @@ colours are chosen apart from them: no family is orange or green.
 | Trading hub `gb-hub` | trading | 2×2 | terminal block on a striped plinth, south-facing price-chart screen, side cabinets, a rooftop dish sweeping 120° back and forth | 16-frame animation, always running |
 | Export chest `gb-export-chest` | trading | 1×1 | crate, orange up arrow on the lid | still |
 | Import chest `gb-import-chest` | trading | 1×1 | crate, green down arrow on the lid | still |
-| Power export `gb-power-export` | trading | 2×2 | transformer with cooling fins and three insulators, orange panel with an up arrow | still |
-| Power import `gb-power-import` | trading | 2×2 | the same transformer, green panel with a down arrow | still |
+| Power export `gb-power-export` | trading | 2×2 | transformer with cooling fins and three insulators, dark panel with a lit orange up arrow | still |
+| Power import `gb-power-import` | trading | 2×2 | the same transformer, lit green down arrow | still |
 | Docking bay `gb-docking-bay` | logistics | 1×1 | crate, landing pad with four beacons, fuel filler | still |
 | Electromagnetic catapult `gb-catapult` | logistics | 1×1 | crate, launch rail pitched north wound with copper coils | still |
 | Teleporter `gb-teleporter` | logistics | 2×2 | round striped platform, three pylons holding a segmented ring that turns around a floating violet core | 16-frame animation, always running |
@@ -70,6 +70,9 @@ and rise to about 1.5 tiles (hub dish, teleporter ring), close to the accumulato
   mipmaps in one file (the game infers the four levels from the file's 120 × 64 size).
 - No outline, badge or text: the lid feature and the accent colours carry the meaning, and the game
   draws its own background and outline.
+- Direction is never told by colour alone: export and import buildings carry a bold arrow (narrow
+  shaft, head half its length) pointing up or down, large enough to read on the 16 px mipmap, for
+  colour-blind players.
 - Technologies show the icon of the building they unlock (unchanged rule); the telecommunications
   and finance technologies keep the base radar and coin icons, which say what they are better than a
   building would.

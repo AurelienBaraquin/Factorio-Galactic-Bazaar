@@ -185,8 +185,8 @@ def prism(points: list, z: float, height: float, mat, bevel: float = 0.004):
 def arrow(direction: int, length: float, width: float, at: tuple, mat, thickness: float = 0.02):
     """An arrow plate lying on z = at[2], pointing north (+1) or south (-1)."""
     x, y, z = at
-    half, head = width / 2, length * 0.45
-    shaft = width * 0.42
+    half, head = width / 2, length * 0.5
+    shaft = width * 0.2
     outline = [(-shaft, -length / 2), (shaft, -length / 2), (shaft, length / 2 - head),
                (half, length / 2 - head), (0.0, length / 2), (-half, length / 2 - head),
                (-shaft, length / 2 - head)]

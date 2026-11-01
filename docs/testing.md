@@ -51,10 +51,11 @@ define the same keys, when a `"section.key"` literal of `control.lua`, `data.lua
 `scripts/` or `prototypes/` names a key English lacks, or when a Tips and tricks entry of
 `prototypes/tips_and_tricks.lua` (loaded with and without Space Age and quality) has no name or
 description. Keys built at run time are not seen; the headless game cannot check them either, since
-it translates nothing without a connected client. `spec/graphics_spec.lua` reads the PNG headers of
+it translates nothing without a connected client. `spec/graphics_spec.lua` decodes the PNG files of
 the rendered graphics and fails when a file the prototypes name is missing, when a sheet's size
-differs from what `prototypes/sprites.lua` declares, when an icon is not 64 px with four mipmaps, or
-when `graphics/` holds a file no sprite description names ([graphics-pipeline.md](graphics-pipeline.md)).
+differs from what `prototypes/sprites.lua` declares, when a frame touches its edge (cut off by the
+render canvas), when an icon is not 64 px with four mipmaps, or when
+`graphics/` holds a file no sprite description names ([graphics-pipeline.md](graphics-pipeline.md)).
 
 `spec/balance_spec.lua` checks the economy's invariants (no money pump across systems) through the
 balance simulation in `tools/balance/`, which drives the core modules on a snapshot of the game's base

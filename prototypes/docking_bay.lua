@@ -13,6 +13,7 @@ entity.fast_replaceable_group = nil
 entity.next_upgrade = nil
 entity.picture = graphics.sprite("gb-docking-bay")
 entity.water_reflection = nil
+entity.drawing_box_vertical_extension = graphics.vertical_extension("gb-docking-bay")
 
 data:extend({
   entity,

@@ -13,6 +13,7 @@ local function cargo_chest(name, order)
   chest.next_upgrade = nil
   chest.picture = graphics.sprite(name)
   chest.water_reflection = nil
+  chest.drawing_box_vertical_extension = graphics.vertical_extension(name)
   local item = {
     type = "item",
     name = name,

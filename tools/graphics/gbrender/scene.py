@@ -21,6 +21,8 @@ SUN_AZIMUTH_DEG = 11.0  # light from the west, this many degrees towards the nor
 SAMPLES = 64
 SEED = 0
 ICON_RENDER_PX = 256
+# Blender renders to a file; each pass's file lives here (git-ignored) and is deleted once read.
+WORK_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".work")
 WORLD_COLOUR = (0.66, 0.63, 0.58)
 WORLD_STRENGTH = 0.7
 SUN_STRENGTH = 4.2
@@ -36,6 +38,13 @@ def project(point: tuple) -> tuple:
     """Screen offset in tiles (x right, y down) of a world point, relative to the origin."""
     x, y, z = point
     return x, -(y * UP[1] + z * UP[2])
+
+
+def shadow_run() -> tuple:
+    """Ground offset (x, y) in tiles of the shadow of a point, per tile of its height."""
+    run = 1.0 / math.tan(math.radians(SUN_ELEVATION_DEG))
+    azimuth = math.radians(SUN_AZIMUTH_DEG)
+    return run * math.cos(azimuth), -run * math.sin(azimuth)
 
 
 def reset() -> None:
@@ -126,7 +135,8 @@ def frame_camera(centre_x: float, centre_y: float, width: float, height: float, 
 
 def _render_to_array() -> np.ndarray:
     scene = bpy.context.scene
-    handle, path = tempfile.mkstemp(suffix=".png")
+    os.makedirs(WORK_DIR, exist_ok=True)
+    handle, path = tempfile.mkstemp(suffix=".png", dir=WORK_DIR)
     os.close(handle)
     try:
         scene.render.filepath = path

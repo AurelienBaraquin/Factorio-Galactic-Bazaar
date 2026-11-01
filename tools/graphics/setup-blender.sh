@@ -31,5 +31,7 @@ echo "${SHA256}  ${work}/${ARCHIVE}" | sha256sum --check --strict
 
 mkdir -p "$PREFIX" "${work}/extract"
 tar -xJf "${work}/${ARCHIVE}" -C "${work}/extract"
-mv "${work}/extract/blender-${VERSION}-linux-x64" "$TARGET"
+# A folder without the executable is what an interrupted earlier run leaves: replace it.
+rm -rf "$TARGET"
+mv -T "${work}/extract/blender-${VERSION}-linux-x64" "$TARGET"
 "${TARGET}/blender" --version | head -n 1

@@ -3,6 +3,7 @@
 -- sprites at 64 px per tile (drawn at scale 0.5); icons carry their mipmaps side by side.
 return {
   ["gb-catapult"] = {
+    drawing_box_vertical_extension = 0.45,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-catapult.png",
       icon_size = 64,
@@ -17,12 +18,13 @@ return {
     shadow = {
       filename = "__galactic-bazaar__/graphics/entity/gb-catapult/gb-catapult-shadow.png",
       height = 51,
-      shift = { 0.4688, 0.2011 },
-      width = 122,
+      shift = { 0.4766, 0.2011 },
+      width = 123,
     },
     size = 1,
   },
   ["gb-contract-chest"] = {
+    drawing_box_vertical_extension = 0.15,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-contract-chest.png",
       icon_size = 64,
@@ -43,6 +45,7 @@ return {
     size = 1,
   },
   ["gb-docking-bay"] = {
+    drawing_box_vertical_extension = 0.15,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-docking-bay.png",
       icon_size = 64,
@@ -63,6 +66,7 @@ return {
     size = 1,
   },
   ["gb-export-chest"] = {
+    drawing_box_vertical_extension = 0.15,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-export-chest.png",
       icon_size = 64,
@@ -83,6 +87,7 @@ return {
     size = 1,
   },
   ["gb-hub"] = {
+    drawing_box_vertical_extension = 0.3,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-hub.png",
       icon_size = 64,
@@ -92,10 +97,10 @@ return {
       animation_speed = 0.15,
       filename = "__galactic-bazaar__/graphics/entity/gb-hub/gb-hub.png",
       frame_count = 16,
-      height = 148,
+      height = 147,
       line_length = 8,
       run_mode = "forward-then-backward",
-      shift = { 0.0, -0.1602 },
+      shift = { 0.0, -0.1524 },
       width = 126,
     },
     shadow = {
@@ -105,12 +110,13 @@ return {
       height = 90,
       line_length = 8,
       run_mode = "forward-then-backward",
-      shift = { 0.5156, 0.2929 },
-      width = 190,
+      shift = { 0.7344, 0.2929 },
+      width = 218,
     },
     size = 2,
   },
   ["gb-import-chest"] = {
+    drawing_box_vertical_extension = 0.15,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-import-chest.png",
       icon_size = 64,
@@ -131,6 +137,7 @@ return {
     size = 1,
   },
   ["gb-power-export"] = {
+    drawing_box_vertical_extension = 0.0,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-power-export.png",
       icon_size = 64,
@@ -145,12 +152,13 @@ return {
     shadow = {
       filename = "__galactic-bazaar__/graphics/entity/gb-power-export/gb-power-export-shadow.png",
       height = 90,
-      shift = { 0.5156, 0.2929 },
-      width = 190,
+      shift = { 0.5469, 0.2929 },
+      width = 194,
     },
     size = 2,
   },
   ["gb-power-import"] = {
+    drawing_box_vertical_extension = 0.0,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-power-import.png",
       icon_size = 64,
@@ -165,12 +173,13 @@ return {
     shadow = {
       filename = "__galactic-bazaar__/graphics/entity/gb-power-import/gb-power-import-shadow.png",
       height = 90,
-      shift = { 0.5156, 0.2929 },
-      width = 190,
+      shift = { 0.5469, 0.2929 },
+      width = 194,
     },
     size = 2,
   },
   ["gb-rental-warehouse"] = {
+    drawing_box_vertical_extension = 0.25,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-rental-warehouse.png",
       icon_size = 64,
@@ -191,6 +200,7 @@ return {
     size = 1,
   },
   ["gb-teleporter"] = {
+    drawing_box_vertical_extension = 0.1,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-teleporter.png",
       icon_size = 64,
@@ -213,12 +223,13 @@ return {
       height = 93,
       line_length = 8,
       run_mode = "forward",
-      shift = { 0.5156, 0.3163 },
-      width = 190,
+      shift = { 0.5938, 0.3163 },
+      width = 200,
     },
     size = 2,
   },
   ["gb-vault-uplink"] = {
+    drawing_box_vertical_extension = 0.35,
     icon = {
       filename = "__galactic-bazaar__/graphics/icons/gb-vault-uplink.png",
       icon_size = 64,
@@ -233,8 +244,8 @@ return {
     shadow = {
       filename = "__galactic-bazaar__/graphics/entity/gb-vault-uplink/gb-vault-uplink-shadow.png",
       height = 51,
-      shift = { 0.5078, 0.2011 },
-      width = 127,
+      shift = { 0.5625, 0.2011 },
+      width = 134,
     },
     size = 1,
   },

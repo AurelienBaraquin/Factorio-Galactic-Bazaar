@@ -40,6 +40,11 @@ function graphics.animation(name)
   return { layers = { layer(spec.main, true, false), layer(spec.shadow, true, true) } }
 end
 
+-- How far the rendered building rises above its selection box, in tiles (for entity tooltips).
+function graphics.vertical_extension(name)
+  return described(name).drawing_box_vertical_extension
+end
+
 -- The icon, with its mipmaps in the same file (the game infers their count from its width).
 function graphics.icons(name)
   local icon = described(name).icon

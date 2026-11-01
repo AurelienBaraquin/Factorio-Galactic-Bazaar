@@ -1,29 +1,40 @@
 -- The rendered graphics (#48): every file the prototypes reference exists, has the size its sprite
--- description declares (a missing or mis-sized file stops the game at load), icons carry their four
--- mipmaps, and nothing unreferenced ships under graphics/. Reads the files from the repository root,
--- where busted runs.
+-- description declares (a missing or mis-sized file stops the game at load), no frame was cut off by
+-- the render canvas (each frame keeps a transparent border), icons carry their four mipmaps, and
+-- nothing unreferenced ships under graphics/. Reads the files from the repository root, where busted
+-- runs.
 -- luacheck: read globals io
 local lfs = require("lfs")
+local png = require("spec.support.png")
 local sprites = require("prototypes.sprites")
 
 local MOD_PREFIX = "__galactic-bazaar__/"
 local ICON_SIZE = 64
 local ICON_MIPMAPS = 4
 
--- Width and height of a PNG file, read from its IHDR chunk; nil if it is not a PNG.
-local function png_size(path)
-  local file = io.open(path, "rb")
-  if not file then return nil end
-  local header = file:read(24)
-  file:close()
-  if not header or #header < 24 or header:sub(1, 8) ~= "\137PNG\r\n\26\n" or header:sub(13, 16) ~= "IHDR" then
-    return nil
+-- Frames in the sheet, and frames per row (line_length 0 or absent: all in one row).
+local function layout(sprite)
+  local frames = sprite.frame_count or 1
+  local per_line = sprite.line_length or 0
+  if per_line == 0 then per_line = frames end
+  return frames, per_line
+end
+
+-- The first frame whose outermost rows or columns are not fully transparent, or nil.
+local function cut_frame(path, sprite)
+  local _, _, alpha = png.read(path)
+  local frames, per_line = layout(sprite)
+  local w, h = sprite.width, sprite.height
+  for index = 0, frames - 1 do
+    local x0, y0 = (index % per_line) * w, math.floor(index / per_line) * h
+    for x = x0, x0 + w - 1 do
+      if alpha(x, y0) ~= 0 or alpha(x, y0 + h - 1) ~= 0 then return index + 1 end
+    end
+    for y = y0, y0 + h - 1 do
+      if alpha(x0, y) ~= 0 or alpha(x0 + w - 1, y) ~= 0 then return index + 1 end
+    end
   end
-  local function u32(offset)
-    local a, b, c, d = header:byte(offset, offset + 3)
-    return ((a * 256 + b) * 256 + c) * 256 + d
-  end
-  return u32(17), u32(21)
+  return nil
 end
 
 local function local_path(filename)
@@ -67,19 +78,24 @@ describe("rendered graphics", function()
       for _, layer in ipairs({ "main", "shadow" }) do
         it("has a " .. layer .. " sheet of the declared size", function()
           local sprite = spec[layer]
-          local width, height = png_size(local_path(sprite.filename))
+          local width, height = png.size(local_path(sprite.filename))
           assert.is_not_nil(width, sprite.filename .. " is missing or not a PNG")
-          local frames = sprite.frame_count or 1
-          local per_line = sprite.line_length or 1
+          local frames, per_line = layout(sprite)
           assert.are.equal(sprite.width * math.min(frames, per_line), width)
           assert.are.equal(sprite.height * math.ceil(frames / per_line), height)
           assert.is_true(sprite.width <= 4096 and sprite.height <= 4096)
+        end)
+
+        it("has a " .. layer .. " sheet no frame of which is cut off", function()
+          local sprite = spec[layer]
+          local frame = cut_frame(local_path(sprite.filename), sprite)
+          assert.is_nil(frame, sprite.filename .. ": frame " .. tostring(frame) .. " touches its edge")
         end)
       end
 
       it("has a 64 px icon with four mipmaps", function()
         assert.are.equal(ICON_SIZE, spec.icon.icon_size)
-        local width, height = png_size(local_path(spec.icon.filename))
+        local width, height = png.size(local_path(spec.icon.filename))
         assert.is_not_nil(width, spec.icon.filename .. " is missing or not a PNG")
         local expected = 0
         for level = 0, ICON_MIPMAPS - 1 do expected = expected + ICON_SIZE / 2 ^ level end
