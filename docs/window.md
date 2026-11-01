@@ -190,11 +190,21 @@ ledger the period covers; each element is written only when what it shows change
 Budget: 0.7 ms per window refresh, that is 0.7 ms per slot tick for each player
 whose index falls in that slot, nothing on other ticks and nothing for closed windows. The
 Logistics tab is measured by `tests/logistics_gui.lua` with 20 hubs, a full capsule queue and about
-1000 modules on the map, after a warm-up (`log` line read by hand, not asserted; ten runs of the
-file alone): 0.33 to 0.49 ms per refresh, and 0.51 to 0.74 ms for a refresh that lists the selected
-hub's modules again (once every 5 s while the tab is shown, or when another hub is selected). Runs
-on a busier machine or within the full suite, whose heap is larger, showed averages up to 0.81 ms
-and 2.4 ms for those, which the budget does not cover; the module listing is the part to watch
+1000 modules on the map, after a full garbage collection and a warm-up (`log` line read by hand, not
+asserted): the steady refresh, and a refresh that lists the selected hub's modules again (once every
+5 s while the tab is shown, or when another hub is selected). Before #121 the full Space Age suite
+measured 0.39 to 1.06 ms and 2.8 to 5.8 ms for those: profiling showed the excess was not the tab's
+code but the garbage left by placing the 1000 buildings and by the test files run before, collected
+during the refreshes measured (the steady refreshes allocate little, so the listing ones paid it).
+With the collection first (the same method before and after, Space Age): before, 0.37 to 0.73 ms and
+0.58 to 1.00 ms alone (ten runs, medians 0.46 and 0.66), 0.39 to 0.48 ms and 0.59 to 0.96 ms in the
+full suite (five runs); after #121, 0.29 to 0.46 ms and 0.54 to 0.90 ms alone (medians 0.34 and 0.63),
+0.29 to 0.38 ms and 0.51 to 0.69 ms in the full suite, and 0.27 to 0.34 ms and 0.49 to 0.67 ms in the
+vanilla full suite (three runs). #121 writes the pagers, counts, module summary, the selected hub's
+header and the camera's target only when what they show changed (`written`), and lists modules with
+fewer comparisons; what a listing still costs is reading each module (about 0.1 ms for 49) and
+sorting them (about 0.08 ms). One listing alone in ten runs measured 0.90 ms, likely a garbage
+collection (not verified), which the budget does not cover
 ([terminal.md](terminal.md#logistics-tab)). `tests/explanations.lua` measures a full Contracts tab
 (8 rows: offers, a lease and loans) and the Market tab beside it: 0.25 to 0.29 ms and 0.23 to 0.26
 ms per refresh. The tooltips (#111) changed no refresh measurably: over five runs of the measuring

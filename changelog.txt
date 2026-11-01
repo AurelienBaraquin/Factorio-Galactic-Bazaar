@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.36
+Date: 2026-11-01
+  Optimizations:
+    - Recording a recurring trade (automatic sales, power, orders) finds the journal entry it merges into
+      through an index instead of searching the journal: about half the cost with many goods traded.
+    - The Logistics tab rewrites its counts, pages, module summary, hub header and camera only when they
+      change, and lists a hub's modules with fewer comparisons.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.35
 Date: 2026-10-31
   Features:

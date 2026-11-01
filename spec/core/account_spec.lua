@@ -132,6 +132,101 @@ describe("account.apply with recurring entries", function()
   end)
 end)
 
+describe("account.apply finding the entry to merge into", function()
+  local function sale(tick, key, merge_ticks)
+    return { tick = tick, kind = "sell", key = key, quantity = 1, merge_ticks = merge_ticks or 3600 }
+  end
+
+  -- The journal as account.apply recorded it, without the statement category.
+  local function fields(journal)
+    local copy = {}
+    for i, entry in ipairs(journal) do
+      copy[i] = { entry.kind, entry.key, entry.amount, entry.quantity, entry.tick, entry.balance, entry.first_tick }
+    end
+    return copy
+  end
+
+  -- What the journal held before the index (#121): every entry searched for one to merge into.
+  local function reference_apply(state, size, amount, entry)
+    local balance = state.balance + amount
+    state.balance = balance
+    local journal = state.journal
+    for i = #journal, 1, -1 do
+      local candidate = journal[i]
+      if entry.merge_ticks and candidate.merge_ticks and candidate.kind == entry.kind and candidate.key == entry.key
+        and entry.tick - candidate.first_tick < entry.merge_ticks then
+        local target = table.remove(journal, i)
+        journal[#journal + 1] = target
+        target.amount, target.quantity = target.amount + amount, (target.quantity or 0) + (entry.quantity or 0)
+        target.tick, target.balance = entry.tick, balance
+        return
+      end
+    end
+    entry.amount, entry.balance = amount, balance
+    entry.first_tick = entry.merge_ticks and entry.tick or nil
+    journal[#journal + 1] = entry
+    while #journal > size do table.remove(journal, 1) end
+  end
+
+  local saved_size
+  before_each(function() saved_size = account.JOURNAL_SIZE end)
+  after_each(function() account.JOURNAL_SIZE = saved_size end)
+
+  it("merges as a search of the whole journal would, while entries come and go", function()
+    account.JOURNAL_SIZE = 25
+    local state, reference = new_account(0), { balance = 0, journal = {} }
+    local seed, tick = 7, 0
+    for _ = 1, 3000 do
+      seed = (seed * 16807) % 2147483647
+      tick = tick + seed % 40
+      local key = "item/" .. seed % 30
+      local entry = { tick = tick, kind = seed % 3 == 0 and "buy" or "sell", key = key, quantity = seed % 5,
+        merge_ticks = seed % 7 ~= 0 and (seed % 2 == 0 and 600 or 300) or nil }
+      local copy = {}
+      for field, value in pairs(entry) do copy[field] = value end
+      account.apply(state, seed % 100, entry)
+      reference_apply(reference, account.JOURNAL_SIZE, seed % 100, copy)
+    end
+    assert.are.same(fields(reference.journal), fields(state.journal))
+  end)
+
+  it("merges into a journal saved before the index, or replaced whole", function()
+    local state = new_account(0)
+    state.journal = { { tick = 10, kind = "sell", key = "item/a", quantity = 1, amount = 1, balance = 1,
+      first_tick = 10, merge_ticks = 3600 } }
+    account.apply(state, 2, sale(20, "item/a"))
+    assert.are.same({ 1, 2, 3 }, { #state.journal, state.journal[1].quantity, state.journal[1].amount })
+    state.journal = { { tick = 30, kind = "sell", key = "item/a", quantity = 4, amount = 4, balance = 4,
+      first_tick = 30, merge_ticks = 3600 } }
+    account.apply(state, 1, sale(40, "item/a"))
+    assert.are.same({ 1, 5 }, { #state.journal, state.journal[1].quantity })
+  end)
+
+  it("never merges into an entry the journal dropped", function()
+    account.JOURNAL_SIZE = 3
+    local state = new_account(0)
+    account.apply(state, 1, sale(1, "item/a"))
+    for tick = 2, 4 do account.apply(state, 1, { tick = tick, kind = "buy", key = "item/b" }) end
+    account.apply(state, 1, sale(5, "item/a"))
+    assert.are.same({ "buy", "buy", "sell" }, { state.journal[1].kind, state.journal[2].kind, state.journal[3].kind })
+    assert.are.same({ 5, 1 }, { state.journal[3].first_tick, state.journal[3].quantity })
+  end)
+
+  it("merges into the entry that started last once two forces merged", function()
+    local destination, source = new_account(0), new_account(0)
+    account.apply(destination, 1, sale(100, "item/a"))
+    account.apply(destination, 1, sale(3000, "item/a"))
+    account.apply(source, 1, sale(2000, "item/a"))
+    account.apply(source, 1, sale(2500, "item/a"))
+    account.merge(destination, source)
+    -- In tick order the destination's entry (started at 100) is last, but its period is over at 3700.
+    account.apply(destination, 1, sale(3700, "item/a"))
+    assert.are.equal(2, #destination.journal)
+    assert.are.same({ 2000, 3, 3700 }, { destination.journal[2].first_tick, destination.journal[2].quantity,
+      destination.journal[2].tick })
+  end)
+end)
+
 describe("account.merge", function()
   it("adds balances and joins journals in tick order", function()
     local destination = new_account(5)

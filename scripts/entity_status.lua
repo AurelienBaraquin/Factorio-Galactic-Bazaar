@@ -434,15 +434,16 @@ function entity_status.modules_of(hub_unit_number, force_index)
   local found, seen = {}, {}
   for _, cycle in ipairs({ state.members, state.joining }) do
     for unit_number in pairs(cycle[hub_unit_number] or {}) do
-      local position = state.index[unit_number]
-      local kind = position and KIND_BY_NAME[state.kinds[position]]
-      local module = kind and kind.modules()[unit_number]
-      local entity = module and module.entity
-      if not seen[unit_number] and module and module.hub == hub_unit_number and entity.valid
-        and entity.force_index == force_index then
-        seen[unit_number] = true
-        found[#found + 1] = { rank = KIND_RANK[kind.name], name = entity.name, unit_number = unit_number,
-          entity = entity, descriptor = state.shown[unit_number] }
+      if not seen[unit_number] then
+        local position = state.index[unit_number]
+        local kind = position and KIND_BY_NAME[state.kinds[position]]
+        local module = kind and kind.modules()[unit_number]
+        local entity = module and module.entity
+        if module and module.hub == hub_unit_number and entity.valid and entity.force_index == force_index then
+          seen[unit_number] = true
+          found[#found + 1] = { rank = KIND_RANK[kind.name], name = entity.name, unit_number = unit_number,
+            entity = entity, descriptor = state.shown[unit_number] }
+        end
       end
     end
   end

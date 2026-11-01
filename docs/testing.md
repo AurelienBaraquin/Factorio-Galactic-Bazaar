@@ -80,7 +80,8 @@ paged, modules and their status, the camera, selection refused for another force
 building, a save from before the tab, its refresh cost and a reload (`tests/logistics_gui.lua`), the Statement tab: rows updated in place,
 subjects and labels of every kind of entry, the category filter, period totals from the ledger,
 pagination, the contract kind recorded by a real loan, a save without the window's state, the
-ledger or entry categories, and its refresh cost on a full journal and ledger
+ledger or entry categories, its refresh cost on a full journal and ledger, the cost of recording
+transactions into a full journal of 200 recurring goods, and merging into a journal entry across a reload
 (`tests/statement_gui.lua`), the built-in explanations: the Tips and tricks entries (the Space Age
 and quality ones only with them), the tooltips of the Market, Contracts, Planets and Logistics tabs,
 those that follow the force's state written only when it changes, and their caches across a reload
@@ -103,7 +104,10 @@ the repository secrets of the same names; without them the `game` job is skipped
 Refresh costs (`tests/bazaar_gui.lua`, `tests/logistics_gui.lua`, `tests/entity_status.lua` and the
 module tests that measure a pass) are logged, not asserted: `LuaProfiler` values cannot be read from
 Lua, so a budget is checked by reading the `[galactic-bazaar] … tab refresh` and similar lines in
-`factorio-test-data-dir/factorio-current.log` after a run.
+`factorio-test-data-dir/factorio-current.log` after a run. A measurement that follows a burst of
+allocation (placing hundreds of buildings, or the test files run before it) collects garbage first
+(`collectgarbage("collect")`, then a warm-up), as `tests/logistics_gui.lua` does: otherwise the
+collector charges that garbage to the code measured.
 
 Space Age is not owned by the owner, so the `--mods space-age` run is the only coverage of Space
 Age code paths: every such path needs a test here.

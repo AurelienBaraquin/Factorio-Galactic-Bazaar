@@ -303,9 +303,12 @@ describe("Logistics tab", function()
     show(hub)
     assert.are.equal(logistics.MODULE_ROWS, #visible(elements().module_rows))
     -- Steady refreshes, then refreshes that each list the hub's modules again (every
-    -- MODULE_RESCAN_TICKS, or when another hub is selected), after a warm-up of both, so that the
-    -- garbage left by placing 1000 buildings is not charged to them.
+    -- MODULE_RESCAN_TICKS, or when another hub is selected), after a full garbage collection and a
+    -- warm-up of both, so that the garbage left by placing 1000 buildings and by the test files run
+    -- before is not charged to them (without the collection, the full suite charged up to 6 ms of it
+    -- to the first refreshes measured).
     local runs = 10
+    collectgarbage("collect")
     for _ = 1, 2 * runs do
       view().modules = nil
       bazaar_gui.refresh(player)

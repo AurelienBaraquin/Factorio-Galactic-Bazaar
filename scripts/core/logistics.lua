@@ -138,28 +138,37 @@ end
 --- {rows = {{rank, name, unit_number, diode}...} ordered by kind, building and unit number (`diode`
 --- nil without a descriptor), groups = {{name, count, green, yellow, red}...} one per building in the
 --- same order}.
+--- Sorts the buildings (a few, compared in Lua), then the unit numbers within each building (numbers,
+--- compared by table.sort itself): cheaper than comparing every module in Lua.
 function logistics.modules(modules)
-  local rows = {}
-  for i, module in ipairs(modules) do
-    local descriptor = module.descriptor
-    rows[i] = {
-      rank = module.rank, name = module.name, unit_number = module.unit_number,
-      diode = descriptor and descriptor.diode or nil,
-    }
-  end
-  table.sort(rows, function(a, b)
-    if a.rank ~= b.rank then return a.rank < b.rank end
-    if a.name ~= b.name then return a.name < b.name end
-    return a.unit_number < b.unit_number
-  end)
-  local groups, last = {}, nil
-  for _, row in ipairs(rows) do
-    if not (last and last.name == row.name) then
-      last = { name = row.name, count = 0, green = 0, yellow = 0, red = 0 }
-      groups[#groups + 1] = last
+  local groups, units, diodes = {}, {}, {}
+  for _, module in ipairs(modules) do
+    local name = module.name
+    local group = units[name]
+    if not group then
+      group = {}
+      units[name] = group
+      groups[#groups + 1] = { name = name, rank = module.rank, count = 0, green = 0, yellow = 0, red = 0 }
     end
-    last.count = last.count + 1
-    if row.diode then last[row.diode] = last[row.diode] + 1 end
+    group[#group + 1] = module.unit_number
+    local descriptor = module.descriptor
+    diodes[module.unit_number] = descriptor and descriptor.diode or nil
+  end
+  table.sort(groups, function(a, b)
+    if a.rank ~= b.rank then return a.rank < b.rank end
+    return a.name < b.name
+  end)
+  local rows = {}
+  for _, group in ipairs(groups) do
+    local name, rank = group.name, group.rank
+    local sorted = units[name]
+    table.sort(sorted)
+    for _, unit_number in ipairs(sorted) do
+      local diode = diodes[unit_number]
+      rows[#rows + 1] = { rank = rank, name = name, unit_number = unit_number, diode = diode }
+      if diode then group[diode] = group[diode] + 1 end
+    end
+    group.count, group.rank = #sorted, nil
   end
   return { rows = rows, groups = groups }
 end

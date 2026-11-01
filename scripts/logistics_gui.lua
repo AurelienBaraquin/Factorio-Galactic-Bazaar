@@ -7,7 +7,8 @@
 -- every list is paged. Read only: it works anywhere. Interface state is
 -- the tab's view in storage.bazaar_gui: `hub` (the hub selected), `focus` (the module the camera
 -- shows), `hubs_page`, `shipments_page`, `modules_page`, what each row last showed (`drawn`: {[list] =
--- {[row] = {key, status}}}, `visible`: {[list] = rows shown}) and `modules`, the selected hub's modules as
+-- {[row] = {key, status}}}, `visible`: {[list] = rows shown}), what each other part of the tab last
+-- showed (`written`: {[part] = key}: the pagers, counts, header, camera) and `modules`, the selected hub's modules as
 -- last listed and sorted (redone only when the hub changes or MODULE_RESCAN_TICKS have passed, the
 -- cadence at which the status passes find modules anyway).
 local bazaar_gui = require("scripts.bazaar_gui")
@@ -136,8 +137,26 @@ local function held_tiers(hub_unit_number)
   return held
 end
 
--- Shows a page's number and enables its buttons.
-local function refresh_pager(pager, shown)
+-- Whether part `name` of the tab must be written: true when `key` (what it shows: a number, string,
+-- boolean or table) differs from what was last written there (`view.written`, emptied when the tab
+-- is built; created here for a tab built before 0.1.36), which then records it.
+local function changed(view, name, key)
+  local written = view.written
+  if not written then
+    written = {}
+    view.written = written
+  end
+  if written[name] == key then return false end
+  written[name] = key
+  return true
+end
+
+local PAGER_PARTS = { hubs = "hubs-pager", shipments = "shipments-pager", modules = "modules-pager" }
+
+-- Shows a page's number and enables its buttons, when they changed.
+local function refresh_pager(view, name, shown)
+  if not changed(view, PAGER_PARTS[name], shown.page .. "/" .. shown.pages) then return end
+  local pager = view.elements.pagers[name]
   pager.label.caption = { "gb-gui.page", shown.page, shown.pages }
   pager.previous.enabled = shown.page > 1
   pager.next.enabled = shown.page < shown.pages
@@ -178,9 +197,11 @@ local function refresh_hubs(view, list, surfaces)
   local elements = view.elements
   local shown = core.page(list, view.hubs_page, core.HUB_ROWS)
   view.hubs_page = shown.page
-  refresh_pager(elements.pagers.hubs, shown)
-  elements.hub_count.caption = { "gb-logistics.hubs", #list }
-  elements.no_hub.visible = #list == 0
+  refresh_pager(view, "hubs", shown)
+  if changed(view, "hub-count", #list) then
+    elements.hub_count.caption = { "gb-logistics.hubs", #list }
+    elements.no_hub.visible = #list == 0
+  end
   show_rows(view, "hubs", elements.hub_rows, #shown.items)
   for i, hub in ipairs(shown.items) do
     local row, entity = elements.hub_rows[i], hub.entity
@@ -269,9 +290,11 @@ local function refresh_shipments(player, view, hub)
   })
   local shown = core.page(rows, view.shipments_page, core.SHIPMENT_ROWS)
   view.shipments_page = shown.page
-  refresh_pager(elements.pagers.shipments, shown)
-  elements.shipment_count.caption = { "gb-logistics.shipments", #rows }
-  elements.no_shipment.visible = #rows == 0
+  refresh_pager(view, "shipments", shown)
+  if changed(view, "shipment-count", #rows) then
+    elements.shipment_count.caption = { "gb-logistics.shipments", #rows }
+    elements.no_shipment.visible = #rows == 0
+  end
   local factor = fee_factor(player.force_index)
   show_rows(view, "shipments", elements.shipment_rows, #shown.items)
   for i, row in ipairs(shown.items) do
@@ -318,10 +341,15 @@ local function refresh_modules(player, view, hub, surfaces)
   end
   local shown = core.page(listed.rows, view.modules_page, core.MODULE_ROWS)
   view.modules_page = shown.page
-  refresh_pager(elements.pagers.modules, shown)
-  elements.module_count.caption = { "gb-logistics.modules", #listed.rows }
-  elements.module_groups.caption = groups_caption(listed.groups)
-  elements.no_module.visible = #listed.rows == 0
+  refresh_pager(view, "modules", shown)
+  if changed(view, "module-list", listed) then
+    if changed(view, "module-count", #listed.rows) then
+      elements.module_count.caption = { "gb-logistics.modules", #listed.rows }
+      elements.no_module.visible = #listed.rows == 0
+    end
+    local groups = groups_caption(listed.groups)
+    if changed(view, "module-groups", groups) then elements.module_groups.caption = groups end
+  end
   show_rows(view, "modules", elements.module_rows, #shown.items)
   for i, row in ipairs(shown.items) do
     local cells, entity = elements.module_rows[i], listed.entities[row.unit_number]
@@ -339,27 +367,43 @@ local function refresh_modules(player, view, hub, surfaces)
   return focus and focus.valid and focus or nil
 end
 
--- Points the camera at an entity, written only when it changes target.
-local function aim(camera, entity)
-  if camera.entity == entity then return end
+-- Points the camera at an entity (of unit number `unit_number`), written only when it changes target.
+local function aim(view, entity, unit_number)
+  if not changed(view, "camera", unit_number) then return end
+  local camera = view.elements.camera
   camera.surface_index = entity.surface_index
   camera.entity = entity
 end
 
-local function refresh_detail(player, view, hub, surfaces)
+-- The selected hub's header: where it is, its tier, power and queue, each written when it changed.
+local function refresh_header(player, view, hub, surfaces)
   local elements = view.elements
-  elements.detail.visible = hub ~= nil
+  local unit_number = hub.unit_number
+  if changed(view, "title", unit_number) then elements.title.caption = location(hub, surfaces) end
+  local tier = freight.tier(unit_number)
+  local factor = fee_factor(player.force_index)
+  if changed(view, "tier", tier.name .. " " .. factor) then
+    elements.tier.caption = { "gb-logistics.tier", { "gb-gui.tier-" .. tier.name } }
+    elements.tier.tooltip = tier_tooltip(tier, factor)
+  end
+  local powered = hubs.has_power(hub)
+  if changed(view, "power", powered) then
+    elements.power.caption = powered and { "gb-logistics.powered" } or { "gb-logistics.unpowered" }
+  end
+  local use = core.queue_use(freight.capsules(unit_number), freight.TIERS, tier.name)
+  local key = ""
+  for _, entry in ipairs(use) do key = key .. entry.name .. " " .. entry.queued .. " " .. entry.max .. " " end
+  if changed(view, "queue", key) then elements.queue.caption = queue_caption(use) end
+end
+
+local function refresh_detail(player, view, hub, surfaces)
+  if changed(view, "detail", hub ~= nil) then view.elements.detail.visible = hub ~= nil end
   if not hub then return end
-  local tier = freight.tier(hub.unit_number)
-  elements.title.caption = location(hub, surfaces)
-  elements.tier.caption = { "gb-logistics.tier", { "gb-gui.tier-" .. tier.name } }
-  elements.tier.tooltip = tier_tooltip(tier, fee_factor(player.force_index))
-  elements.power.caption = hubs.has_power(hub) and { "gb-logistics.powered" } or { "gb-logistics.unpowered" }
-  elements.queue.caption = queue_caption(core.queue_use(freight.capsules(hub.unit_number), freight.TIERS, tier.name))
+  refresh_header(player, view, hub, surfaces)
   refresh_shipments(player, view, hub)
   local focus = refresh_modules(player, view, hub, surfaces)
   if not focus then view.focus = nil end
-  aim(elements.camera, focus or hub)
+  aim(view, focus or hub, focus and view.focus or view.hub)
 end
 
 local function refresh(player, view, window)
@@ -451,7 +495,7 @@ local function build(_, container, view)
   build_shipments(detail, elements)
   build_modules(detail, elements)
   view.hubs_page, view.shipments_page, view.modules_page = 1, 1, 1
-  view.drawn, view.visible = { hubs = {}, shipments = {}, modules = {} }, {}
+  view.drawn, view.visible, view.written = { hubs = {}, shipments = {}, modules = {} }, {}, {}
   view.elements = elements
 end
 
