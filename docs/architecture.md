@@ -25,7 +25,7 @@ changelog.txt   release notes in the strict format the game parses
 spec/           busted unit tests of scripts/core/
 tests/          FactorioTest in-game tests of scripts/
 package.json    development tooling only (FactorioTest CLI)
-tools/          repository tooling: Lua toolchain setup, packaging and deploy, documentation check
+tools/          repository tooling: Lua toolchain setup, packaging and deploy, documentation check, balance simulation
 docs/           brief, architecture, ADRs and the documentation index
 .assistant/     decisions log and lessons for AI agents
 .github/        issue and pull request templates, CI workflows

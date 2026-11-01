@@ -1,5 +1,6 @@
 local contract_offers = require("scripts.core.contract_offers")
 local contracts = require("scripts.core.contracts")
+local market = require("scripts.core.market")
 
 local gear = {
   energy = 0.5,
@@ -14,7 +15,8 @@ describe("contract_offers.offer", function()
     local batch = math.ceil(contract_offers.TARGET_VALUE / 2.69)
     assert.are.same({ { kind = "item", name = "iron-plate", count = 2 * batch } }, spec.provides)
     assert.are.same({ { kind = "item", name = "iron-gear-wheel", count = batch } }, spec.requires)
-    assert.are.near((2.69 - 2 * 1.32) * batch, spec.reward, 1e-9)
+    local margin = contract_offers.SPREAD_SHARE * market.DEFAULTS.spread / 2 * (2.69 + 2 * 1.32)
+    assert.are.near((2.69 - 2 * 1.32 + margin) * batch, spec.reward, 1e-9)
     assert.is_true(spec.deposit + spec.penalty > 1.32 * 2 * batch)
     assert.is_truthy(contracts.new(spec, 0))
   end)
@@ -30,6 +32,17 @@ describe("contract_offers.offer", function()
     local rich = { ["item/iron-plate"] = 1, ["item/iron-gear-wheel"] = 10 }
     local spec = contract_offers.offer(gear, rich, 0.5)
     assert.are.near(contract_offers.LABOR_SHARE * 10 * contract_offers.TARGET_VALUE / 10, spec.reward, 1e-9)
+  end)
+
+  it("pays the value crafting adds and a share of the spread, less than buying the products and selling the "
+    .. "ingredients loses on a balanced market", function()
+    local spec = contract_offers.offer(gear, values, 0.5)
+    local provided = 1.32 * spec.provides[1].count
+    local required = 2.69 * spec.requires[1].count
+    local half_spread = market.DEFAULTS.spread / 2
+    local loss = (1 + half_spread) * required - (1 - half_spread) * provided
+    assert.is_true(spec.reward > required - provided)
+    assert.is_true(spec.reward < loss)
   end)
 
   it("refuses a recipe whose ingredients are worth as much as its products", function()
@@ -56,6 +69,32 @@ describe("contract_offers.offer", function()
   end)
 end)
 
+describe("contract_offers.pick_short", function()
+  local candidates = {
+    { name = "a", products = { { kind = "item", name = "a", count = 1 } } },
+    { name = "b", products = { { kind = "item", name = "b", count = 1 } } },
+    { name = "c", products = { { kind = "item", name = "c", count = 1 } } },
+  }
+  local shifts = { ["item/b"] = -0.5, ["item/c"] = -0.05 }
+  local function depths(key) return shifts[key] or 0 end
+
+  it("names a recipe making goods in shortage with the shortage chance", function()
+    local below = contract_offers.SHORTAGE_CHANCE / 2
+    for _, draw in ipairs({ 0.01, 0.5, 0.99 }) do
+      assert.are.equal("b", contract_offers.pick_short(candidates, depths, below, draw).name)
+    end
+  end)
+
+  it("draws among every recipe otherwise, or when no product is short enough", function()
+    local above = (1 + contract_offers.SHORTAGE_CHANCE) / 2
+    assert.are.equal("a", contract_offers.pick_short(candidates, depths, above, 0.01).name)
+    assert.are.equal("c", contract_offers.pick_short(candidates, depths, above, 0.99).name)
+    local none = function() return -contract_offers.SHORTAGE_DEPTHS / 2 end
+    assert.are.equal("a", contract_offers.pick_short(candidates, none, 0, 0.01).name)
+    assert.is_nil(contract_offers.pick_short({}, depths, 0, 0.5))
+  end)
+end)
+
 describe("contract_offers.rental", function()
   it("promises a share of the machine's nominal crafts over the rental", function()
     local seconds = contract_offers.RENTAL_TICKS / 60
@@ -67,10 +106,22 @@ describe("contract_offers.rental", function()
     local spec = contract_offers.rental(gear, values, 0.5, 100)
     assert.are.same({ { kind = "item", name = "iron-plate", count = 200 } }, spec.provides)
     assert.are.same({ { kind = "item", name = "iron-gear-wheel", count = 100 } }, spec.requires)
-    assert.are.near(contract_offers.RENT_SHARE * 2.69 * 100, spec.reward, 1e-9)
+    assert.are.near(contract_offers.RENT_PER_SECOND * 0.5 * 100, spec.reward, 1e-9)
     assert.is_true(spec.deposit + spec.penalty > 2.69 * 100)
     assert.are.equal(contract_offers.INSTALLMENT_TICKS, spec.installment_ticks)
     assert.is_truthy(contracts.new(spec, 0))
+  end)
+
+  it("pays the machine's time, whatever the recipe's products are worth", function()
+    local cheap = contract_offers.rental(gear, values, 0.5, 100)
+    local dear = contract_offers.rental(gear, { ["item/iron-plate"] = 1000, ["item/iron-gear-wheel"] = 5000 }, 0.5, 100)
+    assert.are.equal(cheap.reward, dear.reward)
+    assert.is_true(dear.deposit + dear.penalty > 5000 * 100)
+  end)
+
+  it("earns no reputation: the counterparty supplies everything, the machine only runs", function()
+    assert.is_true(contract_offers.rental(gear, values, 0.5, 100).passive)
+    assert.is_nil(contract_offers.offer(gear, values, 0.5).passive)
   end)
 
   it("guarantees the ingredients when they are worth more than the products", function()

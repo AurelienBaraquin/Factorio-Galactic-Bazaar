@@ -15,7 +15,9 @@
 -- force at acceptance and its charge repays it, with interest, with no service; a default leaves the
 -- installments not paid owed as arrears, and the force repays a loan (`repay`) instead of abandoning it.
 -- A `custody` contract (ADR-0024) is one whose counterparty collects its goods back itself (a
--- warehouse rental): fulfilling it earns no reputation, failing it still costs 1.
+-- warehouse rental), a `passive` one one where the counterparty supplies everything and the force's
+-- machine only runs (a machine rental, #122): fulfilling either earns no reputation, failing it still
+-- costs 1.
 local reputation = require("scripts.core.reputation")
 
 local contracts = {}
@@ -65,7 +67,7 @@ end
 
 --- A new offer from `spec` = {kind, counterparty, provides, requires, reward, deposit, penalty,
 --- duration_ticks, accept_ticks, installment_ticks (optional), charge (optional, needs
---- installment_ticks), advance (optional, needs a charge), custody (optional)}, offered at `tick`;
+--- installment_ticks), advance (optional, needs a charge), custody, passive (optional)}, offered at `tick`;
 --- nil and a reason when the spec is invalid. The goods lists are copied.
 function contracts.new(spec, tick)
   local provides, reason = copy_goods(spec.provides or {}, false)
@@ -103,7 +105,7 @@ function contracts.new(spec, tick)
     duration_ticks = spec.duration_ticks, offered_tick = tick, accept_by = tick + spec.accept_ticks,
     state = contracts.OFFERED, delivered = delivered,
     installment_ticks = spec.installment_ticks, paid = 0, charge = spec.charge, advance = spec.advance,
-    custody = spec.custody and true or nil,
+    custody = spec.custody and true or nil, passive = spec.passive and true or nil,
   }
 end
 
@@ -182,7 +184,7 @@ function contracts.settle(contract, tick)
     contract.state, contract.settled_tick = contracts.FULFILLED, tick
     return {
       state = contracts.FULFILLED, credits = contract.reward - (contract.paid or 0) + contracts.guarantee(contract),
-      reputation = contract.custody and 0 or 1,
+      reputation = (contract.custody or contract.passive) and 0 or 1,
     }
   end
   if tick > contract.due_tick then

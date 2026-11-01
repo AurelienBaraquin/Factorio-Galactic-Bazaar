@@ -8,6 +8,9 @@ local core = require("scripts.core.contracts")
 local freight = require("scripts.freight")
 local incoming = require("scripts.incoming_contracts")
 local market = require("scripts.market")
+local market_events = require("scripts.market_events")
+local events_core = require("scripts.core.market_events")
+local offers = require("scripts.core.contract_offers")
 
 local player, surface, created
 local function place(name, dx, dy)
@@ -156,6 +159,33 @@ describe("incoming contracts", function()
     assert.are.equal(plain.requires[1].name, larger.requires[1].name)
     assert.is_true(larger.requires[1].count > plain.requires[1].count)
     assert.is_true(larger.reward > plain.reward)
+  end)
+
+  test("half of the offers name a recipe making goods in shortage while a market event lasts", function()
+    -- A recipe from the middle of the list that makes an offer (its products worth more than its
+    -- ingredients).
+    local candidates = incoming.candidates(force())
+    local short
+    for i = math.ceil(#candidates / 2), #candidates do
+      if not short and offers.offer(candidates[i], storage.base_values, 0.5) then
+        short = candidates[i].products[1].name
+      end
+    end
+    local saved_events = storage.market_events
+    -- A shortage started an hour ago, still active: its shift is near its goal of 1 depth.
+    local events = events_core.new_state(1, game.tick, 1, market_events.PARAMS)
+    events.next_tick = game.tick + 3600 * 600
+    events.events[1] = { id = 1, kind = "shortage", keys = { "item/" .. short }, direction = -1, magnitude = 1,
+      goal = 1, segment_tick = game.tick - 216000, segment_shift = 0, trail = { { game.tick - 216000, 0 } },
+      start_tick = game.tick - 216000, end_tick = game.tick + 216000, told = "active" }
+    events_core.reindex(events)
+    storage.market_events = events
+    assert.is_true(market_events.depths("item/" .. short, game.tick) <= -offers.SHORTAGE_DEPTHS)
+    -- State 1 draws about 8e-6 first: below the shortage chance.
+    storage.incoming_contracts.rng[force().index] = 1
+    local contract = contracts.get(force().index, incoming.make_offer(force()))
+    storage.market_events = saved_events
+    assert.are.equal(short, contract.requires[1].name)
   end)
 
   test("no more offers while the contracts window is full", function()

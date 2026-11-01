@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.39
+Date: 2026-11-01
+  Balancing:
+    - Machine rentals pay the machine's time, 0.5 credits per second of crafting promised (about 540
+      credits for 30 minutes), whatever the recipe, instead of 30 % of the products' value, which
+      made a risk-free money source growing with the recipe's value.
+    - Machine rentals no longer raise reputation: the counterparty supplies everything and the
+      machine only runs, like warehouse rentals.
+    - Crafting contracts pay the value crafting adds plus half of what the market's spread would take
+      from buying the products and selling the ingredients: about 5 % of the products for most
+      recipes instead of almost nothing, still less than that round trip loses.
+  Features:
+    - While a market event makes goods short, half of the crafting contract offers ask for a recipe
+      that makes them.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.38
 Date: 2026-11-01
   Features:

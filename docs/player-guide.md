@@ -192,7 +192,9 @@ them in the **Contracts** tab.
 - **On time**: you get the reward and the whole guarantee back, and +1 reputation. **Late or
   abandoned**: the guarantee is lost, and −1 reputation. The guarantee is set at acceptance above
   what the ingredients sell for then, so keeping them does not pay.
-- The reward is the value your crafting adds, so recipes that add little value pay little.
+- The reward is the value your crafting adds plus a small margin (about 5 % of the products for most
+  recipes): less than buying the products and selling the ingredients would lose.
+- While a market event makes goods short, half of the offers ask for a recipe that makes them.
 - **Reputation** (from −20 to 20, shown in the Market tab) lowers your freight fees, down to half
   at 20, and makes offers larger, up to three times at 20. Below zero, fees rise and offers shrink, down to half their size at −5.
 - At most 8 contracts are open at a time, offers and active ones together.
@@ -259,10 +261,11 @@ one is offered for rent in the **Contracts** tab (hover the counterparty to see 
 - **Accept**: the guarantee is held and the machine starts on the counterparty's recipe. Its
   ingredients arrive in it, a few crafts at a time; its products leave it as they come.
 - The rental lasts **30 minutes** and promises 80 % of what the machine makes at full speed: keep it
-  powered and running. Rent is paid **every 5 minutes** for what it made.
+  powered and running. Rent is paid **every 5 minutes** for what it made: 0.5 credits per second of
+  crafting promised, about 540 credits for the 30 minutes, whatever the recipe.
 - **Do not put an output inserter next to it**: products it takes out never reach the
   counterparty, and the contract falls short.
-- On time, you get the rest of the rent and the guarantee back, and +1 reputation. Short of the
+- On time, you get the rest of the rent and the guarantee back; a rental earns no reputation. Short of the
   promise at the end, or if you remove the machine, the guarantee is lost (rent already paid stays).
 
 ## Storage rental

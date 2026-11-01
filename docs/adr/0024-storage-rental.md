@@ -1,6 +1,6 @@
 # ADR-0024 — Storage rental both ways: NPC vaults filled by uplinks, rental warehouses for NPCs
 
-- **Status**: Accepted
+- **Status**: Accepted; the warehouse guarantee's balancing question settled 2026-11-01 by #122 ([balance.md](../balance.md): no re-pricing)
 - **Date**: 2026-11-01
 - **Deciders**: Aurélien Baraquin (owner, delegated to the agent for M8)
 - **Supersedes**: none (extends [ADR-0015](0015-one-contract-model.md), [ADR-0017](0017-capacity-rental-with-installments.md) and [ADR-0019](0019-service-contracts-with-a-charge.md))

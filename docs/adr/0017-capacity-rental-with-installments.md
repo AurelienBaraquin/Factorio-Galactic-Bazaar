@@ -1,6 +1,6 @@
 # ADR-0017 — Capacity rental: a dedicated machine, and contracts paid in installments
 
-- **Status**: Accepted
+- **Status**: Accepted; rent pricing and reputation amended 2026-11-01 by [ADR-0026](0026-contract-pay-follows-work-and-the-spread.md)
 - **Date**: 2026-10-31
 - **Deciders**: Aurélien Baraquin (owner, delegated to the agent for M4)
 - **Supersedes**: none (extends [ADR-0015](0015-one-contract-model.md))
