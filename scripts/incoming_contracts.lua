@@ -10,6 +10,7 @@ local core = require("scripts.core.contracts")
 local freight = require("scripts.freight")
 local hubs = require("scripts.hubs")
 local market = require("scripts.market")
+local market_events = require("scripts.market_events")
 local notifications = require("scripts.notifications")
 local offers = require("scripts.core.contract_offers")
 local random = require("scripts.core.random")
@@ -179,9 +180,15 @@ local function has_hub(force)
 end
 
 --- Makes one offer to a force from a recipe it can craft, sized by its reputation, and tells the
---- force; returns its id, or nil.
+--- force; half of the time while goods are in shortage (market events), a recipe making them
+--- (`offers.pick_short`). Only recipes an offer can be made of are drawn (`offers.viable`). Returns its
+--- id, or nil.
 function incoming.make_offer(force)
-  local recipe = offers.pick(incoming.candidates(force), incoming.draw(force.index))
+  local tick = game.tick
+  local function depths(key) return market_events.depths(key, tick) end
+  local choice = incoming.draw(force.index)
+  local candidates = offers.viable(incoming.candidates(force), storage.base_values)
+  local recipe = offers.pick_short(candidates, depths, choice, incoming.draw(force.index))
   local scale = reputation.contract_scale(storage.forces[force.index].reputation)
   local spec = recipe and offers.offer(recipe, storage.base_values, incoming.draw(force.index), scale)
   local id = spec and contracts.offer(force.index, spec)

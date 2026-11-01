@@ -4,6 +4,7 @@ local test_helpers = require("tests.helpers")
 local contracts = require("scripts.contracts")
 local core = require("scripts.core.contracts")
 local incoming = require("scripts.incoming_contracts")
+local offers = require("scripts.core.contract_offers")
 local rental = require("scripts.rental")
 
 local surface, created
@@ -26,7 +27,7 @@ local function rent(machine, crafts)
     provides = { { kind = "item", name = "iron-plate", count = 2 * crafts } },
     requires = { { kind = "item", name = "iron-gear-wheel", count = crafts } },
     reward = 300, deposit = 50, penalty = 100, duration_ticks = 36000, accept_ticks = 600,
-    installment_ticks = 600,
+    installment_ticks = 600, passive = true,
   })
   local module = module_of(machine)
   module.contract, module.recipe, module.crafts, module.provided = id, "iron-gear-wheel", crafts, {}
@@ -89,7 +90,10 @@ describe("capacity rental", function()
       if machine.prototype.crafting_categories[category] then craftable = true end
     end
     assert.is_true(craftable)
-    assert.is_true(contract.installment_ticks > 0 and contract.reward > 0)
+    assert.is_true(contract.installment_ticks > 0 and contract.passive)
+    -- The rent pays the machine's time, whatever the recipe's products are worth (#122).
+    assert.is_true(math.abs(contract.reward - offers.RENT_PER_SECOND * recipe.energy * module_of(machine).crafts)
+      < 1e-6)
     rental.on_offer_tick()
     assert.are.equal(id, module_of(machine).contract)
     rental.on_service_tick()
@@ -144,11 +148,12 @@ describe("capacity rental", function()
     end)
   end)
 
-  test("a fulfilled rental pays the rest of the rent and the guarantee, and frees the machine", function()
+  test("a fulfilled rental pays the rest of the rent and the guarantee, earns no reputation, and frees the machine",
+    function()
     local id = rent(machine, 10)
     rental.accept(force().index, id)
     local guarantee = core.guarantee(contracts.get(force().index, id))
-    local before = state().balance
+    local before, score = state().balance, state().reputation
     machine.get_output_inventory().insert({ name = "iron-gear-wheel", count = 4 })
     rental.on_service_tick()
     contracts.get(force().index, id).next_installment = game.tick
@@ -159,6 +164,7 @@ describe("capacity rental", function()
     assert.are.equal(0, machine.get_output_inventory().get_item_count("iron-gear-wheel"))
     contracts.on_settle_tick({ tick = game.tick })
     assert.is_true(math.abs(state().balance - before - 300 - guarantee) < 1e-6)
+    assert.are.equal(score, state().reputation)
     rental.on_service_tick()
     assert.is_nil(module_of(machine).contract)
     assert.is_nil(machine.get_recipe())
@@ -191,6 +197,22 @@ describe("capacity rental", function()
     assert.is_true(math.abs(state().balance - before - guarantee) < 1e-6)
     assert.is_nil(module_of(machine).contract)
     assert.is_nil(machine.get_recipe())
+  end)
+
+  test("an offer on the terms before 0.1.39 is declined on configuration change, an accepted one kept",
+    function()
+    local id = rent(machine, 10)
+    local offered = contracts.get(force().index, id)
+    offered.passive = nil
+    rental.init()
+    assert.is_nil(contracts.get(force().index, id))
+    assert.is_nil(module_of(machine).contract)
+    local kept = rent(machine, 10)
+    rental.accept(force().index, kept)
+    contracts.get(force().index, kept).passive = nil
+    rental.init()
+    assert.are.equal(core.ACTIVE, contracts.get(force().index, kept).state)
+    assert.are.equal(kept, module_of(machine).contract)
   end)
 
   test("only recipes the machine can craft where it stands are offered", function()

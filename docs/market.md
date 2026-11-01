@@ -115,7 +115,10 @@ on the plain market — whatever the event's course and whatever a player knows 
 any tick, the Events tab, the notices, even the goal). The plain market keeps its own behaviour
 (ADR-0003): its spread on every round trip, and the return of a force's own displacement to balance,
 which pays a round trip only once the displacement is larger than the spread (from about 0.1 depth;
-+10.5 % from 0.2 depths held 3 hours, measured below, the same with or without an event).
++10.5 % from 0.2 depths held 3 hours, measured below, the same with or without an event). That return
+only recovers part of the price impact the force paid to build its displacement: the whole cycle
+never beats selling less in the first place, and no round trip from a balanced market pays
+(`spec/balance_spec.lua`, [balance.md](balance.md)), so the balancing pass of #122 kept it.
 `spec/core/market_events_spec.lua` checks the dominance at every sample of seeded courses whose own
 displacement starts at 0, ±0.05, ±0.1 or ±0.2 depths, decays and takes NPC drift, at magnitudes
 0.25, 1 and 3, against a clairvoyant trader (best round trip in hindsight, either side) and six

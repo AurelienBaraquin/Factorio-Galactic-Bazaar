@@ -53,6 +53,11 @@ define the same keys, when a `"section.key"` literal of `control.lua`, `data.lua
 description. Keys built at run time are not seen; the headless game cannot check them either, since
 it translates nothing without a connected client.
 
+`spec/balance_spec.lua` checks the economy's invariants (no money pump across systems) through the
+balance simulation in `tools/balance/`, which drives the core modules on a snapshot of the game's base
+values; its tables are printed by `.lua/bin/lua tools/balance/report.lua` ([balance.md](balance.md)).
+The figures it copies from adapters and prototypes are checked in game by `tests/balance.lua`.
+
 What is deliberately not unit-tested: code outside `scripts/core/`, which calls the game API.
 It is covered by the in-game tests below.
 

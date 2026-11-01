@@ -1,6 +1,6 @@
 # ADR-0016 — Bounded reputation per force, with freight and contract-size effects
 
-- **Status**: Accepted
+- **Status**: Accepted; which contracts move reputation amended 2026-11-01 by [ADR-0026](0026-contract-pay-follows-work-and-the-spread.md) (machine rentals earn none)
 - **Date**: 2026-10-30
 - **Deciders**: Aurélien Baraquin (owner, delegated to the agent for M4)
 - **Supersedes**: the reputation merge rule of ADR-0015 (reputations added up)
